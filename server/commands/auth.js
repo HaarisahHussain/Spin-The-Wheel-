@@ -197,19 +197,11 @@ export async function authCommand(s, action, p, ctx, services, now, session) {
   if (action === 'staffLogin') {
     rate(s, `staff:${ctx.ip}`, 10, 900000, now);
     const staff = Object.values(s.staff).find((a) => a.username === p.username && !a.disabled);
-    console.log('Host credentials:', {
-      accountFound: Boolean(staff),
-      passwordMatches: Boolean(staff && passwordMatches(p.password, staff.password)),
-    });
     assert(staff && passwordMatches(p.password, staff.password), 'Sign-in failed.', 401);
     const step = totp(staff.totpSecret).validate({
       token: String(p.otp || ''),
       timestamp: now,
       window: 1,
-    });
-    console.log('Host authenticator:', {
-      codeValid: step !== null,
-      serverTime: new Date(now).toISOString(),
     });
     assert(step !== null, 'Sign-in failed.', 401);
     const counter = Math.floor(now / 30000) + step;
