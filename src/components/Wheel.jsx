@@ -1,84 +1,72 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useState } from 'react';
+import { games } from '../../shared/catalog';
 
-import { GAME_CATALOG, WHEEL_SEGMENT_CENTERS } from "../../shared/games.js";
-
-export default function Wheel({ spin, size = "normal" }) {
-  const wheelRef = useRef(null);
-  const start = spin?.startRotation || 0;
-  const target = start + (spin?.delta || 0);
-  const active = Boolean(spin?.active);
-  const duration = spin?.duration || 3500;
-  const startedAt = spin?.startedAt;
-
-  useEffect(() => {
-    if (!active) return;
-    const animation = wheelRef.current.animate(
-      [
-        { transform: `rotate(${start}deg)` },
-        { transform: `rotate(${target}deg)` },
-      ],
-      { duration, easing: "cubic-bezier(.12,.72,.15,1)", fill: "both" },
-    );
-    animation.currentTime = Math.min(
-      duration,
-      Math.max(0, Date.now() - startedAt),
-    );
-    return () => animation.cancel();
-  }, [active, start, target, duration, startedAt]);
-
-  const labels = useMemo(
-    () =>
-      GAME_CATALOG.map((s, i) => ({ ...s, angle: WHEEL_SEGMENT_CENTERS[i] })),
+const fills = ['fill-[#E4EBE2]', 'fill-[#E7E4DA]', 'fill-[#DDE5EB]', 'fill-[#EEE0DC]'];
+const point = (angle) => [200 + 188 * Math.sin(angle), 200 - 188 * Math.cos(angle)];
+export function Wheel({ selected }) {
+  const [reduceMotion, setReduceMotion] = useState(true);
+  useEffect(
+    () => setReduceMotion(window.matchMedia('(prefers-reduced-motion: reduce)').matches),
     [],
   );
-  const dimension = size === "large" ? 560 : size === "small" ? 280 : 360;
-
+  const step = 360 / games.length;
+  const target = 1080 - (games.findIndex((g) => g.id === selected) + 0.5) * step;
   return (
-    <div
-      className="wheel-stage"
-      style={{
-        "--wheel-size": `${dimension}px`,
-        "--wheel-angle": `${360 / GAME_CATALOG.length}deg`,
-      }}
-    >
-      <div className="wheel-pointer" aria-hidden="true">
-        <span />
+    <div className="relative mx-auto aspect-square w-full max-w-[min(60vh,620px)]">
+      <div className="absolute -top-2 left-1/2 z-10 -translate-x-1/2">
+        <svg width="28" height="36" viewBox="0 0 28 36" aria-hidden="true">
+          <path d="M2 2H26L14 33Z" className="fill-[#252525]" />
+        </svg>
       </div>
-      <div className="wheel-glow" />
-      <div
-        ref={wheelRef}
-        className={`arcade-wheel ${active ? "is-spinning" : ""}`}
-        style={{ transform: `rotate(${target}deg)` }}
+      <svg
+        viewBox="0 0 400 400"
+        role="img"
+        aria-label={`Wheel selecting ${games.find((g) => g.id === selected)?.name}`}
+        className="h-full w-full"
       >
-        <div className="wheel-face">
-          <div
-            className="wheel-segments"
-            style={{
-              background: `conic-gradient(${GAME_CATALOG.map((game, i) => `${game.color} ${(i * 360) / GAME_CATALOG.length}deg ${((i + 1) * 360) / GAME_CATALOG.length}deg`).join(",")})`,
-            }}
-          />
-          <div className="wheel-shine" />
-          {labels.map((segment) => (
-            <div
-              key={segment.short}
-              className="wheel-label"
-              style={{
-                transform: `rotate(${segment.angle}deg) translateY(calc(var(--wheel-size) * -0.34)) rotate(${-segment.angle}deg)`,
-              }}
-            >
-              {segment.short}
-            </div>
-          ))}
-          <div className="wheel-hub">
-            <div className="wheel-hub-dot" />
-          </div>
-        </div>
-      </div>
-      {active && (
-        <div className="wheel-status">
-          SPINNING<span>•••</span>
-        </div>
-      )}
+        <g transform={`rotate(${target} 200 200)`}>
+          {!reduceMotion && (
+            <animateTransform
+              attributeName="transform"
+              type="rotate"
+              from="0 200 200"
+              to={`${target} 200 200`}
+              dur="2.4s"
+              fill="freeze"
+              calcMode="spline"
+              keyTimes="0;1"
+              keySplines="0.15 0.7 0.2 1"
+            />
+          )}
+          {games.map((game, index) => {
+            const [x1, y1] = point((index * step * Math.PI) / 180);
+            const [x2, y2] = point(((index + 1) * step * Math.PI) / 180);
+            const angle = (index + 0.5) * step;
+            const x = 200 + 114 * Math.sin((angle * Math.PI) / 180);
+            const y = 200 - 114 * Math.cos((angle * Math.PI) / 180);
+            return (
+              <g key={game.id}>
+                <path
+                  d={`M200 200 L${x1} ${y1} A188 188 0 ${step > 180 ? 1 : 0} 1 ${x2} ${y2} Z`}
+                  className={`${fills[index % fills.length]} stroke-[#F7F7F2] stroke-2`}
+                />
+                <text
+                  x={x}
+                  y={y}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                transform={`rotate(${angle} ${x} ${y})`}
+                  className="fill-[#252525] text-[14px] font-medium"
+                >
+                  {game.name}
+                </text>
+              </g>
+            );
+          })}
+          <circle cx="200" cy="200" r="28" className="fill-[#F7F7F2]" />
+          <circle cx="200" cy="200" r="8" className="fill-[#252525]" />
+        </g>
+      </svg>
     </div>
   );
 }

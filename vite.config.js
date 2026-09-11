@@ -1,8 +1,8 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import tailwindcss from "@tailwindcss/vite";
-
-// https://vite.dev/config/
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import tailwind from '@tailwindcss/vite';
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwind()],
+  server: { host: '0.0.0.0' },
+  build: { chunkSizeWarningLimit: 800 },
 });
