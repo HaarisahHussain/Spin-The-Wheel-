@@ -10,10 +10,14 @@ const tokenFrom = (request) => {
   const pairs = (request.headers.cookie || '').split(';').map((v) => v.trim().split('='));
   return pairs.find(([name]) => name === 'arcade_session')?.[1] || '';
 };
+
 export function createApp({ storage, mail, origin, production = false, preview = false }) {
   const app = express(),
     http = createServer(app);
+
   app.disable('x-powered-by');
+  if (production) app.set('trust proxy', 1); // In production
+
   app.use(
     helmet({
       contentSecurityPolicy: production
@@ -24,7 +28,8 @@ export function createApp({ storage, mail, origin, production = false, preview =
               styleSrc: ["'self'"],
               fontSrc: ["'self'"],
               imgSrc: ["'self'", 'data:'],
-              connectSrc: ["'self'"],
+              // connectSrc: ["'self'"], // In development
+              connectSrc: ["'self'", origin.replace(/^http/, 'ws')], // in production
               objectSrc: ["'none'"],
               frameAncestors: ["'none'"],
             },
@@ -33,6 +38,7 @@ export function createApp({ storage, mail, origin, production = false, preview =
       crossOriginEmbedderPolicy: false,
     }),
   );
+
   app.use(express.json({ limit: '16kb' }));
   const io = new Server(http, {
     maxHttpBufferSize: 16384,
@@ -46,18 +52,23 @@ export function createApp({ storage, mail, origin, production = false, preview =
             req.headers.host === new URL(origin).host),
       ),
   });
+
   let healthy = true,
     running = false;
+
   const connected = new Map();
+
   const view = (token, publicOnly = false) => ({
     ...project(storage.snapshot(), publicOnly ? '' : token, Date.now(), origin),
     serviceHealthy: healthy,
     development: preview,
   });
+
   const update = () => {
     for (const socket of io.sockets.sockets.values())
       socket.emit('state', view(socket.data.token, socket.data.publicOnly));
   };
+
   io.on('connection', (socket) => {
     socket.data.token = tokenFrom(socket.request);
     socket.data.publicOnly = socket.handshake.auth?.audience === 'display';
@@ -67,13 +78,17 @@ export function createApp({ storage, mail, origin, production = false, preview =
     socket.emit('state', view(socket.data.token, socket.data.publicOnly));
     socket.on('disconnect', () => connected.delete(socket.id));
   });
+
   app.get('/api/state', (req, res) => {
     res
       .set('Cache-Control', 'no-store')
       .json(view(tokenFrom(req), req.query.audience === 'display'));
   });
+
   app.get('/api/health', (_req, res) => res.status(healthy ? 200 : 503).json({ ready: healthy }));
+
   const requests = new Map();
+
   app.post('/api/command', async (req, res) => {
     if (req.headers.origin !== origin)
       return res.status(403).json({ error: 'Request origin is not allowed.' });
@@ -116,6 +131,7 @@ export function createApp({ storage, mail, origin, production = false, preview =
         .json({ error: 'Service interrupted. Your saved results are safe; please wait.' });
     }
   });
+
   if (preview)
     app.get('/api/development-mail', (req, res) => {
       const state = storage.snapshot(),
@@ -128,9 +144,11 @@ export function createApp({ storage, mail, origin, production = false, preview =
         .set('Cache-Control', 'no-store')
         .json(message ? { code: message.code, link: message.link } : { pending: true });
     });
+
   app.use((error, _req, res, _next) =>
     res.status(error.status || 400).json({ error: 'The request could not be read.' }),
   );
+
   async function pulse() {
     if (running) return;
     running = true;
@@ -155,6 +173,7 @@ export function createApp({ storage, mail, origin, production = false, preview =
       running = false;
     }
   }
+
   let mailing = false;
   async function sendMail() {
     if (mailing) return;
@@ -186,7 +205,9 @@ export function createApp({ storage, mail, origin, production = false, preview =
       mailing = false;
     }
   }
+
   const timers = [];
+
   return {
     app,
     http,
