@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useArcade } from '../state';
 import { Button, Timer, cx } from '../components/ui';
 import { Code } from '../components/Code';
+import { AnswerFeedback } from '../components/AnswerFeedback';
 import { Board, RobotController } from './Robot';
 
 export function Question({
@@ -11,20 +12,35 @@ export function Question({
   locked = false,
   onSubmit,
   reveal = false,
+  submitted = undefined,
+  points,
+  timedOut = false,
 }) {
   const [selected, setSelected] = useState(null);
   const { busy } = useArcade();
   const q = questionValue;
+  const choice = submitted !== undefined ? submitted : selected;
   return (
-    <div className="space-y-5">
-      <h2 className={cx('font-medium leading-snug', display ? 'text-2xl lg:text-3xl' : 'text-lg')}>
+    <div className="min-w-0 space-y-3">
+      <h2 className={cx('font-medium leading-snug', display ? 'text-xl lg:text-2xl' : 'text-lg')}>
         {q.prompt}
       </h2>
+      {reveal && (
+        <AnswerFeedback
+          question={q}
+          gameId={gameId}
+          selected={choice}
+          points={points}
+          timedOut={timedOut}
+          display={display}
+          shared={display && submitted === undefined}
+        />
+      )}
       <Code
         code={q.code}
         display={display}
-        selectable={!display && gameId === 'debug'}
-        selected={selected}
+        selectable={!display && !reveal && gameId === 'debug'}
+        selected={choice}
         onSelect={setSelected}
         locked={locked}
         correctLine={reveal && gameId === 'debug' ? q.answer : null}
@@ -34,16 +50,18 @@ export function Question({
           {q.choices.map((answer, i) => (
             <button
               key={answer}
-              disabled={display || locked}
+              disabled={display || locked || reveal}
               onClick={() => setSelected(answer)}
-              aria-pressed={selected === answer}
+              aria-pressed={choice === answer}
               className={cx(
-                'min-h-14 rounded-lg border px-4 py-3 text-left font-mono',
-                display ? 'text-xl lg:text-2xl' : 'text-base',
+                'min-h-12 min-w-0 break-words rounded-lg border px-4 py-2 text-left font-mono',
+                display ? 'text-lg lg:text-xl' : 'text-base',
                 reveal && q.answer === answer
                   ? 'border-[#365E53] bg-[#DDEBE0]'
-                  : selected === answer
-                    ? 'border-[#365E53] bg-[#E9EDE6]'
+                  : choice === answer
+                    ? reveal
+                      ? 'border-[#A33030] bg-[#FAEEEE]'
+                      : 'border-[#365E53] bg-[#E9EDE6]'
                     : 'border-[#C5C5BC] bg-white',
               )}
             >
@@ -56,9 +74,10 @@ export function Question({
         </div>
       )}
       {!display &&
+        !reveal &&
         (locked ? (
           <p role="status" className="py-2 text-center text-[#365E53]">
-            Answer submitted
+            Answer locked
           </p>
         ) : (
           <Button
@@ -85,7 +104,11 @@ export function Game({ active, display = false }) {
             ? `Board ${Math.min(game.level + 1, 9)} / 9`
             : `Question ${Math.min(game.level + 1, 9)} / 9`}
         </span>
-        <Timer until={game.deadline} />
+        {game.phase === 'feedback' ? (
+          <span>{Math.ceil(game.remainingMs / 1000)}s answering time left</span>
+        ) : (
+          <Timer until={game.deadline} />
+        )}
       </div>
       {game.id === 'robot' ? (
         display ? (
@@ -99,6 +122,11 @@ export function Game({ active, display = false }) {
           question={game.question}
           gameId={game.id}
           display={display}
+          reveal={game.phase === 'feedback'}
+          locked={game.phase === 'feedback'}
+          submitted={game.phase === 'feedback' ? game.feedback.selected : undefined}
+          points={game.feedback?.points}
+          timedOut={game.feedback?.timedOut}
           onSubmit={(answer) =>
             command('answer', {
               answer,

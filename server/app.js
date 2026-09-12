@@ -2,6 +2,7 @@ import express from 'express';
 import helmet from 'helmet';
 import { createServer } from 'node:http';
 import { Server } from 'socket.io';
+import { recoverServiceDelay } from './recovery.js';
 import { execute, tick } from './engine.js';
 import { project } from './projection.js';
 import { sessionFor, hash } from './security.js';
@@ -28,8 +29,8 @@ export function createApp({ storage, mail, origin, production = false, preview =
               styleSrc: ["'self'"],
               fontSrc: ["'self'"],
               imgSrc: ["'self'", 'data:'],
-              // connectSrc: ["'self'"], // In development
-              connectSrc: ["'self'", origin.replace(/^http/, 'ws')], // in production
+              connectSrc: ["'self'"], // In development
+              // connectSrc: ["'self'", origin.replace(/^http/, 'ws')], // in production
               objectSrc: ["'none'"],
               frameAncestors: ["'none'"],
             },
@@ -149,6 +150,7 @@ export function createApp({ storage, mail, origin, production = false, preview =
     res.status(error.status || 400).json({ error: 'The request could not be read.' }),
   );
 
+  let lastPulseAt = Date.now();
   async function pulse() {
     if (running) return;
     running = true;
@@ -161,8 +163,10 @@ export function createApp({ storage, mail, origin, production = false, preview =
           if (session?.accountId && !session.pending && !socket.data.publicOnly)
             present.add(session.accountId);
         }
+        if (now - lastPulseAt > 3000) recoverServiceDelay(s, now);
         tick(s, now, present);
       });
+      lastPulseAt = Date.now();
       healthy = true;
       update();
     } catch (error) {

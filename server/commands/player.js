@@ -1,4 +1,5 @@
-import { randomInt } from 'node:crypto';
+import { selectGame } from '../selection.js';
+import { queueFits } from '../runtime.js';
 import { games } from '../../shared/catalog.js';
 import { requireValue as assert } from '../security.js';
 import { usedAttempts, openWindow } from '../state.js';
@@ -23,10 +24,7 @@ export function playerCommand(s, action, p, ctx, now) {
     }
     assert(s.queue.length < s.config.capacity, 'The queue is full. Please try again shortly.');
     const window = openWindow(s, now);
-    assert(
-      now + (s.queue.length + 1) * 155000 + 600000 < window.end,
-      'There is not enough time for another turn in this window.',
-    );
+    assert(queueFits(s, now, window), 'There is not enough time for another turn in this window.');
     s.queue.push({
       accountId: account.id,
       mode: p.mode,
@@ -46,12 +44,14 @@ export function playerCommand(s, action, p, ctx, now) {
       active?.accountId === account.id && active.phase === 'called',
       'Your turn is not ready.',
     );
-    const gameId =
-      active.mode === 'ranked'
-        ? account.pendingGame || games[randomInt(games.length)].id
-        : games[randomInt(games.length)].id;
-    if (active.mode === 'ranked') account.pendingGame = gameId;
-    Object.assign(active, { gameId, phase: 'wheel', until: now + 2600 });
+    const selection = selectGame(games, now, active.mode === 'ranked' ? account.pendingGame : null);
+    if (active.mode === 'ranked') account.pendingGame = selection.gameId;
+    Object.assign(active, {
+      gameId: selection.gameId,
+      selection,
+      phase: 'wheel',
+      until: selection.until,
+    });
     return {};
   }
   if (action === 'answer' || action === 'robot' || action === 'quit') {
@@ -61,7 +61,12 @@ export function playerCommand(s, action, p, ctx, now) {
       'There is no active turn.',
       409,
     );
-    assert(now < active.game.deadline, 'Time is up.', 409);
+    assert(
+      action === 'quit' || active.game.phase === 'question',
+      'Wait for the next question.',
+      409,
+    );
+    assert(action === 'quit' || now < active.game.deadline, 'Time is up.', 409);
     assert(p.attemptId === active.attemptId, 'This action belongs to an old attempt.', 409);
     if (action === 'quit') {
       finish(s, 'abandoned', now);
@@ -86,7 +91,7 @@ export function playerCommand(s, action, p, ctx, now) {
   if (action === 'joinLive') {
     requireEligible(s, account);
     const live = s.live;
-    assert(live?.phase === 'lobby', 'The lobby is closed.');
+    assert(live?.phase === 'lobby' && now < live.until, 'The lobby is closed.');
     assert(p.code === live.code, 'Enter the lobby code on the screen.');
     assert(
       Object.keys(live.roster).length < 50 || live.roster[account.id],

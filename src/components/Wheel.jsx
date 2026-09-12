@@ -1,72 +1,115 @@
-import { useEffect, useState } from 'react';
-import { games } from '../../shared/catalog';
-
+import { useEffect, useRef, useState } from 'react';
+import { games, gameById } from '../../shared/catalog';
+import { wheelSlots } from '../../shared/wheel';
+import { useArcade } from '../state';
 const fills = ['fill-[#E4EBE2]', 'fill-[#E7E4DA]', 'fill-[#DDE5EB]', 'fill-[#EEE0DC]'];
 const point = (angle) => [200 + 188 * Math.sin(angle), 200 - 188 * Math.cos(angle)];
-export function Wheel({ selected }) {
-  const [reduceMotion, setReduceMotion] = useState(true);
-  useEffect(
-    () => setReduceMotion(window.matchMedia('(prefers-reduced-motion: reduce)').matches),
-    [],
-  );
-  const step = 360 / games.length;
-  const target = 1080 - (games.findIndex((g) => g.id === selected) + 0.5) * step;
+export function Wheel({ selection, idle = false, animate = true }) {
+  const { state } = useArcade();
+  const rotor = useRef(null);
+  const clock = useRef({ server: state?.now ?? Date.now(), local: performance.now() });
+  useEffect(() => {
+    clock.current = { server: state?.now ?? Date.now(), local: performance.now() };
+  }, [state?.now]);
+  const [reduced, setReduced] = useState(true);
+  useEffect(() => {
+    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => setReduced(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+  const slots = selection?.slots || wheelSlots(games.map((g) => g.id));
+  const startedAt = selection?.startedAt;
+  const until = selection?.until;
+  const sector = selection?.sector ?? 0;
+  useEffect(() => {
+    let frame;
+    const draw = () => {
+      const now = clock.current.server + performance.now() - clock.current.local;
+      const progress = Math.min(1, Math.max(0, (now - startedAt) / (until - startedAt)));
+      // Absolute elapsed time survives background tabs, StrictMode and reconnects.
+      // Reduced motion never points at the winning sector during selection.
+      const angle =
+        reduced || !animate
+          ? 0
+          : idle
+            ? ((now % 24000) / 24000) * 360
+            : (1080 - (sector + 0.5) * 36) * (1 - (1 - progress) ** 3);
+      rotor.current?.setAttribute('transform', `rotate(${angle} 200 200)`);
+      if (!reduced && animate && (idle || progress < 1)) frame = requestAnimationFrame(draw);
+    };
+    const resume = () => {
+      cancelAnimationFrame(frame);
+      draw();
+    };
+    resume();
+    document.addEventListener('visibilitychange', resume);
+    return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener('visibilitychange', resume);
+    };
+  }, [idle, animate, reduced, startedAt, until, sector]);
   return (
-    <div className="relative mx-auto aspect-square w-full max-w-[min(60vh,620px)]">
-      <div className="absolute -top-2 left-1/2 z-10 -translate-x-1/2">
-        <svg width="28" height="36" viewBox="0 0 28 36" aria-hidden="true">
-          <path d="M2 2H26L14 33Z" className="fill-[#252525]" />
+    <div className="mx-auto w-full max-w-[min(49vh,480px)] text-center">
+      <div className="relative aspect-square">
+        {!idle && (
+          <svg
+            className="absolute -top-2 left-1/2 z-10 -translate-x-1/2"
+            width="22"
+            height="28"
+            viewBox="0 0 28 36"
+            aria-hidden="true"
+          >
+            <path d="M2 2H26L14 33Z" className="fill-[#252525]" />
+          </svg>
+        )}
+        <svg
+          viewBox="0 0 400 400"
+          role="img"
+          aria-label={idle ? 'Arcade games' : 'Selecting game'}
+          className="h-full w-full"
+        >
+          <g ref={rotor} data-wheel-rotor="true">
+            {slots.map((id, index) => {
+              const [x1, y1] = point((index * Math.PI) / 5),
+                [x2, y2] = point(((index + 1) * Math.PI) / 5);
+              const angle = (index + 0.5) * 36;
+              const x = 200 + 125 * Math.sin((angle * Math.PI) / 180),
+                y = 200 - 125 * Math.cos((angle * Math.PI) / 180);
+              const words = (gameById(id)?.name || id).split(' ');
+              return (
+                <g key={index} data-wheel-slot={id}>
+                  <path
+                    d={`M200 200 L${x1} ${y1} A188 188 0 0 1 ${x2} ${y2} Z`}
+                    className={`${fills[games.findIndex((g) => g.id === id) % fills.length]} stroke-[#F7F7F2] stroke-2`}
+                  />
+                  <text
+                    x={x}
+                    y={y}
+                    textAnchor="middle"
+                    transform={`rotate(${angle} ${x} ${y})`}
+                    className="fill-[#252525] text-[10px] font-medium"
+                  >
+                    {words.map((word, i) => (
+                      <tspan key={i} x={x} dy={i ? 12 : -(words.length - 1) * 6}>
+                        {word}
+                      </tspan>
+                    ))}
+                  </text>
+                </g>
+              );
+            })}
+            <circle cx="200" cy="200" r="24" className="fill-[#F7F7F2]" />
+          </g>
         </svg>
       </div>
-      <svg
-        viewBox="0 0 400 400"
-        role="img"
-        aria-label={`Wheel selecting ${games.find((g) => g.id === selected)?.name}`}
-        className="h-full w-full"
-      >
-        <g transform={`rotate(${target} 200 200)`}>
-          {!reduceMotion && (
-            <animateTransform
-              attributeName="transform"
-              type="rotate"
-              from="0 200 200"
-              to={`${target} 200 200`}
-              dur="2.4s"
-              fill="freeze"
-              calcMode="spline"
-              keyTimes="0;1"
-              keySplines="0.15 0.7 0.2 1"
-            />
-          )}
-          {games.map((game, index) => {
-            const [x1, y1] = point((index * step * Math.PI) / 180);
-            const [x2, y2] = point(((index + 1) * step * Math.PI) / 180);
-            const angle = (index + 0.5) * step;
-            const x = 200 + 114 * Math.sin((angle * Math.PI) / 180);
-            const y = 200 - 114 * Math.cos((angle * Math.PI) / 180);
-            return (
-              <g key={game.id}>
-                <path
-                  d={`M200 200 L${x1} ${y1} A188 188 0 ${step > 180 ? 1 : 0} 1 ${x2} ${y2} Z`}
-                  className={`${fills[index % fills.length]} stroke-[#F7F7F2] stroke-2`}
-                />
-                <text
-                  x={x}
-                  y={y}
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                transform={`rotate(${angle} ${x} ${y})`}
-                  className="fill-[#252525] text-[14px] font-medium"
-                >
-                  {game.name}
-                </text>
-              </g>
-            );
-          })}
-          <circle cx="200" cy="200" r="28" className="fill-[#F7F7F2]" />
-          <circle cx="200" cy="200" r="8" className="fill-[#252525]" />
-        </g>
-      </svg>
+      {!idle && (
+        <>
+          <p className="mt-3 text-xl font-medium">Selecting game…</p>
+          <p className="mt-1 text-sm text-[#62625C]">Equal chance per game</p>
+        </>
+      )}
     </div>
   );
 }

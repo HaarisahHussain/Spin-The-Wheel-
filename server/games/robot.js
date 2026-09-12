@@ -135,7 +135,7 @@ export function moveRobot(game, now) {
     }[move] ?? 0);
 
   q.moves++;
-  q.nextStep = now + STEP_MS;
+  q.nextStep += STEP_MS;
 
   if (!neighbours(q.position, q.size).includes(candidate) || q.blocks.includes(candidate)) {
     reset(q, `Blocked at move ${index + 1}.`, index);

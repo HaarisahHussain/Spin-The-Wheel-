@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useArcade } from '../../state';
 import { Button, Timer } from '../../components/ui';
 import { gameById } from '../../../shared/catalog';
+import { LiveStatus } from '../../components/LiveStatus';
 import { ReasonDialog } from './ReasonDialog';
 export function Live() {
   const { state, command, busy } = useArcade(),
@@ -17,7 +18,13 @@ export function Live() {
       <section>
         <p className="mb-3 text-sm text-[#62625C]">Current session</p>
         <h1 className="text-4xl font-medium tracking-tight">
-          {live ? gameById(live.gameId).name : a ? a.alias : 'Ready for the next turn.'}
+          {live
+            ? live.phase === 'wheel'
+              ? 'Selecting game…'
+              : gameById(live.gameId)?.name || 'Live arcade'
+            : a
+              ? a.alias
+              : 'Ready for the next turn.'}
         </h1>
         <p className="mt-4 text-[#62625C]">
           {live
@@ -60,18 +67,18 @@ export function Live() {
         <div className="space-y-5 border-t border-[#DDDDD5] pt-6">
           <div className="flex items-center justify-between">
             <span>Next live lobby</span>
-            {c.autoLive ? (
-              <Timer until={c.nextLobbyAt} />
-            ) : (
-              <span className="text-[#62625C]">Manual</span>
-            )}
+            <LiveStatus />
           </div>
           <div className="flex flex-wrap gap-3">
-            <Button secondary disabled={busy || !!live} onClick={() => command('host.openLive')}>
+            <Button
+              secondary
+              disabled={busy || !!live || state.config.liveAdmissionOpen === false}
+              onClick={() => command('host.openLive')}
+            >
               {a ? 'Open after this turn' : 'Open live lobby'}
             </Button>
-            <Button secondary disabled={busy} onClick={() => command('host.delayLive')}>
-              Delay live
+            <Button secondary disabled={busy || !!live} onClick={() => command('host.delayLive')}>
+              Delay live · 60s
             </Button>
             {live && (
               <Button

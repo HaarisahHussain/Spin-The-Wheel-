@@ -5,6 +5,7 @@ import { createStorage } from './storage.js';
 import { createMail } from './mail.js';
 import { createApp } from './app.js';
 import { initialState } from './state.js';
+import { migrateState } from './migration.js';
 import { secret } from './security.js';
 const production = process.argv.includes('--production');
 const port = Number(process.env.PORT || 3001),
@@ -25,6 +26,7 @@ const storage = await createStorage({
   initial: initialState(),
 });
 await storage.transact((s) => {
+  migrateState(s, Date.now());
   if (s.active?.phase === 'playing') {
     const attempt = s.attempts.find((a) => a.id === s.active.attemptId);
     if (attempt) {

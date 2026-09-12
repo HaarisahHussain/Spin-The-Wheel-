@@ -38,7 +38,16 @@ export function ArcadeProvider({ children }) {
     live.on('connect', () => setConnected(true));
     live.on('disconnect', () => setConnected(false));
     live.on('connect_error', () => setConnected(false));
-    return () => live.disconnect();
+    const resume = () => {
+      if (document.visibilityState !== 'visible') return;
+      refresh().catch((e) => setError(e.message));
+      if (!live.connected) live.connect();
+    };
+    document.addEventListener('visibilitychange', resume);
+    return () => {
+      document.removeEventListener('visibilitychange', resume);
+      live.disconnect();
+    };
   }, []);
   async function command(action, payload = {}) {
     if (busyRef.current) return null;

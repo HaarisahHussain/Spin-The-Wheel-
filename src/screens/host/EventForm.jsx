@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useArcade } from '../../state';
-import { Button, Field, cx } from '../../components/ui';
-import { ReasonDialog } from './ReasonDialog';
+import { Button, Field, Select, cx } from '../../components/ui';
 const dateInput = (value) => {
   const d = new Date(value);
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
@@ -10,7 +9,9 @@ export function EventForm() {
   const { state, command, busy } = useArcade(),
     c = state.host.config;
   const [windows, setWindows] = useState(c.windows),
-    [calibrating, setCalibrating] = useState(false);
+    [rankedEnabled, setRankedEnabled] = useState(c.rankedEnabled && !c.finalised),
+    [requireVerification, setRequireVerification] = useState(c.requireVerification),
+    [autoLive, setAutoLive] = useState(c.autoLive);
   return (
     <div className="max-w-4xl">
       <h1 className="mb-8 text-3xl font-medium">Event settings</h1>
@@ -22,11 +23,15 @@ export function EventForm() {
           command('host.settings', {
             revision: c.policyVersion,
             windows,
+            requireVerification,
+            rankedEnabled,
+            autoLive,
+            idlePresentation: data.idlePresentation,
+            animateIdleWheel: data.animateIdleWheel === 'on',
             ...Object.fromEntries(
-              ['interval', 'lobbySeconds', 'liveSeconds', 'capacity', 'instantPrizes'].map((k) => [
-                k,
-                Number(data[k]),
-              ]),
+              ['interval', 'lobbySeconds', 'liveTimeScale', 'capacity', 'instantPrizes'].map(
+                (k) => [k, Number(data[k])],
+              ),
             ),
             playoffAt: data.playoffAt,
             playoffLocation: data.playoffLocation,
@@ -43,32 +48,51 @@ export function EventForm() {
             <button
               type="button"
               role="switch"
-              aria-checked={c.requireVerification}
+              aria-label="Require email verification"
+              aria-checked={requireVerification}
               disabled={busy}
-              onClick={() =>
-                command('host.settings', {
-                  revision: c.policyVersion,
-                  requireVerification: !c.requireVerification,
-                })
-              }
+              onClick={() => setRequireVerification(!requireVerification)}
               className={cx(
                 'relative h-8 w-14 rounded-full transition-colors',
-                c.requireVerification ? 'bg-[#365E53]' : 'bg-[#B6B6AD]',
+                requireVerification ? 'bg-[#365E53]' : 'bg-[#B6B6AD]',
               )}
             >
               <span
                 className={cx(
                   'absolute top-1 size-6 rounded-full bg-white transition-transform',
-                  c.requireVerification ? 'left-1 translate-x-6' : 'left-1',
+                  requireVerification ? 'left-1 translate-x-6' : 'left-1',
                 )}
               />
             </button>
           </div>
-          {!c.requireVerification && (
+          {!requireVerification && (
             <p className="text-sm text-[#A33030]">
               OFF: mailbox ownership is not checked. False or duplicate addresses are easier to use.
             </p>
           )}
+        </section>
+        <section className="space-y-3 border-b border-[#DDDDD5] pb-8">
+          <h2 className="text-xl font-medium">Ranked play</h2>
+          <label className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              role="switch"
+              aria-label="Ranked play"
+              checked={rankedEnabled}
+              disabled={busy || c.finalised}
+              onChange={(e) => setRankedEnabled(e.target.checked)}
+              className="size-5 accent-[#365E53]"
+            />
+            {rankedEnabled ? 'On' : 'Off'}
+          </label>
+          <p className="text-sm text-[#62625C]">
+            {c.finalised
+              ? 'Results are final. Reopen results to enable Ranked.'
+              : 'Save to apply. Opening hours and Pause admissions still apply. Already admitted turns can finish.'}
+          </p>
+          <p className="text-sm text-[#62625C]">
+            Three starts per account. Switching off and on does not reset attempts or scores.
+          </p>
         </section>
         <section>
           <div className="mb-5 flex justify-between">
@@ -136,13 +160,8 @@ export function EventForm() {
             <label className="flex gap-3 text-sm">
               <input
                 type="checkbox"
-                checked={c.autoLive}
-                onChange={(e) =>
-                  command('host.settings', {
-                    revision: c.policyVersion,
-                    autoLive: e.target.checked,
-                  })
-                }
+                checked={autoLive}
+                onChange={(e) => setAutoLive(e.target.checked)}
                 className="size-5 accent-[#365E53]"
               />
               Automatic
@@ -150,30 +169,58 @@ export function EventForm() {
           </div>
           <div className="grid gap-4 sm:grid-cols-3">
             <Field
-              label="Interval (seconds)"
+              label="Time between live games (seconds)"
               name="interval"
               type="number"
-              min="60"
-              max="3600"
+              min="180"
+              max="900"
               defaultValue={c.interval}
             />
             <Field
               label="Lobby (seconds)"
               name="lobbySeconds"
               type="number"
-              min="10"
-              max="120"
+              min="15"
+              max="45"
               defaultValue={c.lobbySeconds}
             />
             <Field
-              label="Question (seconds)"
-              name="liveSeconds"
+              label="Question time multiplier"
+              name="liveTimeScale"
               type="number"
-              min="8"
-              max="30"
-              defaultValue={c.liveSeconds}
+              min="0.75"
+              max="1.5"
+              step="0.25"
+              defaultValue={c.liveTimeScale}
             />
           </div>
+        </section>
+        <section className="space-y-4">
+          <h2 className="text-xl font-medium">Ready to Play display</h2>
+          <Select
+            label="Show while waiting"
+            name="idlePresentation"
+            defaultValue={c.idlePresentation}
+          >
+            <option value="text">Text only</option>
+            <option value="wheel">Wheel only</option>
+            <option value="both">Both</option>
+          </Select>
+          <label className="flex items-center gap-3 text-sm">
+            <input
+              type="checkbox"
+              name="animateIdleWheel"
+              defaultChecked={c.animateIdleWheel}
+              className="size-5 accent-[#365E53]"
+            />
+            Keep idle wheel spinning
+          </label>
+          <p className="text-sm text-[#62625C]">
+            Changes apply when saved. Live timings apply to the next session.
+          </p>
+          <p className="text-sm text-[#62625C]">
+            Next scheduled lobby: {c.autoLive ? new Date(c.nextLobbyAt).toLocaleString() : 'Manual'}
+          </p>
         </section>
         <section className="grid gap-4 sm:grid-cols-2">
           <Field
@@ -194,7 +241,7 @@ export function EventForm() {
           />
         </section>
         <section className="space-y-4">
-          <h2 className="text-xl font-medium">Prize-boundary playoffs</h2>
+          <h2 className="text-xl font-medium">Tied prize winners</h2>
           <Field
             label="Playoff date and time (published text)"
             name="playoffAt"
@@ -210,28 +257,6 @@ export function EventForm() {
         </section>
         <Button disabled={busy}>Save settings</Button>
       </form>
-      <section className="mt-10 border-t border-[#DDDDD5] pt-6">
-        <h2 className="text-xl font-medium">Ranked scoring</h2>
-        <p className="my-4 text-sm text-[#62625C]">
-          {c.rankedEnabled
-            ? 'Enabled · calibration evidence recorded.'
-            : 'Closed until representative cross-game playtests are complete.'}
-        </p>
-        <Button secondary disabled={busy || c.rankedEnabled} onClick={() => setCalibrating(true)}>
-          Record calibration and open Ranked
-        </Button>
-      </section>
-      {calibrating && (
-        <ReasonDialog
-          dialog={{
-            title: 'Calibration evidence',
-            action: 'host.calibrate',
-            payload: {},
-            minimum: 20,
-          }}
-          onClose={() => setCalibrating(false)}
-        />
-      )}
     </div>
   );
 }

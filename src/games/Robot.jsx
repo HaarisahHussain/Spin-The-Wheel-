@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useLayoutEffect } from 'react';
 import {
   HiOutlineArrowUp,
   HiOutlineArrowDown,
@@ -21,6 +21,8 @@ const moves = {
 export function Board({ board, display = false }) {
   const { size, position, goal, start, blocks } = board;
 
+  if (![5, 7].includes(size) || !Array.isArray(blocks))
+    return <p role="alert">This board needs recovery. Ask the host to end this session.</p>;
   return (
     <div
       role="img"
@@ -32,7 +34,7 @@ export function Board({ board, display = false }) {
       className={cx(
         'mx-auto grid aspect-square w-full gap-1 rounded-xl bg-[#E9E9E1] p-2',
         size === 7 ? 'grid-cols-7' : 'grid-cols-5',
-        display ? 'max-w-[min(62vh,600px)]' : 'max-w-sm',
+        display ? 'max-w-[min(62vh,600px)]' : 'max-w-[min(36svh,320px)]',
       )}
     >
       {Array.from({ length: size * size }, (_, cell) => (
@@ -63,6 +65,13 @@ export function RobotController({ game, attemptId }) {
 
   const [draft, setDraft] = useState(() => [...q.program]);
   const [selected, setSelected] = useState(null);
+  const sequenceRef = useRef(null);
+  const previousLength = useRef(draft.length);
+  useLayoutEffect(() => {
+    if (draft.length > previousLength.current && sequenceRef.current)
+      sequenceRef.current.scrollTop = sequenceRef.current.scrollHeight;
+    previousLength.current = draft.length;
+  }, [draft.length]);
 
   const locked = busy || q.running || game.complete;
   const shown = q.running ? q.program : draft;
@@ -103,30 +112,62 @@ export function RobotController({ game, attemptId }) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <Board board={q} />
 
-      <div className="flex items-center justify-between text-sm text-[#62625C]">
+      <div className="grid grid-cols-3 gap-2">
+        {['clear', 'up', 'remove', 'left', 'down', 'right'].map((name) => {
+          const Icon = moves[name] || HiOutlineBackspace;
+          const action = name === 'clear' || name === 'remove';
+          return (
+            <Button
+              key={name}
+              secondary
+              className="min-h-11 px-2"
+              aria-label={
+                name === 'remove'
+                  ? selected === null
+                    ? 'Remove last move'
+                    : 'Remove selected move'
+                  : name === 'clear'
+                    ? 'Clear'
+                    : name
+              }
+              disabled={
+                locked || (action ? !draft.length : selected === null && draft.length >= q.maxMoves)
+              }
+              onClick={() =>
+                name === 'clear'
+                  ? (setDraft([]), setSelected(null))
+                  : name === 'remove'
+                    ? remove()
+                    : edit(name)
+              }
+            >
+              {name === 'clear' ? 'Clear' : <Icon className="size-5" />}
+            </Button>
+          );
+        })}
+      </div>
+      <Button
+        className="w-full"
+        disabled={busy || game.complete || (!q.running && !draft.length)}
+        onClick={() =>
+          q.running ? command('robot', { attemptId, challengeId: q.id, stop: true }) : run()
+        }
+      >
+        {q.running ? 'Stop' : 'Run from start'}
+      </Button>
+      <div className="flex h-5 justify-between text-sm text-[#62625C]">
         <span>
           {shown.length} / {q.maxMoves} moves
         </span>
-
-        <button
-          type="button"
-          disabled={locked || !draft.length}
-          className="min-h-11 px-2 underline underline-offset-4 disabled:opacity-40"
-          onClick={() => {
-            setDraft([]);
-            setSelected(null);
-          }}
-        >
-          Clear
-        </button>
+        <span>{selected !== null ? `Replace move ${selected + 1}` : ''}</span>
       </div>
-
       <div
+        ref={sequenceRef}
         aria-label="Program"
-        className="flex min-h-16 flex-wrap gap-2 rounded-lg border border-[#DDDDD5] bg-white p-3"
+        className="flex h-28 content-start flex-wrap gap-2 overflow-y-auto overscroll-contain rounded-lg border border-[#DDDDD5] bg-white p-3"
       >
         {shown.length ? (
           shown.map((move, index) => {
@@ -160,54 +201,9 @@ export function RobotController({ game, attemptId }) {
         )}
       </div>
 
-      {selected !== null && <p className="text-sm text-[#62625C]">Replace move {selected + 1}</p>}
-
-      <div className="grid grid-cols-4 gap-2">
-        {Object.entries(moves).map(([name, Icon]) => (
-          <Button
-            key={name}
-            secondary
-            aria-label={name}
-            disabled={locked || (selected === null && draft.length >= q.maxMoves)}
-            onClick={() => edit(name)}
-          >
-            <Icon className="size-6" />
-          </Button>
-        ))}
-      </div>
-
-      <div className="flex gap-2">
-        <Button
-          className="flex-1"
-          disabled={busy || game.complete || (!q.running && !draft.length)}
-          onClick={() =>
-            q.running
-              ? command('robot', {
-                  attemptId,
-                  challengeId: q.id,
-                  stop: true,
-                })
-              : run()
-          }
-        >
-          {q.running ? 'Stop' : 'Run from start'}
-        </Button>
-
-        <Button
-          secondary
-          aria-label={selected === null ? 'Remove last move' : 'Remove selected move'}
-          disabled={locked || !draft.length}
-          onClick={remove}
-        >
-          <HiOutlineBackspace className="size-5" />
-        </Button>
-      </div>
-
-      {q.feedback && unchanged && (
-        <p role="status" className="text-sm text-[#A33030]">
-          {q.feedback}
-        </p>
-      )}
+      <p role="status" className="min-h-10 text-sm text-[#A33030]">
+        {q.feedback && unchanged ? q.feedback : ''}
+      </p>
     </div>
   );
 }

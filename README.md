@@ -1,6 +1,16 @@
-# BCUSCA Welcome Week Arcade · v0.3
+# BCUSCA Welcome Week Arcade · v0.4.0
 
-A React application for two public monitors, students’ phones and a private host laptop. Express serves the client, API and Socket.IO from one origin. This source release implements the v0.3 event flow and includes a pilot game bank. Ranked is closed by default until cross-game calibration is recorded.
+A React application for two public monitors, students’ phones and a private host laptop. Express serves the client, API and Socket.IO from one origin. This source release implements the v0.4.0 presentation and timing changes on the v0.3 event flow and includes a pilot game bank. Ranked starts off; enable it under Host → Event → Ranked play and save settings.
+
+## New in v0.4.0
+
+Ten-slot wheels select games with equal odds, including Live selection after the lobby closes. Coding games now reveal each answer prominently on both screens for three seconds without spending the 75-second answering budget. Python wraps without changing logical line numbers. Robot controls remain above the scrolling sequence.
+
+Host → Event offers Text only / Wheel only / Both and a continuous-animation switch. All Event form settings, including verification and automatic Live, apply when **Save settings** is pressed. Live defaults: a 20-second lobby, 3-second wheel, 3-second countdown, six 15/15/20/20/25/25-second questions, 3-second reveals and 8-second winners. Automatic Live waits five minutes after the previous event finishes; it never interrupts a selected solo turn.
+
+**Upgrading:** keep your existing private environment configuration and data separately. This source ZIP excludes credentials, SQLite data, dependencies and compiled assets. Run `npm ci` and rebuild. Upgrade between sessions. Existing identities/history are retained, but Ranked is disabled and older scoring versions are excluded from current standings. Existing Ranked starts still count; switching Ranked off and on never resets attempts. For a genuinely separate competition, use a separate event database and retain the old event for outstanding prizes. See [Operations](docs/OPERATIONS.md).
+
+The [v0.4.0 specification](docs/SPECIFICATION-v0.4.0.md) overrides the changed presentation/timing sections of the retained v0.3 baseline. See [Validation](docs/VALIDATION.md) for automated evidence and outstanding venue gates.
 
 ## Run locally
 
@@ -24,7 +34,7 @@ In Host → Event, add the actual opening dates, admission cutoffs and closing t
 | Device           | Route           | Purpose                                                                    |
 | ---------------- | --------------- | -------------------------------------------------------------------------- |
 | Monitor 1        | `/display/join` | Stable QR code, top-five Ranked standings, next-player/live status         |
-| Monitor 2        | `/display/play` | Ready, wheel, instructions, countdown, solo/live gameplay and results      |
+| Monitor 2        | `/display/play` | Ready, ten-slot wheel, countdown, solo/live gameplay, feedback and results      |
 | Host laptop      | `/host`         | Live operations, event settings, results/prizes, Updates                   |
 | Student phone    | `/`             | Registration, verification, queue, controller, leaderboard and Updates     |
 | Spare controller | `/controller`   | One-use pairing code issued by the host for an eligible participant’s turn |

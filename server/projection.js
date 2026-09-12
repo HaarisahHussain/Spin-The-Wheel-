@@ -2,6 +2,7 @@ import { sessionFor } from './security.js';
 import { attendanceSummary } from './attendance.js';
 import { leaderboard, usedAttempts, openWindow } from './state.js';
 import { publicGame } from './games.js';
+import { canStartLive } from './runtime.js';
 import { publicLive, eligible } from './engine.js';
 export function project(s, token, now, origin) {
   const session = sessionFor(s, token, now),
@@ -12,6 +13,7 @@ export function project(s, token, now, origin) {
   const active = s.active
     ? {
         phase: s.active.phase,
+        selection: s.active.selection,
         accountId: s.active.accountId,
         alias: s.accounts[s.active.accountId]?.alias,
         mode: s.active.mode,
@@ -36,6 +38,10 @@ export function project(s, token, now, origin) {
       finalised: config.finalised,
       nextLobbyAt: config.nextLobbyAt,
       autoLive: config.autoLive,
+      liveAdmissionOpen: canStartLive(s, now),
+      livePending: config.livePending,
+      idlePresentation: config.idlePresentation,
+      animateIdleWheel: config.animateIdleWheel,
       windows: config.windows,
       playoffAt: config.playoffAt,
       playoffLocation: config.playoffLocation,

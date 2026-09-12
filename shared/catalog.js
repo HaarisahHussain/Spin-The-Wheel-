@@ -41,6 +41,6 @@ export const allowedEmail = (input) =>
 
 export const normalizeEmail = (email) => email.trim().toLowerCase();
 
-// export const SCORING_VERSION = '0.3-pilot-1';
-// export const SCORING_VERSION = '0.3-python-robot-2';
-export const SCORING_VERSION = '0.3-python-robot-maze-3';
+// export const SCORING_VERSION = '0.4.0-feedback-1';
+// export const SCORING_VERSION = '0.4.0-feedback-1';
+export const SCORING_VERSION = '0.4.0-feedback-1';

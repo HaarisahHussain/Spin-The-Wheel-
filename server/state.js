@@ -25,12 +25,14 @@ export function initialState(now = Date.now()) {
       policyVersion: 1,
       paused: false,
       rankedEnabled: false,
-      calibrationVersion: '',
-      calibrationNotes: '',
       capacity: 30,
       interval: 300,
-      lobbySeconds: 30,
-      liveSeconds: 12,
+      lobbySeconds: 20,
+      liveTimeScale: 1,
+      idlePresentation: 'both',
+      animateIdleWheel: true,
+      livePending: false,
+      releaseVersion: '0.4.0',
       resultSeconds: 6,
       autoLive: false,
       nextLobbyAt: now + 300000,
@@ -54,7 +56,8 @@ export function leaderboard(state) {
   for (const attempt of state.attempts) {
     if (
       attempt.mode !== 'ranked' ||
-      !['completed', 'timed_out', 'abandoned'].includes(attempt.status)
+      !['completed', 'timed_out', 'abandoned'].includes(attempt.status) ||
+      attempt.version !== SCORING_VERSION
     )
       continue;
     const old = best.get(attempt.accountId);

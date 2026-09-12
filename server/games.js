@@ -8,6 +8,9 @@ export function newGame(id, now) {
     id,
     version: SCORING_VERSION,
     level: 0,
+    phase: 'question',
+    remainingMs: gameById(id).duration * 1000,
+    feedback: null,
     score: 0,
     started: now,
     deadline: now + gameById(id).duration * 1000,
@@ -31,5 +34,8 @@ export function publicQuestion(q) {
 export function publicGame(game) {
   if (!game) return null;
   const { history: _history, ...safe } = game;
-  return { ...safe, question: publicQuestion(game.question) };
+  return {
+    ...safe,
+    question: game.phase === 'feedback' ? game.feedback : publicQuestion(game.question),
+  };
 }

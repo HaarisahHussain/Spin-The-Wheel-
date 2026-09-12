@@ -43,17 +43,24 @@ export function Code({
   );
   return (
     <div
+      onCopy={(event) => {
+        event.preventDefault();
+        event.clipboardData.setData('text/plain', code);
+      }}
       className={cx(
-        'overflow-x-auto rounded-xl border border-[#DDDDD5] bg-white py-4 font-mono leading-relaxed',
-        display ? 'text-[clamp(16px,1.8vw,27px)]' : 'text-sm sm:text-base',
+        'min-w-0 rounded-xl border border-[#DDDDD5] bg-white py-2 font-mono leading-relaxed',
+        display ? 'text-[clamp(16px,1.5vw,22px)]' : 'text-sm sm:text-base',
       )}
     >
       {lines.map((tokens, i) => {
         const classes = cx(
-          'flex min-w-max items-start gap-4 px-4 py-1 text-left',
+          'flex w-full min-w-0 items-start gap-3 px-3 py-0.5 text-left',
           selectable &&
             'min-h-11 w-full cursor-pointer focus-visible:outline-2 focus-visible:outline-[#365E53]',
-          String(selected) === String(i) && 'bg-[#E9EDE6]',
+          String(selected) === String(i) &&
+            (correctLine !== null && String(correctLine) !== String(i)
+              ? 'bg-[#FAEEEE]'
+              : 'bg-[#E9EDE6]'),
           String(correctLine) === String(i) && 'bg-[#DDEBE0]',
         );
         const content = (
@@ -61,7 +68,7 @@ export function Code({
             <span aria-hidden="true" className="w-5 shrink-0 select-none text-right text-[#818177]">
               {i + 1}
             </span>
-            <span className="whitespace-pre">
+            <span className="min-w-0 flex-1 whitespace-pre-wrap [overflow-wrap:anywhere] pl-3 -indent-3">
               <Tokens tokens={tokens} />
             </span>
           </>

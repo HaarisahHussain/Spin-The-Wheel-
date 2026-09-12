@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.0 — 2026-09-12
+
+- Added fair ten-slot selection wheels for solo and multiplayer, with the selected game revealed only after spinning and before a shared countdown.
+- Replaced wheel animation startup with server-time-based rendering and phone resume recovery; idle wheels now spin continuously with host and reduced-motion controls.
+- Added prominent, synchronized coding answer feedback on phones and the gameplay monitor; multiplayer answers stay private until submissions close.
+- Paused solo coding answering budgets during three-second feedback periods, including the final answer reveal.
+- Added adjustable multiplayer pacing, deferred lobbies, end-window checks and five-minute solo intervals after live events.
+- Added Text only / Wheel only / Both idle presentation and wrapped Python snippets while preserving indentation, copying and answer-line selection.
+- Arranged Robot Rescue controls in a compact keyboard layout above a bounded, editable sequence; retained retry programs and stabilized movement scheduling.
+- Replaced the calibration workflow with a saved Ranked play switch, preserving attempt limits and scoring-version isolation.
+- Clarified beginner Debug Dash prompts, removed obsolete JavaScript questions and prevented a doubling question from accidentally having no bug.
+- Added upgrade and service-stall recovery, regression coverage and updated release and operating documentation.
+
 ## 0.3.1 - 2026-09-12
 
 - Replaced JavaScript challenges with Python in Debug Dash and Guess the Output, including Live Sessions.

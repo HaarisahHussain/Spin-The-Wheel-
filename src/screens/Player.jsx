@@ -254,10 +254,11 @@ function LiveInvitation() {
 function LiveController() {
   const { state, command } = useArcade(),
     live = state.live;
+  if (live.phase === 'wheel') return <Wheel key={live.selection.id} selection={live.selection} />;
   if (['lobby', 'countdown'].includes(live.phase))
     return (
       <div className="space-y-8 py-8">
-        <p className="text-[#62625C]">{gameById(live.gameId).name}</p>
+        <p className="text-[#62625C]">{gameById(live.gameId)?.name || 'Live arcade'}</p>
         <h1 className="text-3xl font-medium">You’re in.</h1>
         <Timer large until={live.until} />
         <p className="text-sm text-[#62625C]">Your solo queue position is saved.</p>
@@ -288,15 +289,16 @@ function LiveController() {
         gameId={live.gameId}
         locked={state.me.liveEntry.submitted || live.phase === 'reveal'}
         reveal={live.phase === 'reveal'}
+        submitted={
+          state.me.liveEntry.submitted
+            ? state.me.liveEntry.answer
+            : live.phase === 'reveal'
+              ? null
+              : undefined
+        }
+        timedOut={!state.me.liveEntry.submitted}
         onSubmit={(answer) => command('liveAnswer', { answer, challengeId: live.question.id })}
       />
-      {live.phase === 'reveal' && (
-        <p className="text-sm text-[#365E53]">
-          {state.me.liveEntry.answer === live.question.answer
-            ? 'Correct.'
-            : 'The correct answer is highlighted.'}
-        </p>
-      )}
     </div>
   );
 }
@@ -323,7 +325,7 @@ function PlayHome() {
       return (
         <div className="space-y-8">
           <h1 className="text-2xl font-medium">Let’s pick your game.</h1>
-          <Wheel selected={a.gameId} />
+          <Wheel key={a.selection.id} selection={a.selection} />
         </div>
       );
     if (a.phase === 'briefing')
@@ -340,7 +342,8 @@ function PlayHome() {
       );
     if (a.phase === 'countdown')
       return (
-        <div className="py-24 text-center">
+        <div className="space-y-6 py-16 text-center">
+          <h1 className="text-3xl font-medium">{gameById(a.gameId)?.name}</h1>
           <Timer large until={a.until} />
         </div>
       );

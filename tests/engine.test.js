@@ -1,3 +1,6 @@
+import { recoverServiceDelay } from '../server/recovery.js';
+import { selectGame } from '../server/selection.js';
+import { migrateState } from '../server/migration.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -16,13 +19,20 @@ import {
 import { createMail } from '../server/mail.js';
 import { createStorage } from '../server/storage.js';
 import { project } from '../server/projection.js';
-import { question, board, shortest, newGame, answerGame } from '../server/games.js';
+import {
+  question,
+  board,
+  shortest,
+  newGame,
+  answerGame,
+  tickGame,
+  publicGame,
+} from '../server/games.js';
 import { allowedEmail, SCORING_VERSION } from '../shared/catalog.js';
 const now = 1800000000000;
 function fixture() {
   const s = initialState(now);
   s.config.windows = [{ start: now - 1000, cutoff: now + 18000000, end: now + 21600000 }];
-  s.config.calibrationVersion = SCORING_VERSION;
   s.config.rankedEnabled = true;
   s.config.requireVerification = false;
   s.staff.host = { id: 'host', username: 'host', role: 'admin' };
@@ -42,9 +52,8 @@ async function start(f, p, mode = 'ranked') {
   assert(!(await cmd(f, 'enqueue', { mode }, p.token)).error);
   assert(!(await cmd(f, 'host.call', {}, f.host)).error);
   assert(!(await cmd(f, 'ready', {}, p.token)).error);
-  tick(f.s, now + 2600);
-  tick(f.s, now + 6100);
-  tick(f.s, now + 9100);
+  tick(f.s, now + 3000);
+  tick(f.s, now + 6000);
   assert.equal(f.s.active.phase, 'playing');
   return f.s.active;
 }
@@ -161,9 +170,11 @@ test('stale answers and distinct-ID repeated choices cannot affect next challeng
   const game = newGame('debug', now),
     q = game.question;
   assert(answerGame(game, q.answer, q.id, now + 100));
-  assert.equal(game.level, 1);
+  assert.equal(game.phase, 'feedback');
   assert(!answerGame(game, q.answer, q.id, now + 200));
+  tickGame(game, now + 3100);
   assert.equal(game.level, 1);
+  assert(!answerGame(game, q.answer, q.id, now + 3200));
 });
 test('three starts are the limit, across account recovery and days', async () => {
   const f = fixture(),
@@ -173,6 +184,7 @@ test('three starts are the limit, across account recovery and days', async () =>
       id: crypto.randomUUID(),
       accountId: p.id,
       mode: 'ranked',
+      version: SCORING_VERSION,
       status: 'abandoned',
       score: 0,
     });
@@ -190,6 +202,7 @@ test('void refunds once, removes best score, and retains selected game for repla
       id: 'a',
       accountId: p.id,
       mode: 'ranked',
+      version: SCORING_VERSION,
       gameId: 'debug',
       status: 'completed',
       score: 800,
@@ -199,6 +212,7 @@ test('void refunds once, removes best score, and retains selected game for repla
       id: 'b',
       accountId: p.id,
       mode: 'ranked',
+      version: SCORING_VERSION,
       gameId: 'output',
       status: 'completed',
       score: 500,
@@ -231,8 +245,9 @@ test('live answer locks once and remains private before reveal', async () => {
     b = await player(f, 'b@bcu.ac.uk');
   await cmd(f, 'host.openLive', {}, f.host);
   for (const p of [a, b]) await cmd(f, 'joinLive', { code: f.s.live.code }, p.token);
-  tick(f.s, now + 30001, new Set([a.id, b.id]));
-  tick(f.s, now + 35002, new Set([a.id, b.id]));
+  tick(f.s, now + 20000);
+  tick(f.s, now + 23000);
+  tick(f.s, now + 26000);
   const q = f.s.live.question;
   assert(
     !(await cmd(f, 'liveAnswer', { challengeId: q.id, answer: q.answer }, a.token, now + 36000))
@@ -300,6 +315,7 @@ test('finalisation persists one award and email per winner across retries', asyn
     accountId: p.id,
     gameId: 'debug',
     mode: 'ranked',
+    version: SCORING_VERSION,
     status: 'completed',
     score: 500,
     ended: now,
@@ -317,6 +333,7 @@ test('grand-prize boundary ties block silent finalisation', async () => {
       id: String(i),
       accountId: p.id,
       mode: 'ranked',
+      version: SCORING_VERSION,
       status: 'completed',
       score: 600,
       ended: now,
@@ -382,4 +399,283 @@ test('durable storage serializes concurrent mutations and survives reopen', asyn
   assert.equal(store.snapshot().config.capacity, 50);
   await store.close();
   await rm(directory, { recursive: true });
+});
+
+test('feedback freezes answering time, reveals only the completed question and scores once', () => {
+  const game = newGame('output', now),
+    q = game.question;
+  assert(answerGame(game, q.answer, q.id, now + 5000));
+  assert.equal(game.remainingMs, 70000);
+  assert.equal(game.score, 98);
+  assert(!answerGame(game, q.answer, q.id, now + 5001));
+  tickGame(game, now + 7999);
+  assert.equal(game.question.id, q.id);
+  const view = publicGame(game);
+  assert.equal(view.question.answer, q.answer);
+  assert.equal(view.history, undefined);
+  tickGame(game, now + 8000);
+  assert.equal(game.deadline, now + 78000);
+  assert.equal(game.questionAt, now + 8000);
+  assert.equal(publicGame(game).question.answer, undefined);
+  assert.equal(game.feedback, null);
+  assert.equal(game.score, 98);
+});
+
+test('timeout and ninth answer keep the final three-second reveal before completion', () => {
+  const timed = newGame('debug', now);
+  tickGame(timed, now + 75000);
+  assert.equal(timed.phase, 'feedback');
+  assert(!timed.complete);
+  tickGame(timed, now + 77999);
+  assert(!timed.complete);
+  tickGame(timed, now + 78000);
+  assert(timed.complete);
+  assert.equal(timed.completionStatus, 'timed_out');
+  const game = newGame('output', now);
+  let time = now;
+  for (let i = 0; i < 9; i++) {
+    time += 1000;
+    assert(answerGame(game, game.question.answer, game.question.id, time));
+    assert(!game.complete);
+    time += 3000;
+    tickGame(game, time);
+  }
+  assert(game.complete);
+  assert.equal(game.score, 900);
+  assert.equal(game.remainingMs, 66000);
+});
+
+test('ten wheel slots preserve equal game draws, retained outcomes and circular alternation', () => {
+  for (let n = 1; n <= 10; n++) {
+    const available = Array.from({ length: n }, (_, i) => ({ id: `g${i}` }));
+    for (let chosen = 0; chosen < n; chosen++) {
+      let calls = 0;
+      const selection = selectGame(available, now, null, (maximum) => {
+        if (calls++ === 0) {
+          assert.equal(maximum, n);
+          return chosen;
+        }
+        return 0;
+      });
+      assert.equal(selection.gameId, `g${chosen}`);
+      assert.equal(selection.slots[selection.sector], selection.gameId);
+      assert.equal(selection.slots.length, 10);
+      assert.equal(new Set(selection.slots).size, n);
+      if (n > 1) assert(selection.slots.every((id, i) => id !== selection.slots[(i + 1) % 10]));
+    }
+  }
+  assert.throws(() => selectGame([], now));
+  assert.throws(() => selectGame([{ id: 'a' }], now, 'missing'));
+});
+
+async function liveFixture(count = 2) {
+  const f = fixture(),
+    players = [];
+  for (let i = 0; i < count; i++) players.push(await player(f, `live${i}@bcu.ac.uk`));
+  assert(!(await cmd(f, 'host.openLive', {}, f.host)).error);
+  for (const p of players)
+    assert(!(await cmd(f, 'joinLive', { code: f.s.live.code }, p.token)).error);
+  return { f, players };
+}
+
+test('live freezes membership, selects after lobby, hides early answers and ends on all submissions', async () => {
+  const { f, players } = await liveFixture();
+  assert.equal(f.s.live.gameId, null);
+  tick(f.s, now + 20000);
+  assert.equal(f.s.live.phase, 'wheel');
+  const selection = structuredClone(f.s.live.selection);
+  assert((await cmd(f, 'joinLive', { code: f.s.live.code }, players[0].token, now + 20001)).error);
+  tick(f.s, now + 23000);
+  tick(f.s, now + 26000);
+  assert.deepEqual(f.s.live.selection, selection);
+  const q = f.s.live.question;
+  for (const p of players)
+    assert(
+      !(await cmd(f, 'liveAnswer', { challengeId: q.id, answer: q.answer }, p.token, now + 26100))
+        .error,
+    );
+  const view = project(f.s, players[0].token, now + 26200, 'http://localhost');
+  assert.equal(view.live.question.answer, undefined);
+  assert(view.live.roster.every((e) => e.score === undefined));
+  assert.equal(view.me.liveEntry.correct, undefined);
+  tick(f.s, now + 27999);
+  assert.equal(f.s.live.phase, 'question');
+  tick(f.s, now + 28000);
+  assert.equal(f.s.live.phase, 'reveal');
+  assert.equal(project(f.s, '', now + 28000, 'http://localhost').live.question.answer, q.answer);
+  tick(f.s, now + 31000);
+  assert.equal(f.s.live.level, 1);
+});
+
+test('50-player roster survives disconnects; silence has a fixed deadline and no prizes', async () => {
+  const { f, players } = await liveFixture(50);
+  tick(f.s, now + 20000, new Set());
+  tick(f.s, now + 23000);
+  tick(f.s, now + 26000);
+  assert.equal(Object.keys(f.s.live.roster).length, 50);
+  let time = now + 26000;
+  for (const seconds of [15, 15, 20, 20, 25, 25]) {
+    assert.equal(f.s.live.until, time + seconds * 1000);
+    time = f.s.live.until;
+    tick(f.s, time);
+    assert.equal(f.s.live.phase, 'reveal');
+    time += 3000;
+    tick(f.s, time);
+  }
+  assert.equal(f.s.live.phase, 'winner');
+  assert.equal(f.s.awards.length, 0);
+  time += 8000;
+  tick(f.s, time);
+  assert.equal(f.s.live, null);
+  assert.equal(f.s.config.nextLobbyAt, time + 300000);
+  assert.equal(players.length, 50);
+});
+
+test('live settings are snapshotted and solo input time cannot be changed through host settings', async () => {
+  const { f } = await liveFixture();
+  assert(
+    !(await cmd(f, 'host.settings', { revision: 1, lobbySeconds: 45, liveTimeScale: 1.5 }, f.host))
+      .error,
+  );
+  assert.equal(f.s.live.until, now + 20000);
+  tick(f.s, now + 20000);
+  tick(f.s, now + 23000);
+  tick(f.s, now + 26000);
+  assert.equal(f.s.live.until, now + 41000);
+  assert((await cmd(f, 'host.settings', { revision: 2, feedbackSeconds: 0 }, f.host)).error);
+});
+
+test('insufficient lobby cancels; pending live waits for result and never reruns back to back', async () => {
+  const { f } = await liveFixture(1);
+  tick(f.s, now + 20000);
+  assert.equal(f.s.live.phase, 'cancelled');
+  tick(f.s, now + 23000);
+  assert.equal(f.s.live, null);
+  assert.equal(f.s.config.nextLobbyAt, now + 323000);
+  const p = await player(f, 'queued@bcu.ac.uk');
+  await cmd(f, 'enqueue', { mode: 'practice' }, p.token, now + 24000);
+  await cmd(f, 'host.openLive', {}, f.host, now + 24000);
+  tick(f.s, now + 24000);
+  assert.equal(f.s.live, null);
+  assert(!(await cmd(f, 'host.call', {}, f.host, now + 24000)).error);
+  assert(f.s.active);
+});
+
+test('end window guards pending live and does not starve remaining solo queue', async () => {
+  const f = fixture(),
+    p = await player(f);
+  f.s.config.windows = [{ start: now - 1000, cutoff: now + 100000, end: now + 180000 }];
+  f.s.config.autoLive = true;
+  f.s.config.nextLobbyAt = now;
+  assert((await cmd(f, 'host.openLive', {}, f.host)).error);
+  f.s.queue.push({ accountId: p.id, mode: 'practice', sequence: 1, admitted: now });
+  assert(!(await cmd(f, 'host.call', {}, f.host)).error);
+});
+
+test('migration preserves accounts and old scores but gates the new competitive version', () => {
+  const f = fixture();
+  delete f.s.config.releaseVersion;
+  f.s.attempts = [
+    {
+      id: 'old',
+      accountId: 'x',
+      mode: 'ranked',
+      status: 'completed',
+      score: 900,
+      version: '0.3-old',
+    },
+  ];
+  f.s.accounts.x = { id: 'x', alias: 'Existing player' };
+  migrateState(f.s, now);
+  assert.equal(f.s.accounts.x.alias, 'Existing player');
+  assert.equal(f.s.attempts.length, 1);
+  assert.equal(f.s.config.rankedEnabled, false);
+  assert.equal(leaderboard(f.s).length, 0);
+  const snapshot = structuredClone(f.s);
+  migrateState(f.s, now + 100);
+  assert.deepEqual(f.s, snapshot);
+});
+
+test('service stalls interrupt active attempts once without refunding or erasing scores', async () => {
+  const f = fixture(),
+    p = await player(f);
+  await start(f, p);
+  f.s.active.game.score = 200;
+  recoverServiceDelay(f.s, now + 10000);
+  assert.equal(f.s.attempts[0].status, 'interrupted');
+  assert.equal(f.s.attempts[0].score, 200);
+  assert.equal(usedAttempts(f.s, p.id), 1);
+  assert.equal(f.s.active, null);
+  assert(f.s.config.paused);
+  recoverServiceDelay(f.s, now + 11000);
+  assert.equal(f.s.incidents.length, 1);
+});
+
+test('idle-only settings do not reset the automatic live schedule', async () => {
+  const f = fixture();
+  f.s.config.autoLive = true;
+  const deadline = f.s.config.nextLobbyAt;
+  assert(
+    !(
+      await cmd(
+        f,
+        'host.settings',
+        {
+          revision: 1,
+          interval: 300,
+          autoLive: true,
+          idlePresentation: 'text',
+          animateIdleWheel: false,
+        },
+        f.host,
+        now + 1000,
+      )
+    ).error,
+  );
+  assert.equal(f.s.config.nextLobbyAt, deadline);
+});
+
+test('Ranked settings work without calibration and toggling preserves attempts and standings', async () => {
+  const f = fixture(),
+    p = await player(f);
+  const a = await start(f, p);
+  f.s.attempts[0].status = 'completed';
+  f.s.attempts[0].score = 400;
+  f.s.attempts[0].ended = now + 7000;
+  f.s.active = null;
+  for (const rankedEnabled of [false, true]) {
+    const result = await cmd(
+      f,
+      'host.settings',
+      { revision: f.s.config.policyVersion, rankedEnabled },
+      f.host,
+    );
+    assert(!result.error, result.error);
+    assert.equal(f.s.config.rankedEnabled, rankedEnabled);
+    assert.equal(usedAttempts(f.s, p.id), 1);
+    assert.equal(leaderboard(f.s)[0].score, 400);
+    const admission = await cmd(f, 'enqueue', { mode: 'ranked' }, p.token);
+    assert.equal(Boolean(admission.error), !rankedEnabled);
+  }
+  assert.equal(a.mode, 'ranked');
+});
+
+test('Ranked enabling rejects finalised results, incompatible versions and stale settings', async () => {
+  for (const config of [{ finalised: true }, { scoringVersion: 'old' }, { policyVersion: 2 }]) {
+    const f = fixture();
+    Object.assign(f.s.config, { rankedEnabled: false }, config);
+    const r = await cmd(f, 'host.settings', { revision: 1, rankedEnabled: true }, f.host);
+    assert(r.error);
+    assert.equal(f.s.config.rankedEnabled, false);
+  }
+});
+
+test('Debug prompts use a consistent beginner question and valid answer line', () => {
+  for (let level = 0; level < 9; level++) {
+    for (let i = 0; i < 20; i++) {
+      const q = question('debug', level);
+      assert(q.prompt.endsWith('Which line needs changing?'));
+      assert(q.code.split('\n')[Number(q.answer)].trim());
+    }
+  }
 });

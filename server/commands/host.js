@@ -17,6 +17,9 @@ import {
   liveStart,
   endLive,
   holdUnverified,
+  canStartLive,
+  liveDue,
+  queueFits,
 } from '../runtime.js';
 const uuid = () => crypto.randomUUID();
 export function hostCommand(s, action, p, ctx, now, services) {
@@ -27,7 +30,6 @@ export function hostCommand(s, action, p, ctx, now, services) {
     'resolveIdentity',
     'collect',
     'forfeitAward',
-    'calibrate',
     'purge',
     'adjudicateTie',
   ];
@@ -79,8 +81,7 @@ export function hostCommand(s, action, p, ctx, now, services) {
     );
     assert(p.mode !== 'ranked' || usedAttempts(s, account.id) < 3, 'No ranked attempts remain.');
     assert(
-      s.queue.length < s.config.capacity &&
-        now + (s.queue.length + 1) * 155000 + 600000 < openWindow(s, now).end,
+      s.queue.length < s.config.capacity && queueFits(s, now, openWindow(s, now)),
       'There is no queue capacity for another turn.',
     );
     s.queue.push({
@@ -91,10 +92,7 @@ export function hostCommand(s, action, p, ctx, now, services) {
     });
   } else if (action === 'call') {
     assert(!s.active && !s.live && !s.config.paused, 'Another turn or live event is active.');
-    assert(
-      !(s.config.autoLive && now >= s.config.nextLobbyAt && !s.config.soloAfterLive),
-      'The live lobby is due.',
-    );
+    assert(!liveDue(s, now), 'The live lobby is due.');
     const next = s.queue
       .filter((q) => eligible(s, s.accounts[q.accountId]))
       .sort((a, b) => a.sequence - b.sequence)[0];
@@ -113,15 +111,36 @@ export function hostCommand(s, action, p, ctx, now, services) {
       s.active = null;
     }
   } else if (action === 'settings') {
+    const oldInterval = s.config.interval,
+      oldAuto = s.config.autoLive;
+    assert(
+      ![
+        'scoringVersion',
+        'feedbackSeconds',
+        'resultSeconds',
+        'duration',
+        'questionBank',
+        'calibrationVersion',
+      ].some((key) => key in p),
+      'Competitive timing and scoring require a versioned release and compatible scoring version.',
+    );
     assert(
       p.revision === s.config.policyVersion,
       'Settings changed in another tab. Refresh and try again.',
       409,
     );
+    if ('rankedEnabled' in p) {
+      assert(typeof p.rankedEnabled === 'boolean', 'Choose Ranked on or off.');
+      assert(!p.rankedEnabled || !s.config.finalised, 'Reopen results before enabling Ranked.');
+      assert(
+        !p.rankedEnabled || s.config.scoringVersion === SCORING_VERSION,
+        'Update the server before enabling Ranked.',
+      );
+      s.config.rankedEnabled = p.rankedEnabled;
+    }
     for (const [key, min, max] of [
-      ['interval', 60, 3600],
-      ['lobbySeconds', 10, 120],
-      ['liveSeconds', 8, 30],
+      ['interval', 180, 900],
+      ['lobbySeconds', 15, 45],
       ['capacity', 1, 100],
       ['instantPrizes', 0, 500],
     ])
@@ -129,11 +148,25 @@ export function hostCommand(s, action, p, ctx, now, services) {
         assert(Number.isInteger(p[key]) && p[key] >= min && p[key] <= max, `Invalid ${key}.`);
         s.config[key] = p[key];
       }
-    for (const key of ['paused', 'autoLive', 'requireVerification'])
+    for (const key of ['paused', 'autoLive', 'requireVerification', 'animateIdleWheel'])
       if (key in p) {
         assert(typeof p[key] === 'boolean', `Invalid ${key}.`);
         s.config[key] = p[key];
       }
+    if ('liveTimeScale' in p) {
+      assert(
+        Number.isFinite(p.liveTimeScale) && p.liveTimeScale >= 0.75 && p.liveTimeScale <= 1.5,
+        'Invalid live time scale.',
+      );
+      s.config.liveTimeScale = p.liveTimeScale;
+    }
+    if ('idlePresentation' in p) {
+      assert(
+        ['text', 'wheel', 'both'].includes(p.idlePresentation),
+        'Choose an idle presentation.',
+      );
+      s.config.idlePresentation = p.idlePresentation;
+    }
     if ('windows' in p) {
       assert(Array.isArray(p.windows) && p.windows.length <= 10, 'Invalid opening windows.');
       for (const w of p.windows)
@@ -147,7 +180,8 @@ export function hostCommand(s, action, p, ctx, now, services) {
     }
     for (const key of ['playoffAt', 'playoffLocation', 'replyDeadline'])
       if (key in p) s.config[key] = textValue(p[key], 160);
-    if ('interval' in p) s.config.nextLobbyAt = now + s.config.interval * 1000;
+    if (s.config.interval !== oldInterval || s.config.autoLive !== oldAuto)
+      s.config.nextLobbyAt = now + s.config.interval * 1000;
     s.config.policyVersion++;
     if (s.config.requireVerification) holdUnverified(s, now);
     s.updates.push({
@@ -157,29 +191,26 @@ export function hostCommand(s, action, p, ctx, now, services) {
       at: now,
       system: true,
     });
-  } else if (action === 'calibrate') {
-    assert(reason.length >= 20, 'Record the calibration evidence and sample details.');
-    assert(
-      s.config.playoffAt && s.config.playoffLocation && s.config.replyDeadline,
-      'Configure playoff arrangements first.',
-    );
-    assert(
-      !s.attempts.some((a) => a.mode === 'ranked'),
-      'Scoring is frozen after the first ranked start.',
-    );
-    s.config.calibrationVersion = SCORING_VERSION;
-    s.config.calibrationNotes = reason;
-    s.config.rankedEnabled = true;
   } else if (action === 'openLive') {
-    if (s.active) {
-      s.config.autoLive = true;
+    assert(!s.live, 'A live event is already active.');
+    assert(
+      canStartLive(s, now),
+      'Live admissions are closed or there is insufficient time before closing.',
+    );
+    if (
+      s.active ||
+      (s.config.soloAfterLive && s.queue.some((q) => eligible(s, s.accounts[q.accountId])))
+    ) {
+      s.config.livePending = true;
       s.config.nextLobbyAt = now;
     } else liveStart(s, now);
   } else if (action === 'cancelLive') {
     assert(reason, 'Give a reason.');
+    s.config.livePending = false;
     endLive(s, now, reason);
   } else if (action === 'delayLive') {
-    s.config.nextLobbyAt = now + s.config.interval * 1000;
+    assert(!s.live, 'A live event is already active.');
+    s.config.nextLobbyAt = Math.max(now, s.config.nextLobbyAt) + 60000;
   } else if (action === 'incident') {
     assert(reason, 'Describe the fault.');
     assert(s.active?.phase === 'playing', 'No game is active.');

@@ -1,6 +1,7 @@
 import { QRCodeSVG } from 'qrcode.react';
 import { useArcade } from '../state';
 import { Wordmark, Leaderboard, Timer, Score, Notice } from '../components/ui';
+import { LiveStatus } from '../components/LiveStatus';
 import { Wheel } from '../components/Wheel';
 import { Game, Question } from '../games/Game';
 import { gameById, scoreText } from '../../shared/catalog';
@@ -38,7 +39,7 @@ export function JoinDisplay() {
           </div>
           <Leaderboard rows={state.leaderboard} limit={5} display />
           {!state.config.rankedEnabled && !state.leaderboard.length && (
-            <p className="text-base text-[#62625C]">Ranked opens after playtesting.</p>
+            <p className="text-base text-[#62625C]">Ranked is currently off.</p>
           )}
         </section>
       </main>
@@ -58,20 +59,7 @@ export function JoinDisplay() {
                     ? 'The Arcade is open'
                     : 'Admissions closed'}
         </span>
-        <span>
-          {live?.phase === 'lobby' ? (
-            <Timer until={live.until} />
-          ) : state.config.autoLive ? (
-            <>
-              <span className="mr-4">Next live lobby</span>
-              {state.now >= state.config.nextLobbyAt ? (
-                'After this turn'
-              ) : (
-                <Timer until={state.config.nextLobbyAt} />
-              )}
-            </>
-          ) : null}
-        </span>
+        <span>{live?.phase === 'lobby' ? <Timer until={live.until} /> : <LiveStatus />}</span>
       </footer>
     </div>
   );
@@ -80,7 +68,9 @@ function LiveDisplay({ live }) {
   if (live.phase === 'lobby')
     return (
       <div className="mx-auto max-w-5xl text-center">
-        <p className="mb-5 text-2xl text-[#62625C]">{gameById(live.gameId).name}</p>
+        <p className="mb-5 text-2xl text-[#62625C]">
+          {gameById(live.gameId)?.name || 'Live arcade'}
+        </p>
         <h1 className="text-6xl font-medium tracking-tight">Join Live on your phone.</h1>
         <p className="my-10 text-8xl font-medium tracking-widest tabular-nums">{live.code}</p>
         <div className="flex justify-center gap-16 text-2xl text-[#62625C]">
@@ -89,9 +79,11 @@ function LiveDisplay({ live }) {
         </div>
       </div>
     );
+  if (live.phase === 'wheel') return <Wheel key={live.selection.id} selection={live.selection} />;
   if (live.phase === 'countdown')
     return (
-      <div className="text-center">
+      <div className="space-y-6 text-center">
+        <h1 className="text-5xl font-medium">{gameById(live.gameId)?.name}</h1>
         <Timer large until={live.until} />
       </div>
     );
@@ -147,7 +139,7 @@ export function PlayDisplay() {
   if (!state) return <div className="p-12">Connecting…</div>;
   const a = state.active;
   return (
-    <div className="flex h-svh flex-col px-[5vw] py-[4vh]">
+    <div className="flex h-svh flex-col px-[5vw] py-[3vh]">
       <header className="flex items-center justify-between">
         <Wordmark display />
         {a && (
@@ -157,16 +149,24 @@ export function PlayDisplay() {
         )}
       </header>
       <Notice />
-      <main className="grid min-h-0 flex-1 place-items-center py-6">
+      <main className="grid min-h-0 flex-1 place-items-center py-3">
         {state.live ? (
           <LiveDisplay live={state.live} />
         ) : !a ? (
-          <div className="text-center">
-            <h1 className="text-7xl font-medium tracking-tight">
-              {state.config.paused ? 'A short pause.' : 'Ready to play.'}
-            </h1>
-            <p className="mt-6 text-2xl text-[#62625C]">
+          <div className="w-full space-y-4 text-center">
+            {!state.config.paused && state.config.idlePresentation !== 'text' && (
+              <Wheel idle animate={state.config.animateIdleWheel} />
+            )}
+            {(state.config.paused || state.config.idlePresentation !== 'wheel') && (
+              <h1 className="text-4xl font-medium tracking-tight lg:text-5xl">
+                {state.config.paused ? 'A short pause.' : 'Ready to play.'}
+              </h1>
+            )}
+            <p className="text-lg text-[#62625C]">
               {state.config.paused ? 'We’ll be back shortly.' : 'Join on the other screen.'}
+            </p>
+            <p className="text-base text-[#62625C]">
+              <LiveStatus />
             </p>
           </div>
         ) : a.phase === 'called' ? (
@@ -176,7 +176,7 @@ export function PlayDisplay() {
             <p className="mt-8 text-2xl text-[#62625C]">Tap Ready on your phone.</p>
           </div>
         ) : a.phase === 'wheel' ? (
-          <Wheel selected={a.gameId} />
+          <Wheel key={a.selection.id} selection={a.selection} />
         ) : a.phase === 'briefing' ? (
           <div className="max-w-3xl text-center">
             <h1 className="text-6xl font-medium">{gameById(a.gameId).name}</h1>
@@ -185,7 +185,10 @@ export function PlayDisplay() {
             </p>
           </div>
         ) : a.phase === 'countdown' ? (
-          <Timer large until={a.until} />
+          <div className="space-y-6 text-center">
+            <h1 className="text-5xl font-medium">{gameById(a.gameId)?.name}</h1>
+            <Timer large until={a.until} />
+          </div>
         ) : a.phase === 'playing' ? (
           <Game active={a} display />
         ) : (
