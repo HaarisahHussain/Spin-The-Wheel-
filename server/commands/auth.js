@@ -197,7 +197,6 @@ export async function authCommand(s, action, p, ctx, services, now, session) {
   if (action === 'staffLogin') {
     rate(s, `staff:${ctx.ip}`, 10, 900000, now);
     const staff = Object.values(s.staff).find((a) => a.username === p.username && !a.disabled);
-
     assert(staff && passwordMatches(p.password, staff.password), 'Sign-in failed.', 401);
     const step = totp(staff.totpSecret).validate({
       token: String(p.otp || ''),
