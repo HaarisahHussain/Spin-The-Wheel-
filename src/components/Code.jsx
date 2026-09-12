@@ -1,6 +1,9 @@
 import Prism from 'prismjs';
+import 'prismjs/components/prism-python';
 import { useMemo } from 'react';
+
 import { cx } from './ui';
+
 const colours = {
   keyword: 'text-[#164CAD]',
   string: 'text-[#9B321B]',
@@ -12,6 +15,7 @@ const colours = {
   punctuation: 'text-[#62625C]',
   property: 'text-[#315C77]',
 };
+
 function Tokens({ tokens }) {
   return tokens.map((token, i) =>
     typeof token === 'string' ? (
@@ -23,6 +27,7 @@ function Tokens({ tokens }) {
     ),
   );
 }
+
 export function Code({
   code,
   selectable = false,
@@ -33,7 +38,7 @@ export function Code({
   correctLine = null,
 }) {
   const lines = useMemo(
-    () => code.split('\n').map((line) => Prism.tokenize(line, Prism.languages.javascript)),
+    () => code.split('\n').map((line) => Prism.tokenize(line, Prism.languages.python)),
     [code],
   );
   return (
