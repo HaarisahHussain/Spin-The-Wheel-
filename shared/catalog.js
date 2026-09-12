@@ -21,12 +21,16 @@ export const games = [
     description: 'Build a route. Move the robot to the goal.',
   },
 ];
+
 export const gameById = (id) => games.find((game) => game.id === id);
+
 export const scoreText = (value) => ((value ?? 0) / 100).toFixed(2);
+
 export const grade = (score) =>
   score === 0
     ? 'No score'
     : ['F', 'E', 'D', 'C', 'B', 'A', 'S', 'SS', 'SSS'][Math.min(8, Math.ceil(score / 100) - 1)];
+
 export const allowedEmail = (input) =>
   typeof input === 'string' &&
   input.length <= 254 &&
@@ -34,5 +38,9 @@ export const allowedEmail = (input) =>
   !input.trim().split('@')[0].startsWith('.') &&
   !input.trim().split('@')[0].endsWith('.') &&
   !input.trim().split('@')[0].includes('..');
+
 export const normalizeEmail = (email) => email.trim().toLowerCase();
-export const SCORING_VERSION = '0.3-pilot-1';
+
+// export const SCORING_VERSION = '0.3-pilot-1';
+// export const SCORING_VERSION = '0.3-python-robot-2';
+export const SCORING_VERSION = '0.3-python-robot-maze-3';

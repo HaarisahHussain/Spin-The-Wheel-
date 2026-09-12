@@ -335,12 +335,20 @@ test('prize collection is idempotent', async () => {
   assert.equal(f.s.config.instantPrizes, 49);
 });
 test('generated Robot boards are reachable, with valid positions at every tier', () => {
-  for (let i = 0; i < 600; i++) {
-    const q = board(i % 6);
-    assert(Number.isFinite(shortest(q.blocks)));
-    assert(!q.blocks.includes(0) && !q.blocks.includes(24));
+  for (let i = 0; i < 450; i++) {
+    const q = board(i % 9);
+    const distance = shortest(q.blocks, q.start, q.goal, q.size);
+
+    assert(Number.isFinite(distance));
+    assert.equal(distance, q.distance);
+    assert(distance <= q.maxMoves);
+    assert(!q.blocks.includes(q.start));
+    assert(!q.blocks.includes(q.goal));
+    assert.equal(q.position, q.start);
+    assert(q.blocks.every((cell) => cell >= 0 && cell < q.size * q.size));
   }
 });
+
 test('generated questions have a legal unique answer option/line', () => {
   for (let i = 0; i < 180; i++) {
     for (const id of ['debug', 'output']) {

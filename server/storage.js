@@ -1,5 +1,5 @@
 import { mkdirSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, resolve } from 'node:path';
 
 // One event aggregate is deliberately serialized. Run one application process;
 // PostgreSQL's row lock also fences overlapping processes during restarts.

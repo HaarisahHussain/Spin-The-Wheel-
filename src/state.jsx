@@ -45,10 +45,10 @@ export function ArcadeProvider({ children }) {
     busyRef.current = true;
     setBusy(true);
     setError('');
-    const id = crypto.randomUUID(); // In production
-    // const id = Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) =>
-    //   byte.toString(16).padStart(2, '0'),
-    // ).join(''); // In development
+    // const id = crypto.randomUUID(); // In production
+    const id = Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) =>
+      byte.toString(16).padStart(2, '0'),
+    ).join(''); // In development (anyhow, it is fine in production too o.o)
     try {
       let response;
       for (let attempt = 0; attempt < 2; attempt++) {

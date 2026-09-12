@@ -197,6 +197,7 @@ export async function authCommand(s, action, p, ctx, services, now, session) {
   if (action === 'staffLogin') {
     rate(s, `staff:${ctx.ip}`, 10, 900000, now);
     const staff = Object.values(s.staff).find((a) => a.username === p.username && !a.disabled);
+
     assert(staff && passwordMatches(p.password, staff.password), 'Sign-in failed.', 401);
     const step = totp(staff.totpSecret).validate({
       token: String(p.otp || ''),
@@ -204,6 +205,7 @@ export async function authCommand(s, action, p, ctx, services, now, session) {
       window: 1,
     });
     assert(step !== null, 'Sign-in failed.', 401);
+
     const counter = Math.floor(now / 30000) + step;
     assert(counter > (staff.lastOtp ?? -1), 'Wait for the next authenticator code.', 401);
     staff.lastOtp = counter;

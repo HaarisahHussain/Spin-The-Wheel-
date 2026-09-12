@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.1 - 2026-09-12
+
+- Replaced JavaScript challenges with Python in Debug Dash and Guess the Output, including Live Sessions.
+- Added Python syntax highlighting.
+- Expanded Robot Rescue to nine boards, introducing 7x7 mazes, misleading branches and routes that initially move away from the goal.
+- Reduced early-board rewards and added progressively tighter movement limits.
+- Made every robot run restart from its starting position; failed and stopped programs remain available for editing.
+- Added individual move replacement, deletion and program clearing.
+- Separated robot controls and maze generation into dedicated modules.
+- Updated the scoring version and board validation tests. Cross-game difficulty remains subject to representative playtesting.
+
 ## 0.3.0 — 2026-09-11
 
 - Replaced the earlier room-based prototype with persistent event accounts, one solo queue and independent public display routes.
