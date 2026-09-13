@@ -1,27 +1,50 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useArcade } from '../../state';
-import { Button, Field, Select, cx } from '../../components/ui';
+import { Button, Field, Select, Textarea, cx } from '../../components/ui';
 const dateInput = (value) => {
   const d = new Date(value);
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 };
-export function EventForm() {
+export function EventForm({ onDirty = () => {} }) {
   const { state, command, busy } = useArcade(),
     c = state.host.config;
   const [windows, setWindows] = useState(c.windows),
     [rankedEnabled, setRankedEnabled] = useState(c.rankedEnabled && !c.finalised),
     [requireVerification, setRequireVerification] = useState(c.requireVerification),
     [autoLive, setAutoLive] = useState(c.autoLive);
+  const [dirty, setDirty] = useState(false),
+    [saved, setSaved] = useState(false),
+    [revision, setRevision] = useState(c.policyVersion);
+  useEffect(() => {
+    onDirty(dirty);
+    const warn = (e) => {
+      if (dirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
   return (
     <div className="max-w-4xl">
       <h1 className="mb-8 text-3xl font-medium">Event settings</h1>
+      {c.policyVersion !== revision && (
+        <p role="alert" className="mb-4 text-sm">
+          Settings changed elsewhere. Reopen this tab before editing again.
+        </p>
+      )}
       <form
         className="space-y-8"
-        onSubmit={(e) => {
+        onChange={() => {
+          setDirty(true);
+          setSaved(false);
+        }}
+        onSubmit={async (e) => {
           e.preventDefault();
           const data = Object.fromEntries(new FormData(e.currentTarget));
-          command('host.settings', {
-            revision: c.policyVersion,
+          const result = await command('host.settings', {
+            revision,
             windows,
             requireVerification,
             rankedEnabled,
@@ -36,7 +59,15 @@ export function EventForm() {
             playoffAt: data.playoffAt,
             playoffLocation: data.playoffLocation,
             replyDeadline: data.replyDeadline,
+            prizeInstructions: data.prizeInstructions,
+            cleanupAt: data.cleanupAt,
           });
+          if (result) {
+            setRevision(result.state?.host?.config?.policyVersion ?? revision + 1);
+            setDirty(false);
+            setSaved(true);
+            onDirty(false);
+          }
         }}
       >
         <section className="space-y-5 border-b border-[#DDDDD5] pb-8">
@@ -51,7 +82,11 @@ export function EventForm() {
               aria-label="Require email verification"
               aria-checked={requireVerification}
               disabled={busy}
-              onClick={() => setRequireVerification(!requireVerification)}
+              onClick={() => {
+                setRequireVerification(!requireVerification);
+                setDirty(true);
+                setSaved(false);
+              }}
               className={cx(
                 'relative h-8 w-14 rounded-full transition-colors',
                 requireVerification ? 'bg-[#365E53]' : 'bg-[#B6B6AD]',
@@ -100,7 +135,9 @@ export function EventForm() {
             <button
               type="button"
               className="text-sm underline"
-              onClick={() =>
+              onClick={() => {
+                setDirty(true);
+                setSaved(false);
                 setWindows([
                   ...windows,
                   {
@@ -108,8 +145,8 @@ export function EventForm() {
                     cutoff: Date.now() + 5 * 3600000,
                     end: Date.now() + 6 * 3600000,
                   },
-                ])
-              }
+                ]);
+              }}
             >
               Add day
             </button>
@@ -146,7 +183,11 @@ export function EventForm() {
                 <Button
                   secondary
                   type="button"
-                  onClick={() => setWindows(windows.filter((_, n) => n !== i))}
+                  onClick={() => {
+                    setWindows(windows.filter((_, n) => n !== i));
+                    setDirty(true);
+                    setSaved(false);
+                  }}
                 >
                   Remove
                 </Button>
@@ -255,7 +296,26 @@ export function EventForm() {
             defaultValue={c.replyDeadline}
           />
         </section>
-        <Button disabled={busy}>Save settings</Button>
+        <section className="space-y-4">
+          <h2 className="text-xl font-medium">Prize collection</h2>
+          <Textarea
+            label="Instructions emailed to winners"
+            name="prizeInstructions"
+            defaultValue={c.prizeInstructions}
+          />
+          <Field
+            label="Personal data cleanup date"
+            name="cleanupAt"
+            type="date"
+            defaultValue={c.cleanupAt}
+          />
+        </section>
+        <div className="sticky bottom-0 flex items-center justify-between gap-4 border-t border-[#DDDDD5] bg-[#F7F7F2] py-4">
+          <span role="status" className="text-sm">
+            {dirty ? 'Unsaved changes' : saved ? 'Settings saved' : 'Changes apply when saved'}
+          </span>
+          <Button disabled={busy}>Save settings</Button>
+        </div>
       </form>
     </div>
   );

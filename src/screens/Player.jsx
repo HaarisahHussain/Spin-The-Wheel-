@@ -1,173 +1,168 @@
-import { useState } from 'react';
-import { useArcade } from '../state';
-import {
-  Button,
-  Field,
-  Select,
-  Wordmark,
-  Notice,
-  Empty,
-  Score,
-  Timer,
-  Leaderboard,
-  Modal,
-  cx,
-} from '../components/ui';
-import { Game, Question } from '../games/Game';
+import { useConfirmation } from '../components/useConfirmation';
+import { Tutorial, GameHelp } from '../games/Tutorial';
+import { useEffect, useState, useRef } from 'react';
+import { useArcade, useClock } from '../state';
+import { Wordmark, Notice, Button, Field, Select, Timer, Score, cx } from '../components/ui';
 import { Wheel } from '../components/Wheel';
-import { gameById, scoreText } from '../../shared/catalog';
-
-function ControllerPair() {
-  const { command, busy } = useArcade();
+import { Game, Question } from '../games/Game';
+import { PuzzleEditor, PuzzleReveal, PuzzleExecution, markerClass } from '../games/Puzzles';
+import { gameById, availableGames, scoreText, grade, SCORING_VERSION } from '../../shared/catalog';
+function PrizeDialog({ children, onClose }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const previous = document.activeElement;
+    ref.current.showModal();
+    return () => previous?.focus();
+  }, []);
   return (
-    <form
-      className="space-y-5"
-      onSubmit={(e) => {
+    <dialog
+      ref={ref}
+      aria-labelledby="award-title"
+      onCancel={(e) => {
         e.preventDefault();
-        command('claimController', { code: new FormData(e.currentTarget).get('code') });
+        onClose();
       }}
+      className="fixed inset-0 z-50 m-0 h-dvh max-h-none w-screen max-w-none bg-[#F7F7F2] p-8 text-[#252525] backdrop:bg-[#F7F7F2]"
     >
-      <h1 className="text-3xl font-medium">Spare controller</h1>
-      <Field label="Pairing code from the host" name="code" autoComplete="off" required />
-      <Button className="w-full" disabled={busy}>
-        Connect controller
-      </Button>
-    </form>
+      <div className="grid min-h-full place-items-center">{children}</div>
+    </dialog>
   );
 }
-function Registration() {
-  const { command, busy } = useArcade(),
-    [recover, setRecover] = useState(false);
+function Password({ label = 'Password', name = 'password', fresh = false }) {
+  const [show, setShow] = useState(false);
   return (
-    <div className="space-y-7">
-      <div>
-        <p className="mb-3 text-sm text-[#62625C]">Welcome to the Arcade</p>
-        <h1 className="text-3xl font-medium leading-tight tracking-tight">Join the Arcade.</h1>
-      </div>
-      {recover ? (
-        <form
-          className="space-y-5"
-          onSubmit={(e) => {
-            e.preventDefault();
-            command('recover', { code: new FormData(e.currentTarget).get('code') });
-          }}
-        >
-          <Field label="Recovery code" name="code" required />
-          <Button className="w-full" disabled={busy}>
-            Sign in
-          </Button>
-          <button type="button" onClick={() => setRecover(false)} className="text-sm underline">
-            Use email instead
-          </button>
-        </form>
-      ) : (
-        <form
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const data = Object.fromEntries(new FormData(e.currentTarget));
-            command('register', { ...data, consent: data.consent === 'on' });
-          }}
-        >
-          <Field
-            label="BCU email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            placeholder="you@mail.bcu.ac.uk"
-            required
-          />
-          <Field
-            label="Course"
-            name="course"
-            placeholder="e.g. Computer Science"
-            maxLength={120}
-            required
-          />
-          <Select label="Academic level" name="level" required>
-            <option value="">Choose level</option>
-            {[
-              'Foundation',
-              'Year 1',
-              'Year 2',
-              'Placement',
-              'Final year',
-              'Postgraduate',
-              'Staff / not applicable',
-            ].map((v) => (
-              <option key={v}>{v}</option>
-            ))}
-          </Select>
-          <label className="flex items-start gap-3 pt-2 text-sm text-[#62625C]">
-            <input type="checkbox" name="consent" className="mt-1 size-4 accent-[#365E53]" />
-            <span>Send me one email about BCUSCA membership.</span>
-          </label>
-          <p className="text-xs leading-relaxed text-[#62625C]">
-            We use your details to run the Arcade and contact prize winners. Course and level appear
-            only in grouped attendance reports. Personal details are deleted after prizes and the
-            correction period.
-          </p>
-          <Button className="w-full" disabled={busy}>
-            Continue
-          </Button>
-          <button
-            type="button"
-            onClick={() => setRecover(true)}
-            className="w-full py-2 text-sm underline"
-          >
-            I have a recovery code
-          </button>
-        </form>
+    <div>
+      <Field
+        label={label}
+        name={name}
+        type={show ? 'text' : 'password'}
+        autoComplete={fresh ? 'new-password' : 'current-password'}
+        minLength={fresh ? 15 : undefined}
+        maxLength={256}
+        required
+      />
+      <button type="button" className="min-h-11 text-xs underline" onClick={() => setShow(!show)}>
+        {show ? 'Hide' : 'Show'} password
+      </button>
+      {fresh && (
+        <p className="text-xs text-[#62625C]">At least 15 characters. A few words work well.</p>
       )}
     </div>
   );
 }
-function Verification() {
-  const { state, command, busy } = useArcade(),
-    [sent, setSent] = useState(false),
-    [preview, setPreview] = useState(null),
-    [editing, setEditing] = useState(false);
-  const linkToken = new URLSearchParams(location.search).get('token');
+function Auth() {
+  const { command, busy, connected } = useArcade(),
+    [mode, setMode] = useState('register'),
+    [message, setMessage] = useState('');
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-medium tracking-tight">Verify your email</h1>
-      <p className="break-all text-[#62625C]">{state.me.email}</p>
-      {linkToken && (
-        <Button
-          className="w-full"
-          disabled={busy}
-          onClick={async () => {
-            const r = await command('verify', { linkToken });
-            if (r) history.replaceState(null, '', '/');
-          }}
-        >
-          Confirm this browser
-        </Button>
-      )}
-      {!sent ? (
-        <Button
-          className="w-full"
-          disabled={busy}
-          onClick={async () => {
-            if (await command('sendVerification')) setSent(true);
-          }}
-        >
-          Send verification email
-        </Button>
-      ) : (
-        <p role="status" className="text-sm text-[#365E53]">
-          Email queued. Check your inbox or junk folder.
-        </p>
-      )}
+      <h1 className="text-3xl font-medium">
+        {mode === 'register'
+          ? 'Join the arcade'
+          : mode === 'login'
+            ? 'Welcome back'
+            : 'Reset your password'}
+      </h1>
       <form
         className="space-y-4"
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
-          command('verify', { code: new FormData(e.currentTarget).get('code') });
+          const r = await command(
+            mode === 'forgot' ? 'forgotPassword' : mode,
+            Object.fromEntries(new FormData(e.currentTarget)),
+          );
+          if (r?.message) setMessage(r.message);
+        }}
+      >
+        {mode === 'register' && (
+          <Field label="Full name" name="fullName" autoComplete="name" required />
+        )}
+        <Field label="BCU email" name="email" type="email" autoComplete="username" required />
+        {mode !== 'forgot' && <Password fresh={mode === 'register'} />}
+        {mode === 'register' && (
+          <>
+            <Field label="Course" name="course" required />
+            <Select label="Academic year" name="level" defaultValue="" required>
+              <option value="" disabled>
+                Select academic year
+              </option>
+              {[
+                'Foundation',
+                'Year 1',
+                'Year 2',
+                'Placement',
+                'Final year',
+                'Postgraduate',
+                'Staff',
+              ].map((v) => (
+                <option key={v}>{v}</option>
+              ))}
+            </Select>
+            <p className="text-xs text-[#62625C]">
+              Your public name is generated. Your details are private and deleted after the event
+              and prize distribution.
+            </p>
+            <label className="flex gap-3 text-xs">
+              <input type="checkbox" name="consent" value="true" />
+              Send me one BCUSCA membership email (optional).
+            </label>
+          </>
+        )}
+        <Button className="w-full" disabled={busy || !connected}>
+          {mode === 'register'
+            ? 'Create account'
+            : mode === 'login'
+              ? 'Sign in'
+              : 'Send reset link'}
+        </Button>
+      </form>
+      {message && (
+        <p role="status" className="text-sm">
+          {message}
+        </p>
+      )}
+      <div className="flex flex-wrap gap-4 text-sm">
+        {mode !== 'register' && (
+          <button className="min-h-11 underline" onClick={() => setMode('register')}>
+            Create account
+          </button>
+        )}
+        {mode !== 'login' && (
+          <button className="min-h-11 underline" onClick={() => setMode('login')}>
+            Sign in
+          </button>
+        )}
+        {mode === 'login' && (
+          <button className="min-h-11 underline" onClick={() => setMode('forgot')}>
+            Forgot password?
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+function Verify() {
+  const now = useClock();
+  const { state, command, busy } = useArcade(),
+    [message, setMessage] = useState('');
+  return (
+    <div className="space-y-5">
+      <h1 className="text-2xl font-medium">Verify your BCU email</h1>
+      <p className="text-sm text-[#62625C]">
+        Enter the code for {state.me.email}. After verification, you can join the queue.
+      </p>
+      <p role="status" className="text-xs text-[#62625C]">
+        Email: {state.me.verification?.status}
+      </p>
+      <form
+        className="space-y-4"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          await command('verify', { code: new FormData(e.currentTarget).get('code') });
         }}
       >
         <Field
-          label="Six-digit code"
+          label="Email code"
           name="code"
           inputMode="numeric"
           autoComplete="one-time-code"
@@ -175,471 +170,674 @@ function Verification() {
           maxLength={6}
           required
         />
-        <Button className="w-full" disabled={busy}>
-          Verify
-        </Button>
+        <Button disabled={busy}>Verify</Button>
       </form>
-      <div className="flex justify-between text-sm">
-        <button
-          disabled={busy}
-          onClick={() => command('sendVerification')}
-          className="min-h-11 underline"
-        >
-          Resend email
-        </button>
-        {!state.me.pending && (
-          <button onClick={() => setEditing(!editing)} className="min-h-11 underline">
-            Change email
-          </button>
-        )}
-      </div>
-      {editing && (
-        <form
-          className="space-y-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            command('changeEmail', { email: new FormData(e.currentTarget).get('email') });
-          }}
-        >
-          <Field label="Correct BCU email" type="email" name="email" required />
-          <Button secondary disabled={busy}>
-            Save email
-          </Button>
-        </form>
+      <Button
+        secondary
+        disabled={busy || now < state.me.verification?.resendAt}
+        onClick={async () => {
+          const r = await command('sendVerification');
+          if (r) setMessage(r.message);
+        }}
+      >
+        {now < state.me.verification?.resendAt
+          ? `Resend in ${Math.ceil((state.me.verification.resendAt - now) / 1000)}s`
+          : 'Resend email'}
+      </Button>
+      {message && (
+        <p role="status" className="text-sm">
+          {message}
+        </p>
       )}
       {state.development && (
-        <div className="border-t border-[#DDDDD5] pt-4 text-sm">
-          <button
-            className="underline"
-            onClick={async () => setPreview(await (await fetch('/api/development-mail')).json())}
-          >
-            Development email preview
-          </button>
-          {preview && (
-            <p className="mt-2 font-mono">{preview.code || 'Waiting for the local mail worker…'}</p>
-          )}
-        </div>
+        <button
+          className="block text-xs underline"
+          onClick={async () => {
+            const r = await (await fetch('/api/development-mail')).json();
+            setMessage(r.code ? `Development code: ${r.code}` : 'Email is still queued.');
+          }}
+        >
+          Development email preview
+        </button>
       )}
     </div>
   );
 }
-function LiveInvitation() {
-  const { state, command, busy } = useArcade();
-  return state.live?.phase === 'lobby' ? (
-    <form
-      className="mt-6 space-y-3 border-t border-[#DDDDD5] pt-6"
-      onSubmit={(e) => {
-        e.preventDefault();
-        command('joinLive', { code: new FormData(e.currentTarget).get('code') });
-      }}
-    >
-      <div className="flex justify-between">
-        <h2 className="font-medium">Join Live</h2>
-        <Timer until={state.live.until} />
-      </div>
-      <Field
-        label="Lobby code"
-        name="code"
-        inputMode="numeric"
-        pattern="[0-9]{6}"
-        maxLength={6}
-        required
-      />
-      <Button secondary className="w-full" disabled={busy}>
-        Join Live Game
-      </Button>
-    </form>
-  ) : null;
+function EmailAction() {
+  const { command, state, busy } = useArcade(),
+    [token] = useState(() => new URLSearchParams(location.hash.slice(1)).get('token') || ''),
+    [message, setMessage] = useState('');
+  const reset = location.pathname === '/reset-password';
+  useEffect(() => {
+    history.replaceState(null, '', location.pathname);
+  }, []);
+  return (
+    <div className="space-y-5">
+      <h1 className="text-2xl font-medium">
+        {reset ? 'Set a new password' : 'Confirm your email'}
+      </h1>
+      {message ? (
+        <>
+          <p role="status">{message}</p>
+          <a href="/" className="underline">
+            Return to Arcade
+          </a>
+        </>
+      ) : (
+        <form
+          className="space-y-5"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const r = await command(reset ? 'resetPassword' : 'verify', {
+              linkToken: token,
+              ...Object.fromEntries(new FormData(e.currentTarget)),
+            });
+            if (r) setMessage(r.message);
+          }}
+        >
+          {!reset && (
+            <p className="text-sm">
+              Use the password you chose when registering. Verifying here does not sign this browser
+              in automatically.
+            </p>
+          )}
+          {(reset || !state?.me) && <Password fresh={reset} />}
+          <Button disabled={busy || !token}>{reset ? 'Set password' : 'Confirm email'}</Button>
+        </form>
+      )}
+    </div>
+  );
 }
-function LiveController() {
+function ScoreRows({ rows }) {
+  return (
+    <div className="divide-y divide-[#DDDDD5]">
+      {rows.map((r) => (
+        <div key={r.id || r.accountId} className="flex justify-between gap-4 py-3 text-sm">
+          <span>
+            {r.rank && `${r.rank}. `}
+            {r.alias || gameById(r.gameId)?.name}
+            {r.status && (
+              <span className="block text-xs text-[#62625C]">
+                {new Date(r.ended).toLocaleDateString()} · {r.status.replace('_', ' ')}
+              </span>
+            )}
+          </span>
+          <span className="text-right tabular-nums">
+            {scoreText(r.score)}
+            <span className="block text-xs text-[#62625C]">{grade(r.score)}</span>
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+function Scores() {
+  const { state } = useArcade(),
+    [filter, setFilter] = useState('all');
+  const me = state.me,
+    rank = state.leaderboard.find((r) => r.accountId === me.id);
+  const practice = me.attempts
+    .filter(
+      (a) =>
+        a.mode === 'practice' &&
+        a.version === SCORING_VERSION &&
+        ['completed', 'timed_out', 'abandoned'].includes(a.status) &&
+        (filter === 'all' || a.gameId === filter),
+    )
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 10);
+  return (
+    <div className="space-y-8">
+      <section>
+        <h1 className="text-2xl font-medium">Ranked standings</h1>
+        <p className="my-3 text-sm text-[#62625C]">
+          {rank
+            ? `Your position: ${rank.rank} · Best: ${scoreText(rank.score)}`
+            : 'Play Ranked to set a score.'}{' '}
+          · {Math.max(0, 3 - me.used)} attempts left
+        </p>
+        <ScoreRows rows={state.leaderboard} />
+      </section>
+      <section>
+        <h2 className="mb-4 text-xl font-medium">Your Practice top ten</h2>
+        <Select label="Game" value={filter} onChange={(e) => setFilter(e.target.value)}>
+          <option value="all">All games</option>
+          {availableGames(state.config).map((g) => (
+            <option key={g.id} value={g.id}>
+              {g.name}
+            </option>
+          ))}
+        </Select>
+        {practice.length ? (
+          <ScoreRows rows={practice} />
+        ) : (
+          <p className="mt-4 text-sm text-[#62625C]">No Practice scores yet.</p>
+        )}
+      </section>
+      <section>
+        <h2 className="mb-3 text-xl font-medium">Review your recent sessions</h2>
+        {me.attempts
+          .filter((a) => a.version === SCORING_VERSION && a.review?.length)
+          .slice(-10)
+          .reverse()
+          .map((a) => (
+            <details key={a.id} className="border-b border-[#DDDDD5] py-3">
+              <summary className="min-h-11 text-sm">
+                {gameById(a.gameId)?.name} · {scoreText(a.score)}
+              </summary>
+              {a.review.map((q, i) => (
+                <div key={q.id || i} className="my-4">
+                  {q.kind === 'puzzle' ? (
+                    <PuzzleReveal q={q} result={q} />
+                  ) : (
+                    <Question
+                      question={q}
+                      gameId={a.gameId}
+                      reveal
+                      submitted={q.selected}
+                      points={q.points}
+                    />
+                  )}
+                </div>
+              ))}
+            </details>
+          ))}
+      </section>
+      <section>
+        <h2 className="text-xl font-medium">Recent Live games</h2>
+        {me.liveResults.map((r) => (
+          <p key={r.id} className="flex justify-between py-3 text-sm">
+            <span>
+              {gameById(r.gameId)?.name}
+              {r.won ? ' · Winner' : ''}
+            </span>
+            <span>{(r.score / 1000000).toFixed(1)} points</span>
+          </p>
+        ))}
+      </section>
+    </div>
+  );
+}
+function LivePlay() {
   const { state, command } = useArcade(),
-    live = state.live;
-  if (live.phase === 'wheel') return <Wheel key={live.selection.id} selection={live.selection} />;
+    live = state.live,
+    entry = state.me.liveEntry;
+  if (live.phase === 'introduction')
+    return (
+      <>
+        <Tutorial gameId={live.gameId} />
+        <p className="mt-3 text-sm">
+          Starts in <Timer until={live.until} />
+        </p>
+      </>
+    );
+  if (live.phase === 'wheel') return <Wheel selection={live.selection} />;
   if (['lobby', 'countdown'].includes(live.phase))
     return (
-      <div className="space-y-8 py-8">
-        <p className="text-[#62625C]">{gameById(live.gameId)?.name || 'Live arcade'}</p>
-        <h1 className="text-3xl font-medium">You’re in.</h1>
+      <div className="space-y-6 py-8">
+        <h1 className="text-2xl font-medium">
+          {live.phase === 'lobby' ? 'You’re in' : gameById(live.gameId)?.name}
+        </h1>
         <Timer large until={live.until} />
         <p className="text-sm text-[#62625C]">Your solo queue position is saved.</p>
       </div>
     );
-  if (live.phase === 'cancelled') return <Empty title="Live game cancelled">{live.message}</Empty>;
   if (live.phase === 'winner') {
     const own = live.roster.find((e) => e.accountId === state.me.id);
     return (
-      <div className="space-y-6 py-8">
+      <div className="space-y-5">
         <h1 className="text-3xl font-medium">
-          {live.winners?.includes(state.me.id) ? 'You won.' : 'Well played.'}
+          {live.winners?.includes(state.me.id) ? 'You won!' : 'Well played.'}
         </h1>
-        <Score value={own?.score} />
-        <p className="text-[#62625C]">Solo play resumes shortly.</p>
+        <p className="text-4xl font-medium">
+          {((own?.score || 0) / 1000000).toFixed(1)} <span className="text-base">points</span>
+        </p>
+        <p className="text-sm">
+          {live.prizeRecipients?.includes(state.me.id)
+            ? 'Speak to the host for your small prize.'
+            : 'Solo play resumes shortly.'}
+        </p>
       </div>
     );
   }
+  if (live.phase === 'cancelled') return <p>{live.message}. Solo play resumes shortly.</p>;
+  const reveal = ['execution', 'reveal'].includes(live.phase),
+    own = live.roster.find((e) => e.accountId === state.me.id);
   return (
-    <div className="space-y-5">
-      <div className="flex justify-between text-sm text-[#62625C]">
-        <span>Live · {live.level + 1} / 6</span>
+    <div className="space-y-4">
+      <div className="flex justify-between">
+        <h1 className="font-medium">{gameById(live.gameId)?.name}</h1>
+        {live.gameId === 'robot' && (
+          <span className={cx('rounded-full px-3 py-1 text-xs', markerClass(own?.mark || 1))}>
+            Your robot: {own?.mark}
+          </span>
+        )}
         <Timer until={live.until} />
       </div>
-      <Question
-        key={live.question.id}
-        question={live.question}
-        gameId={live.gameId}
-        locked={state.me.liveEntry.submitted || live.phase === 'reveal'}
-        reveal={live.phase === 'reveal'}
-        submitted={
-          state.me.liveEntry.submitted
-            ? state.me.liveEntry.answer
-            : live.phase === 'reveal'
-              ? null
-              : undefined
-        }
-        timedOut={!state.me.liveEntry.submitted}
-        onSubmit={(answer) => command('liveAnswer', { answer, challengeId: live.question.id })}
-      />
+      {live.question?.kind === 'puzzle' ? (
+        reveal ? (
+          live.phase === 'execution' ? (
+            <PuzzleExecution
+              q={live.question}
+              execution={{
+                id: live.id,
+                started: live.phaseAt,
+                until: live.until,
+                selected: entry.answer,
+                result: own?.result,
+              }}
+            />
+          ) : (
+            <PuzzleReveal q={live.question} result={{ ...own?.result, selected: entry.answer }} />
+          )
+        ) : (
+          <>
+            <p className="text-sm">
+              {live.question.prompt ||
+                'Plan your route, then lock it. Execution is revealed together.'}
+            </p>
+            <PuzzleEditor
+              key={live.question.id}
+              q={live.question}
+              live
+              locked={entry.submitted}
+              onSubmit={(program) =>
+                command('liveAnswer', { program, challengeId: live.question.id })
+              }
+            />
+          </>
+        )
+      ) : (
+        <Question
+          key={live.question.id}
+          question={live.question}
+          gameId={live.gameId}
+          reveal={reveal}
+          locked={entry.submitted}
+          submitted={entry.answer ?? undefined}
+          onSubmit={(answer) => command('liveAnswer', { answer, challengeId: live.question.id })}
+        />
+      )}
     </div>
   );
 }
-function PlayHome() {
+function Play() {
   const { state, command, busy } = useArcade(),
     [mode, setMode] = useState('practice');
-  const me = state.me,
-    a = state.active;
-  if (state.live && me.liveEntry) return <LiveController />;
+  const [confirm, confirmation] = useConfirmation();
+  const a = state.active,
+    me = state.me;
+  if (
+    !me.eligible &&
+    !(a?.accountId === me.id && ['playing', 'result'].includes(a.phase)) &&
+    !(me.liveEntry && state.live?.phase !== 'lobby')
+  )
+    return <Verify />;
+  if (me.liveEntry && state.live) return <LivePlay />;
   if (a?.accountId === me.id) {
     if (a.phase === 'called')
       return (
-        <div className="space-y-7 py-8">
-          <p className="text-[#62625C]">{me.alias}</p>
-          <h1 className="text-4xl font-medium tracking-tight">Your turn.</h1>
-          <p className="text-[#62625C]">Ready at the stall?</p>
-          <Button className="w-full" disabled={busy} onClick={() => command('ready')}>
+        <div className="space-y-6">
+          <h1 className="text-3xl font-medium">Your turn</h1>
+          <p>Ready at the stall?</p>
+          <Button disabled={busy} onClick={() => command('ready')}>
             I’m ready
           </Button>
           <Timer until={a.until} />
         </div>
       );
-    if (a.phase === 'wheel')
+    if (a.phase === 'introduction')
       return (
-        <div className="space-y-8">
-          <h1 className="text-2xl font-medium">Let’s pick your game.</h1>
-          <Wheel key={a.selection.id} selection={a.selection} />
-        </div>
-      );
-    if (a.phase === 'briefing')
-      return (
-        <div className="space-y-8 py-12">
-          <h1 className="text-3xl font-medium">{gameById(a.gameId).name}</h1>
-          <p className="text-lg text-[#62625C]">{gameById(a.gameId).description}</p>
-          <p className="text-sm text-[#62625C]">
-            {a.gameId === 'robot'
-              ? 'Arrows move in the direction shown. Run your program; Stop to change it.'
-              : 'Choose carefully. Each question accepts one answer.'}
+        <div className="space-y-4">
+          <Tutorial gameId={a.gameId} />
+          <Button disabled={busy} onClick={() => command('tutorialReady')}>
+            I’m ready
+          </Button>
+          <p className="text-xs text-[#62625C]">
+            Confirm within <Timer until={a.until} /> to keep this turn. No Ranked start used yet.
           </p>
         </div>
       );
+    if (a.phase === 'wheel') return <Wheel selection={a.selection} />;
     if (a.phase === 'countdown')
       return (
-        <div className="space-y-6 py-16 text-center">
-          <h1 className="text-3xl font-medium">{gameById(a.gameId)?.name}</h1>
+        <div className="space-y-6 py-12 text-center">
+          <h1 className="text-2xl font-medium">{gameById(a.gameId)?.name}</h1>
           <Timer large until={a.until} />
         </div>
       );
     if (a.phase === 'playing')
       return (
         <>
+          {confirmation}
           <Game active={a} />
           <button
-            className="mt-6 py-3 text-sm text-[#62625C] underline"
-            onClick={() => {
-              if (confirm('End this attempt? A ranked attempt will remain used.'))
+            className="mt-4 min-h-11 text-xs underline"
+            onClick={async () => {
+              if (
+                await confirm(
+                  a.mode === 'ranked'
+                    ? 'End this session? Your Ranked start remains used. The clock continues while this message is open.'
+                    : 'End this Practice session? The clock continues while this message is open.',
+                )
+              )
                 command('quit', { attemptId: a.attemptId });
             }}
           >
-            End attempt
+            End session
           </button>
         </>
       );
-    if (a.phase === 'result')
-      return (
-        <div className="space-y-8 py-10">
-          <h1 className="text-3xl font-medium">Your result.</h1>
-          <Score value={a.game.score} />
-          <p className="text-[#62625C]">
-            {a.mode === 'ranked'
-              ? `${3 - me.used} ranked attempts remaining`
-              : 'Practice · not ranked'}
-          </p>
-          <p className="text-sm text-[#62625C]">
-            Your result is saved. The next turn starts shortly.
-          </p>
-        </div>
-      );
-  }
-  if (me.queue)
+    const attempt = me.attempts.find((t) => t.id === a.attemptId);
     return (
       <div className="space-y-6">
-        <p className="text-[#62625C]">{me.alias}</p>
-        <h1 className="text-3xl font-medium">You’re in the queue.</h1>
-        <div className="py-5 text-8xl font-medium tracking-tight tabular-nums">
-          {me.queue.position}
-          <span className="ml-4 text-base font-normal tracking-normal text-[#62625C]">in line</span>
-        </div>
-        <p className="text-sm text-[#62625C]">
-          {me.queue.heldUntil
-            ? 'Verify your email to keep your place.'
-            : `About ${Math.max(1, Math.ceil(me.queue.position * 1.5))} minutes · ${me.queue.mode}`}
-        </p>
-        <Button secondary onClick={() => command('leave')} disabled={busy}>
-          Leave queue
-        </Button>
-        <LiveInvitation />
+        <h1 className="text-2xl font-medium">
+          {attempt?.firstScore
+            ? 'First score'
+            : attempt?.personalBest
+              ? 'New personal best'
+              : 'Your result'}
+        </h1>
+        <Score value={a.game.score} />
+        <p className="text-sm text-[#62625C]">{gameById(a.gameId)?.name}</p>
+        {attempt?.improvement > 0 && (
+          <p className="text-sm">+{scoreText(attempt.improvement)} above your previous best</p>
+        )}
+        <p className="text-sm">Join again when this result closes.</p>
+        <details>
+          <summary className="min-h-11 text-sm">Score breakdown</summary>
+          {attempt?.breakdown?.map((q, i) => (
+            <p key={i} className="py-2 text-xs">
+              Level {i + 1}: {scoreText(q.points)} · {q.correct ? 'Correct' : 'Not solved'} ·{' '}
+              {(q.elapsedMs / 1000).toFixed(3)}s
+            </p>
+          ))}
+        </details>
       </div>
     );
-  const latest = me.attempts.at(-1),
-    now = state.now,
-    window = state.config.windows.find((w) => now >= w.start && now < w.cutoff),
-    admissions = window && !state.config.paused && !state.config.finalised;
+  }
   return (
-    <div className="space-y-7">
-      <div>
-        <p className="mb-3 text-sm text-[#62625C]">{me.alias}</p>
-        <h1 className="text-3xl font-medium tracking-tight">Ready to play?</h1>
-      </div>
-      {latest && (
-        <div className="flex items-baseline justify-between border-b border-[#DDDDD5] pb-5">
-          <span className="text-sm text-[#62625C]">
-            Last result · {latest.status.replace('_', ' ')}
-          </span>
-          <span className="text-2xl font-medium tabular-nums">{scoreText(latest.score)}</span>
-        </div>
+    <div className="space-y-6">
+      {state.live?.phase === 'lobby' && !me.liveEntry && (
+        <section className="rounded-xl border border-[#365E53] p-4">
+          <h2 className="mb-3 text-xl font-medium">Join Live</h2>
+          <Button disabled={busy} onClick={() => command('joinLive', { liveId: state.live.id })}>
+            Join live game
+          </Button>
+        </section>
       )}
-      <div className="grid grid-cols-2 gap-3">
-        {['practice', 'ranked'].map((m) => (
-          <button
-            key={m}
-            onClick={() => setMode(m)}
-            aria-pressed={mode === m}
-            className={cx(
-              'rounded-xl border p-5 text-left',
-              mode === m ? 'border-[#365E53] bg-[#E9EDE6]' : 'border-[#C5C5BC] bg-white',
-            )}
+      {me.queue ? (
+        <>
+          <h1 className="text-3xl font-medium">You’re in the queue</h1>
+          <p className="text-5xl tabular-nums">{me.queue.position - 1}</p>
+          <p className="text-sm">people ahead</p>
+          <p className="text-xs text-[#62625C]">
+            {state.config.paused
+              ? 'Queue paused by the host.'
+              : me.queue.waitingForVerification
+                ? 'Verify your email to keep moving.'
+                : me.queue.estimateMinutes
+                  ? `Allow up to about ${me.queue.estimateMinutes} minutes, including planned Live play. Timing may change.`
+                  : 'You are next when the current activity finishes.'}
+          </p>
+          <p className="text-sm text-[#62625C]">
+            {me.alias} · {me.queue.mode}
+          </p>
+          <Button secondary onClick={() => command('leave')}>
+            Leave queue
+          </Button>
+        </>
+      ) : (
+        <>
+          <p className="text-xs text-[#62625C]">{me.alias}</p>
+          <h1 className="text-3xl font-medium">Ready to play?</h1>
+          {me.turnNotice && (
+            <p role="status" className="text-sm">
+              {me.turnNotice}
+            </p>
+          )}
+          <GameHelp />
+          <div className="grid grid-cols-2 gap-3">
+            {['practice', 'ranked'].map((v) => (
+              <button
+                key={v}
+                className={cx(
+                  'min-h-20 rounded-lg border p-4 text-left capitalize',
+                  mode === v ? 'border-[#365E53] bg-[#E9EDE6]' : 'border-[#DDDDD5] bg-white',
+                )}
+                onClick={() => setMode(v)}
+              >
+                {v}
+                <span className="mt-2 block text-xs normal-case text-[#62625C]">
+                  {v === 'practice'
+                    ? 'Play for the challenge'
+                    : `${Math.max(0, 3 - me.used)} attempts left`}
+                </span>
+              </button>
+            ))}
+          </div>
+          <Button
+            className="w-full"
+            disabled={
+              busy ||
+              !!state.admissionsReason ||
+              (mode === 'ranked' && (!state.config.rankedEnabled || me.used >= 3))
+            }
+            onClick={() => command('enqueue', { mode })}
           >
-            <span className="block font-medium capitalize">{m}</span>
-            <span className="mt-2 block text-xs text-[#62625C]">
-              {m === 'practice' ? 'Play for the challenge' : `${3 - me.used} attempts left`}
-            </span>
-          </button>
-        ))}
-      </div>
-      <Button
-        className="w-full"
-        disabled={
-          busy ||
-          !admissions ||
-          (mode === 'ranked' && (!state.config.rankedEnabled || me.used >= 3))
-        }
-        onClick={() => command('enqueue', { mode })}
-      >
-        Enqueue
-      </Button>
-      {!admissions && <p className="text-sm text-[#62625C]">Admissions are currently closed.</p>}
-      {mode === 'ranked' && !state.config.rankedEnabled && (
-        <p className="text-sm text-[#62625C]">Ranked is not open yet.</p>
+            Join queue
+          </Button>
+          <p className="text-sm text-[#62625C]">
+            {state.admissionsReason ||
+              (mode === 'ranked' && !state.config.rankedEnabled ? 'Ranked is currently off.' : '')}
+          </p>
+        </>
       )}
-      {state.config.autoLive && (
-        <div className="flex justify-between text-sm text-[#62625C]">
-          <span>Next multiplayer lobby</span>
-          <Timer until={state.config.nextLobbyAt} />
-        </div>
-      )}
-      <LiveInvitation />
     </div>
   );
 }
 export function Player() {
-  const { state, command, recovery, setRecovery } = useArcade(),
+  const { state, command, connectionId, busy } = useArcade(),
     [tab, setTab] = useState('play'),
-    [settings, setSettings] = useState(false),
-    [page, setPage] = useState(0);
-  const me = state?.me,
-    focused =
-      (state?.active?.accountId === me?.id &&
-        ['playing', 'wheel', 'briefing', 'countdown'].includes(state?.active?.phase)) ||
-      !!me?.liveEntry;
-  const alreadyStarted =
-    (state?.active?.accountId === me?.id && ['playing', 'result'].includes(state?.active?.phase)) ||
-    (me?.liveEntry && ['question', 'reveal', 'winner'].includes(state?.live?.phase));
-  const mustVerify =
-    me &&
-    !alreadyStarted &&
-    (me.pending ||
-      (!me.verified && (state.config.requireVerification || location.pathname === '/verify')));
-  const [lastRead, setLastRead] = useState(() =>
-    Number(localStorage.getItem('arcade-updates-read') || 0),
-  );
-  const unread = state?.updates.some((u) => u.at > lastRead);
+    [message, setMessage] = useState('');
+  const claimed = useRef(null);
+  const focused =
+    (state?.active?.accountId === state?.me?.id &&
+      ['wheel', 'introduction', 'countdown', 'playing'].includes(state?.active?.phase)) ||
+    (!!state?.me?.liveEntry &&
+      !!state?.live &&
+      !['winner', 'cancelled'].includes(state.live.phase));
+  const me = state?.me;
+  useEffect(() => {
+    setTab('play');
+    claimed.current = null;
+  }, [me?.id]);
+  useEffect(() => {
+    if (!busy && me && connectionId && claimed.current !== connectionId && !me.inputOwned) {
+      claimed.current = connectionId;
+      command('claimPlayerControl');
+    }
+  }, [me?.id, connectionId, busy]);
+  const award = me?.awards.find((a) => a.type === 'grand' && !a.acknowledged && !a.forfeited);
+  const actionPage = ['/verify', '/reset-password'].includes(location.pathname);
   return (
-    <div className="mx-auto flex min-h-svh max-w-lg flex-col px-5 pb-8 pt-7 sm:px-8">
-      <header className="mb-10 flex items-center justify-between">
+    <div className="mx-auto min-h-svh max-w-lg px-5 py-7">
+      <header className="mb-8 flex items-center justify-between">
         <Wordmark />
-        {me && !me.pending && !me.controller && (
-          <button onClick={() => setSettings(true)} className="min-h-11 text-sm text-[#62625C]">
-            Account
+        {me && !focused && (
+          <button
+            className="min-h-11 text-xs"
+            onClick={() => setTab(tab === 'account' ? 'play' : 'account')}
+          >
+            {tab === 'account' ? 'Back' : 'Account'}
           </button>
         )}
       </header>
       <Notice />
-      {!state ? (
-        <p className="py-16 text-[#62625C]">Connecting…</p>
+      {!focused &&
+        me?.notifications?.map((n) => (
+          <div
+            key={n.id}
+            role="status"
+            className="mb-4 rounded-lg border border-[#365E53] p-4 text-sm"
+          >
+            <strong>{n.title}</strong>
+            <p>{n.body}</p>
+            <button
+              className="min-h-11 underline"
+              onClick={() => command('ackNotification', { id: n.id })}
+            >
+              Dismiss
+            </button>
+          </div>
+        ))}
+      {actionPage ? (
+        <EmailAction />
+      ) : !state ? (
+        <p>Connecting…</p>
+      ) : !me ? (
+        <Auth />
       ) : (
-        <main className="flex-1">
-          {!me ? (
-            location.pathname === '/controller' ? (
-              <ControllerPair />
-            ) : (
-              <Registration />
-            )
-          ) : mustVerify ? (
-            me.controller ? (
-              <Empty title="Verification required">
-                Verify on your own device or speak to the host.
-              </Empty>
-            ) : (
-              <Verification />
-            )
-          ) : tab === 'play' || focused || state.active?.accountId === me.id ? (
-            <PlayHome />
-          ) : tab === 'leaderboard' ? (
-            <div className="space-y-6">
-              <h1 className="text-3xl font-medium">Ranked standings</h1>
-              <Leaderboard
-                rows={state.leaderboard.slice(page * 15, (page + 1) * 15)}
-                ownId={me.id}
-              />
-              <div className="flex justify-between">
-                <Button secondary disabled={!page} onClick={() => setPage(page - 1)}>
-                  Previous
-                </Button>
-                <Button
-                  secondary
-                  disabled={(page + 1) * 15 >= state.leaderboard.length}
-                  onClick={() => setPage(page + 1)}
+        <>
+          {!focused && (
+            <nav className="mb-6 flex gap-6 border-b border-[#DDDDD5]">
+              {['play', 'scores', 'updates'].map((v) => (
+                <button
+                  key={v}
+                  className={cx(
+                    'min-h-11 capitalize',
+                    tab === v ? 'font-medium' : 'text-[#62625C]',
+                  )}
+                  onClick={() => {
+                    setTab(v);
+                    if (v === 'updates') command('readUpdates');
+                  }}
                 >
-                  Next
-                </Button>
-              </div>
-              {state.leaderboard.find((r) => r.accountId === me.id) && (
-                <p className="text-sm text-[#62625C]">
-                  Your rank: {state.leaderboard.find((r) => r.accountId === me.id).rank}
-                </p>
+                  {v}
+                  {v === 'updates' && me.unreadUpdates && (
+                    <span
+                      aria-label="Unread updates"
+                      className="ml-2 inline-block size-2 rounded-full bg-[#365E53]"
+                    />
+                  )}
+                </button>
+              ))}
+            </nav>
+          )}
+          {focused && !me.inputOwned ? (
+            <div className="space-y-4">
+              <p>This account is open on another controller.</p>
+              <Button
+                disabled={busy}
+                onClick={() => command('claimPlayerControl', { confirm: true })}
+              >
+                Take control here
+              </Button>
+            </div>
+          ) : focused ? (
+            <Play />
+          ) : tab === 'account' ? (
+            <div className="space-y-5">
+              <h1 className="text-2xl font-medium">Your account</h1>
+              {me.profileEditable ? (
+                <form
+                  className="space-y-3"
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    const r = await command(
+                      'updateProfile',
+                      Object.fromEntries(new FormData(e.currentTarget)),
+                    );
+                    if (r) setMessage(r.message);
+                  }}
+                >
+                  <Field label="Full name" name="fullName" defaultValue={me.fullName} required />
+                  <Field label="Course" name="course" defaultValue={me.course} required />
+                  <Field label="Academic year" name="level" defaultValue={me.level} required />
+                  <Button secondary>Save details</Button>
+                </form>
+              ) : (
+                <p>{me.fullName}</p>
               )}
+              <p className="text-sm">
+                {me.email}
+                <br />
+                {me.course} · {me.level}
+              </p>
+              <form
+                className="space-y-3"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  const r = await command(
+                    'changePassword',
+                    Object.fromEntries(new FormData(e.currentTarget)),
+                  );
+                  if (r) setMessage(r.message);
+                }}
+              >
+                <Password label="Current password" name="currentPassword" />
+                <Password label="New password" fresh />
+                <Button>Change password</Button>
+              </form>
+              {message && <p>{message}</p>}
+              <Button secondary onClick={() => command('logout')}>
+                Sign out
+              </Button>
+            </div>
+          ) : tab === 'scores' ? (
+            <Scores />
+          ) : tab === 'updates' ? (
+            <div className="space-y-6">
+              <h1 className="text-2xl font-medium">Updates</h1>
+              {state.updates.map((u) => (
+                <article key={u.id}>
+                  <h2 className="font-medium">{u.title}</h2>
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-[#62625C]">{u.body}</p>
+                </article>
+              ))}
+            </div>
+          ) : !me.inputOwned && me.eligible ? (
+            <div className="space-y-4">
+              <p>This account is open on another controller.</p>
+              <Button onClick={() => command('claimPlayerControl', { confirm: true })}>
+                Take control here
+              </Button>
             </div>
           ) : (
-            <div>
-              <h1 className="mb-8 text-3xl font-medium">Updates</h1>
-              {!state.updates.length ? (
-                <Empty title="Nothing new yet." />
-              ) : (
-                [...state.updates].reverse().map((u) => (
-                  <article key={u.id} className="border-b border-[#DDDDD5] py-6">
-                    <p className="mb-2 text-xs text-[#62625C]">
-                      {new Date(u.at).toLocaleString('en-GB', {
-                        dateStyle: 'medium',
-                        timeStyle: 'short',
-                      })}
-                    </p>
-                    <h2 className="font-medium">{u.title}</h2>
-                    <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-[#62625C]">
-                      {u.body}
-                    </p>
-                  </article>
-                ))
-              )}
-            </div>
+            <Play />
           )}
-        </main>
+        </>
       )}
-      {me && !me.controller && !mustVerify && !focused && (
-        <nav
-          aria-label="Main navigation"
-          className="sticky bottom-0 mt-10 flex justify-between border-t border-[#DDDDD5] bg-[#F7F7F2] py-4"
-        >
-          {['play', 'leaderboard', 'updates'].map((item) => (
-            <button
-              key={item}
-              onClick={() => {
-                setTab(item);
-                if (item === 'updates') {
-                  setLastRead(Date.now());
-                  localStorage.setItem('arcade-updates-read', String(Date.now()));
-                }
-              }}
-              className={cx(
-                'min-h-11 px-2 text-sm capitalize',
-                tab === item ? 'font-medium text-[#252525]' : 'text-[#62625C]',
-              )}
-            >
-              {item}
-              {item === 'updates' && unread && (
-                <span className="ml-1 text-[#365E53]" aria-label="Unread">
-                  •
-                </span>
-              )}
-            </button>
-          ))}
-        </nav>
+      {award && !actionPage && !focused && (
+        <PrizeDialog onClose={() => command('ackAward', { id: award.id })}>
+          <div className="max-w-sm space-y-6">
+            <p className="text-sm text-[#365E53]">BCUSCA Arcade</p>
+            <h1 id="award-title" className="text-4xl font-medium">
+              You won a grand prize!
+            </h1>
+            <p className="text-sm">{award.instructions}</p>
+            <p className="text-sm text-[#62625C]">
+              {award.mailStatus === 'sent'
+                ? `Instructions sent to ${me.email}. Keep an eye on your inbox.`
+                : award.mailStatus === 'failed'
+                  ? 'Email needs attention. Please speak to the host.'
+                  : 'Your instructions email is queued.'}
+            </p>
+            <Button onClick={() => command('ackAward', { id: award.id })}>Got it</Button>
+          </div>
+        </PrizeDialog>
       )}
-      {recovery && (
-        <Modal title="Save your recovery code" onClose={() => setRecovery('')}>
-          <p className="mb-4 text-sm text-[#62625C]">
-            Use this private code to sign in again. It is shown only now.
-          </p>
-          <code className="block break-all rounded-lg bg-white p-4 text-sm">{recovery}</code>
-          <Button className="mt-5 w-full" onClick={() => setRecovery('')}>
-            I’ve saved it
-          </Button>
-        </Modal>
-      )}
-      {settings && (
-        <Modal title="Your account" onClose={() => setSettings(false)}>
-          <p className="break-all text-sm">{me.email}</p>
-          <p className="mt-2 text-sm text-[#62625C]">
-            {me.verified ? 'Email verified' : 'Email not verified'}
-          </p>
-          {!me.verified && (
-            <Button
-              secondary
-              className="mt-5 w-full"
-              onClick={() => {
-                setSettings(false);
-                location.href = '/verify';
-              }}
-            >
-              Verify email
-            </Button>
-          )}
-          <Button
-            secondary
-            className="mt-5 w-full"
-            onClick={() => {
-              command('logout');
-              setSettings(false);
-            }}
-          >
-            Sign out
-          </Button>
-          <div className="mt-6 space-y-3">
-            {me.awards?.map((a) => (
-              <p key={a.id} className="text-sm">
-                {a.type === 'grand' ? 'Grand prize' : 'Live prize'} ·{' '}
-                {a.collected ? 'Collected' : `Show the host: ${a.id.slice(0, 8)}`}
+      {me?.awards.some((a) => a.type === 'grand' && a.acknowledged) && tab === 'scores' && (
+        <section className="mt-6 rounded-lg border border-[#365E53] p-4">
+          <h2 className="font-medium">Your grand prize</h2>
+          {me.awards
+            .filter((a) => a.type === 'grand')
+            .map((a) => (
+              <p key={a.id} className="mt-2 text-sm">
+                {a.collected ? 'Collected' : a.instructions}
               </p>
             ))}
-          </div>
-        </Modal>
+        </section>
       )}
     </div>
   );

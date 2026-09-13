@@ -1,19 +1,43 @@
-import { games } from '../../shared/catalog.js';
-import { quizAdapter } from './quiz.js';
-import { robotAdapter } from './robot.js';
-// Server-only adapters. Answer keys must never be imported into the client.
+import { availableGames } from '../../shared/catalog.js';
+import { question } from './quiz.js';
+import { makeRobot, evaluatePuzzle, validProgram } from './puzzles.js';
+import { makeParcel, makePainter, validNewPuzzle, evaluateNewPuzzle } from './new-puzzles.js';
+const quiz = (id) => ({
+  kind: 'quiz',
+  create: (level, seed, family) => question(id, level, seed, family),
+  valid: (q, a) =>
+    typeof a === 'string' &&
+    (id === 'debug'
+      ? /^\d+$/.test(a) && q.editableLines.includes(Number(a))
+      : q.choices.includes(a)),
+  evaluate: (q, a) => ({ correct: q.answer === a, efficiency: 1 }),
+});
+const puzzle = (create) => ({
+  kind: 'puzzle',
+  create,
+  valid: validProgram,
+  evaluate: evaluatePuzzle,
+});
 const adapters = {
-  debug: quizAdapter('debug'),
-  output: quizAdapter('output'),
-  robot: robotAdapter,
+  debug: quiz('debug'),
+  output: quiz('output'),
+  robot: puzzle(makeRobot),
+  parcel: {
+    kind: 'puzzle',
+    create: makeParcel,
+    valid: validNewPuzzle,
+    evaluate: evaluateNewPuzzle,
+  },
+  painter: {
+    kind: 'puzzle',
+    create: makePainter,
+    valid: validNewPuzzle,
+    evaluate: evaluateNewPuzzle,
+  },
 };
 export function adapterFor(id) {
-  const adapter = adapters[id];
-  if (!adapter) throw new Error('Unknown game: ' + id);
-  return adapter;
+  const a = adapters[id];
+  if (!a) throw Error('Unknown game');
+  return a;
 }
-for (const game of games) {
-  const adapter = adapterFor(game.id);
-  if (game.live && !adapter.live) throw new Error('Missing live adapter: ' + game.id);
-}
-export const liveGames = () => games.filter((game) => game.live && adapterFor(game.id).live);
+export const liveGames = (config) => availableGames(config).filter((g) => g.live);

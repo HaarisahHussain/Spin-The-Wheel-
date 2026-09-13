@@ -3,7 +3,7 @@ import { useArcade } from '../state';
 import { Button, Timer, cx } from '../components/ui';
 import { Code } from '../components/Code';
 import { AnswerFeedback } from '../components/AnswerFeedback';
-import { Board, RobotController } from './Robot';
+import { PuzzleEditor, PuzzleView, PuzzleReveal, PuzzleExecution } from './Puzzles';
 
 export function Question({
   question: questionValue,
@@ -43,8 +43,17 @@ export function Question({
         selected={choice}
         onSelect={setSelected}
         locked={locked}
+        editableLines={q.editableLines}
         correctLine={reveal && gameId === 'debug' ? q.answer : null}
       />
+      {reveal && q.explanation && (
+        <div className="space-y-2 text-sm">
+          {gameId === 'debug' && q.correctedLine && (
+            <Code code={q.correctedLine} display={display} />
+          )}
+          <p>{q.explanation}</p>
+        </div>
+      )}
       {gameId === 'output' && (
         <div className={cx('grid gap-3', display ? 'grid-cols-4' : 'grid-cols-2')}>
           {q.choices.map((answer, i) => (
@@ -101,20 +110,38 @@ export function Game({ active, display = false }) {
       >
         <span>
           {game.id === 'robot'
-            ? `Board ${Math.min(game.level + 1, 9)} / 9`
-            : `Question ${Math.min(game.level + 1, 9)} / 9`}
+            ? `Board ${Math.min(game.level + 1, 5)} / 5`
+            : `Question ${Math.min(game.level + 1, 5)} / 5`}
         </span>
         {game.phase === 'feedback' ? (
-          <span>{Math.ceil(game.remainingMs / 1000)}s answering time left</span>
+          <span>Result</span>
+        ) : game.phase === 'execution' ? (
+          <span>Running</span>
         ) : (
           <Timer until={game.deadline} />
         )}
       </div>
-      {game.id === 'robot' ? (
-        display ? (
-          <Board board={game.question} display />
+      {game.question.kind === 'puzzle' ? (
+        game.phase === 'execution' ? (
+          <PuzzleExecution q={game.question} execution={game.execution} display={display} />
+        ) : game.phase === 'feedback' ? (
+          <PuzzleReveal q={game.question} result={game.feedback} display={display} />
+        ) : display ? (
+          <PuzzleView q={game.question} display />
         ) : (
-          <RobotController key={game.question.id} game={game} attemptId={active.attemptId} />
+          <PuzzleEditor
+            key={game.question.id}
+            q={game.question}
+            runs={game.runs}
+            maxRuns={game.maxRuns}
+            onSubmit={(program) =>
+              command('puzzle', {
+                program,
+                attemptId: active.attemptId,
+                challengeId: game.question.id,
+              })
+            }
+          />
         )
       ) : (
         <Question

@@ -4,7 +4,7 @@ import { Button, Timer } from '../../components/ui';
 import { gameById } from '../../../shared/catalog';
 import { LiveStatus } from '../../components/LiveStatus';
 import { ReasonDialog } from './ReasonDialog';
-export function Live() {
+export function Live({ onOpenSettings }) {
   const { state, command, busy } = useArcade(),
     [dialog, setDialog] = useState(null);
   const a = state.active,
@@ -28,15 +28,18 @@ export function Live() {
         </h1>
         <p className="mt-4 text-[#62625C]">
           {live
-            ? `Live · ${live.phase} · ${live.roster.length} joined`
+            ? `Live · ${{ lobby: 'Joining', wheel: 'Selecting game', introduction: 'How to play', countdown: 'Starting', question: 'Playing', execution: 'Running', reveal: 'Showing result', winner: 'Winners' }[live.phase] || live.phase} · ${live.roster.length} joined`
             : a
-              ? `${a.mode} · ${a.phase}`
+              ? `${a.mode} · ${{ called: 'Waiting for player', wheel: 'Selecting game', introduction: 'How to play', countdown: 'Starting', playing: 'Playing', result: 'Showing result' }[a.phase] || a.phase}`
               : 'Confirm the next player is present.'}
         </p>
+        {!a && !live && (
+          <p className="mt-3 text-sm text-[#62625C]">{state.host.callBlockedReason}</p>
+        )}
         <div className="my-8 flex flex-wrap gap-3">
           {!a && !live ? (
             <Button
-              disabled={busy || !state.host.queue.length || c.paused}
+              disabled={busy || !!state.host.callBlockedReason}
               onClick={() => command('host.call')}
             >
               Call next player
@@ -70,6 +73,16 @@ export function Live() {
             <LiveStatus />
           </div>
           <div className="flex flex-wrap gap-3">
+            {!live && state.config.liveAdmissionOpen === false && (
+              <p className="w-full text-sm text-[#62625C]">
+                {state.admissionsReason || 'Not enough time before closing for a Live game.'}
+                {onOpenSettings && (
+                  <button className="ml-2 min-h-11 underline" onClick={onOpenSettings}>
+                    Event settings
+                  </button>
+                )}
+              </p>
+            )}
             <Button
               secondary
               disabled={busy || !!live || state.config.liveAdmissionOpen === false}

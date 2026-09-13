@@ -36,6 +36,7 @@ export function Code({
   locked = false,
   display = false,
   correctLine = null,
+  editableLines,
 }) {
   const lines = useMemo(
     () => code.split('\n').map((line) => Prism.tokenize(line, Prism.languages.python)),
@@ -56,7 +57,8 @@ export function Code({
         const classes = cx(
           'flex w-full min-w-0 items-start gap-3 px-3 py-0.5 text-left',
           selectable &&
-            'min-h-11 w-full cursor-pointer focus-visible:outline-2 focus-visible:outline-[#365E53]',
+            (!editableLines || editableLines.includes(i)) &&
+            'min-h-11 w-full border-l-2 border-[#365E53] cursor-pointer focus-visible:outline-2 focus-visible:outline-[#365E53]',
           String(selected) === String(i) &&
             (correctLine !== null && String(correctLine) !== String(i)
               ? 'bg-[#FAEEEE]'
@@ -73,7 +75,7 @@ export function Code({
             </span>
           </>
         );
-        return selectable ? (
+        return selectable && (!editableLines || editableLines.includes(i)) ? (
           <button
             key={i}
             type="button"

@@ -40,7 +40,7 @@ export function createMail({
     previewMessages,
     async send(job) {
       const payload = open(job.payload);
-      const link = `${origin}/verify?token=${encodeURIComponent(payload.token)}`;
+      const link = `${origin}/${payload.kind === 'reset' ? 'reset-password' : 'verify'}#token=${encodeURIComponent(payload.token)}`;
       if (payload.subject) {
         if (preview) {
           previewMessages.set(job.id, payload);
@@ -63,8 +63,11 @@ export function createMail({
       await transport.sendMail({
         from,
         to: payload.email,
-        subject: 'Your BCUSCA Arcade verification code',
-        text: `Your code is ${payload.code}. It expires in 15 minutes.\n\nEnter it on the device where you requested it, or open this link in the same browser:\n${link}\n\nThis authorises that device to use your Arcade account. Never share this code. If you did not request it, ignore this email.`,
+        subject: payload.kind === 'reset' ? 'Reset your Arcade password' : 'Verify your BCU email',
+        text:
+          payload.kind === 'reset'
+            ? `Set a new Arcade password: ${link}\nThis link expires in 15 minutes. Ignore this message if you did not request it.`
+            : `Your verification code is ${payload.code}. Enter it on the device where you registered, or confirm here: ${link}\nExpires in 15 minutes. Never share this code. Ignore this message if you did not register.`,
       });
     },
   };

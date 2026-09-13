@@ -1,13 +1,65 @@
+import { TIMING } from '../../shared/timing.js';
+import { scoreChallenge } from '../../shared/scoring.js';
 import { selectGame } from '../selection.js';
 import { queueFits } from '../runtime.js';
-import { games } from '../../shared/catalog.js';
-import { requireValue as assert } from '../security.js';
+import { availableGames, SCORING_VERSION } from '../../shared/catalog.js';
+import { requireValue as assert, hash } from '../security.js';
 import { usedAttempts, openWindow } from '../state.js';
 import { answerGame } from '../games.js';
 import { adapterFor } from '../games/registry.js';
 import { accountFor, requireEligible, requireOpen, finish } from '../runtime.js';
 export function playerCommand(s, action, p, ctx, now) {
   const account = accountFor(s, ctx, now);
+  if (action === 'readUpdates') {
+    account.updatesReadAt = now;
+    return {};
+  }
+  if (action === 'ackNotification') {
+    const n = s.notifications.find((n) => n.id === p.id && n.accountId === account.id);
+    assert(n, 'Notification not found.');
+    n.acknowledged = true;
+    return {};
+  }
+  if (action === 'updateProfile') {
+    assert(!account.attendedAt, 'Details are fixed after participation. Speak to the host.');
+    for (const key of ['fullName', 'course', 'level']) {
+      assert(
+        typeof p[key] === 'string' && p[key].trim().length > 0 && p[key].length <= 120,
+        'Complete all profile fields.',
+      );
+      account[key] = p[key].trim();
+    }
+    return { message: 'Details updated.' };
+  }
+  if (action === 'ackAward') {
+    const award = s.awards.find((a) => a.id === p.id && a.accountId === account.id);
+    assert(award, 'Award not found.');
+    award.acknowledged = true;
+    return {};
+  }
+  if (action === 'claimPlayerControl') {
+    assert(ctx.connectionId, 'Connect before taking control.');
+    assert(
+      !account.inputConnection ||
+        account.inputConnection === ctx.connectionId ||
+        !ctx.connections?.has(account.inputConnection) ||
+        p.confirm === true,
+      'This account is controlled elsewhere. Take control here?',
+      409,
+    );
+    account.inputConnection = ctx.connectionId;
+    account.inputSession = hash(ctx.token);
+    return {};
+  }
+  if (
+    ['ready', 'tutorialReady', 'answer', 'robot', 'puzzle', 'quit', 'liveAnswer'].includes(action)
+  ) {
+    assert(
+      account.inputConnection === ctx.connectionId && account.inputSession === hash(ctx.token),
+      'This game is controlled on another device. Take control here.',
+      409,
+    );
+  }
   if (action === 'enqueue' || action === 'mode') {
     requireEligible(s, account);
     assert(['practice', 'ranked'].includes(p.mode), 'Choose Practice or Ranked.');
@@ -37,6 +89,17 @@ export function playerCommand(s, action, p, ctx, now) {
     s.queue = s.queue.filter((q) => q.accountId !== account.id);
     return {};
   }
+  if (action === 'tutorialReady') {
+    requireEligible(s, account);
+    const a = s.active;
+    assert(
+      a?.accountId === account.id && a.phase === 'introduction' && now < a.until,
+      'Introduction expired. Join the queue again.',
+    );
+    (account.tutorials ||= {})[a.gameId] = SCORING_VERSION;
+    Object.assign(a, { phase: 'countdown', until: now + TIMING.countdown });
+    return {};
+  }
   if (action === 'ready') {
     requireEligible(s, account);
     const active = s.active;
@@ -44,7 +107,11 @@ export function playerCommand(s, action, p, ctx, now) {
       active?.accountId === account.id && active.phase === 'called',
       'Your turn is not ready.',
     );
-    const selection = selectGame(games, now, active.mode === 'ranked' ? account.pendingGame : null);
+    const selection = selectGame(
+      availableGames(s.config).filter((g) => active.mode !== 'ranked' || g.ranked),
+      now,
+      active.mode === 'ranked' ? account.pendingGame : null,
+    );
     if (active.mode === 'ranked') account.pendingGame = selection.gameId;
     Object.assign(active, {
       gameId: selection.gameId,
@@ -54,7 +121,7 @@ export function playerCommand(s, action, p, ctx, now) {
     });
     return {};
   }
-  if (action === 'answer' || action === 'robot' || action === 'quit') {
+  if (action === 'answer' || action === 'robot' || action === 'puzzle' || action === 'quit') {
     const active = s.active;
     assert(
       active?.accountId === account.id && active.phase === 'playing',
@@ -81,9 +148,10 @@ export function playerCommand(s, action, p, ctx, now) {
       if (active.game.complete) finish(s, 'completed', now);
       return {};
     }
+    assert(adapterFor(active.game.id).kind === 'puzzle', 'This is not a puzzle.');
     assert(
-      adapterFor(active.game.id).program?.(active.game, p, now),
-      'This game does not accept movement programs.',
+      answerGame(active.game, p.program, p.challengeId, now),
+      'This program is invalid or expired.',
       409,
     );
     return {};
@@ -92,7 +160,7 @@ export function playerCommand(s, action, p, ctx, now) {
     requireEligible(s, account);
     const live = s.live;
     assert(live?.phase === 'lobby' && now < live.until, 'The lobby is closed.');
-    assert(p.code === live.code, 'Enter the lobby code on the screen.');
+    assert(p.liveId === live.id, 'This lobby has changed. Join the current lobby.');
     assert(
       Object.keys(live.roster).length < 50 || live.roster[account.id],
       'The live game is full.',
@@ -113,12 +181,21 @@ export function playerCommand(s, action, p, ctx, now) {
       'Your answer is already locked or the question changed.',
       409,
     );
-    const answer = String(p.answer);
-    assert(adapterFor(live.gameId).live.validAnswer(live.question, answer), 'Invalid answer.');
+    const adapter = adapterFor(live.gameId),
+      answer = adapter.kind === 'puzzle' ? p.program : String(p.answer);
+    assert(adapter.valid(live.question, answer), 'Invalid answer or program.');
     entry.answer = answer;
-    entry.correct = answer === live.question.answer;
+    entry.result = adapter.evaluate(live.question, answer);
+    entry.correct = entry.result.correct;
     entry.responses++;
-    if (entry.correct) entry.score += 100;
+    entry.points = scoreChallenge({
+      ...entry.result,
+      elapsed: now - live.questionAt,
+      allowance: live.until - live.questionAt,
+      maximum: Math.floor(1000000000 / (adapter.kind === 'puzzle' ? 3 : 5)),
+      puzzle: adapter.kind === 'puzzle',
+    });
+    entry.score += entry.points;
     return {};
   }
   throw Object.assign(new Error('Unknown action.'), { status: 400 });

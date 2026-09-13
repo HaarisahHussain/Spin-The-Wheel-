@@ -1,10 +1,12 @@
+import { Tutorial } from '../games/Tutorial';
+import { PuzzleView, RobotRace, LivePuzzleExecution } from '../games/Puzzles';
 import { QRCodeSVG } from 'qrcode.react';
 import { useArcade } from '../state';
 import { Wordmark, Leaderboard, Timer, Score, Notice } from '../components/ui';
 import { LiveStatus } from '../components/LiveStatus';
 import { Wheel } from '../components/Wheel';
 import { Game, Question } from '../games/Game';
-import { gameById, scoreText } from '../../shared/catalog';
+import { gameById } from '../../shared/catalog';
 export function JoinDisplay() {
   const { state, connected } = useArcade();
   if (!state) return <div className="p-12">Connecting…</div>;
@@ -37,7 +39,11 @@ export function JoinDisplay() {
             </h2>
             <span className="text-base text-[#62625C]">Top 5</span>
           </div>
-          <Leaderboard rows={state.leaderboard} limit={5} display />
+          {state.leaderboard.length ? (
+            <Leaderboard rows={state.leaderboard} limit={5} display />
+          ) : (
+            <p className="text-lg text-[#62625C]">Play Ranked to set the first score.</p>
+          )}
           {!state.config.rankedEnabled && !state.leaderboard.length && (
             <p className="text-base text-[#62625C]">Ranked is currently off.</p>
           )}
@@ -57,7 +63,7 @@ export function JoinDisplay() {
                   ? `Up next · ${state.next[0].alias}`
                   : state.open
                     ? 'The Arcade is open'
-                    : 'Admissions closed'}
+                    : state.admissionsReason || 'Admissions closed'}
         </span>
         <span>{live?.phase === 'lobby' ? <Timer until={live.until} /> : <LiveStatus />}</span>
       </footer>
@@ -72,19 +78,47 @@ function LiveDisplay({ live }) {
           {gameById(live.gameId)?.name || 'Live arcade'}
         </p>
         <h1 className="text-6xl font-medium tracking-tight">Join Live on your phone.</h1>
-        <p className="my-10 text-8xl font-medium tracking-widest tabular-nums">{live.code}</p>
+
         <div className="flex justify-center gap-16 text-2xl text-[#62625C]">
           <span>{live.roster.length} joined</span>
           <Timer until={live.until} />
         </div>
       </div>
     );
+  if (live.phase === 'introduction') return <Tutorial gameId={live.gameId} display />;
   if (live.phase === 'wheel') return <Wheel key={live.selection.id} selection={live.selection} />;
   if (live.phase === 'countdown')
     return (
       <div className="space-y-6 text-center">
         <h1 className="text-5xl font-medium">{gameById(live.gameId)?.name}</h1>
         <Timer large until={live.until} />
+      </div>
+    );
+  if (live.question?.kind === 'puzzle' && ['question', 'execution', 'reveal'].includes(live.phase))
+    return (
+      <div className="w-full max-w-4xl space-y-4 text-center">
+        <div className="flex justify-between">
+          <h1 className="text-2xl font-medium">
+            {gameById(live.gameId)?.name} ·{' '}
+            {live.phase === 'question' ? 'Plan' : live.phase === 'execution' ? 'Running' : 'Result'}
+          </h1>
+          <Timer until={live.until} />
+        </div>
+        {live.phase === 'question' ? (
+          <>
+            <PuzzleView q={live.question} display />
+            <p>
+              {live.roster.filter((e) => e.submitted).length} / {live.roster.length} locked
+            </p>
+          </>
+        ) : live.gameId === 'robot' ? (
+          <RobotRace live={live} />
+        ) : (
+          <LivePuzzleExecution live={live} />
+        )}
+        {live.phase === 'reveal' && (
+          <p>{live.roster.filter((e) => e.result?.correct).length} solved</p>
+        )}
       </div>
     );
   if (live.phase === 'cancelled')
@@ -106,7 +140,7 @@ function LiveDisplay({ live }) {
           {winners.slice(0, 5).map((e) => (
             <div key={e.accountId} className="flex justify-between text-3xl">
               <span>{e.alias}</span>
-              <span>{scoreText(e.score)}</span>
+              <span>{((e.score || 0) / 1000000).toFixed(1)}</span>
             </div>
           ))}
           {winners.length > 5 && <p className="text-xl">{winners.length - 5} more tied winners</p>}
@@ -118,7 +152,7 @@ function LiveDisplay({ live }) {
   return (
     <div className="mx-auto w-full max-w-6xl">
       <div className="mb-6 flex justify-between text-xl text-[#62625C]">
-        <span>Live · Question {live.level + 1} / 6</span>
+        <span>Live · Question {live.level + 1} / 5</span>
         <span>
           {live.roster.filter((e) => e.submitted).length} / {live.roster.length} submitted
         </span>
@@ -175,6 +209,8 @@ export function PlayDisplay() {
             <h1 className="text-6xl font-medium">{a.alias}</h1>
             <p className="mt-8 text-2xl text-[#62625C]">Tap Ready on your phone.</p>
           </div>
+        ) : a.phase === 'introduction' ? (
+          <Tutorial gameId={a.gameId} display />
         ) : a.phase === 'wheel' ? (
           <Wheel key={a.selection.id} selection={a.selection} />
         ) : a.phase === 'briefing' ? (

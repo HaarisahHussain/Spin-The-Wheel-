@@ -1,3 +1,4 @@
+import { requireHost } from './host-control.js';
 import { hash, sessionFor, rate, requireValue as assert } from './security.js';
 import { publicQuestion } from './games.js';
 import { authCommand } from './commands/auth.js';
@@ -6,12 +7,16 @@ import { hostCommand } from './commands/host.js';
 export { tick, eligible } from './runtime.js';
 const authActions = new Set([
   'register',
-  'recover',
-  'claimController',
+  'login',
+  'staffLogin',
+  'hostTakeover',
+  'hostControl',
+  'hostReauthenticate',
+  'forgotPassword',
+  'resetPassword',
   'sendVerification',
   'verify',
-  'changeEmail',
-  'staffLogin',
+  'changePassword',
   'logout',
 ]);
 export async function execute(s, action, p, ctx, services) {
@@ -19,15 +24,27 @@ export async function execute(s, action, p, ctx, services) {
   const actorSession = sessionFor(s, ctx.token, now);
   const commandKey = `${hash(ctx.token || ctx.ip)}:${ctx.commandId}`;
   const fingerprint = hash(JSON.stringify({ action, p }));
+  // Check authority before looking up a cached host result.
+  if (action?.startsWith('host.')) requireHost(s, ctx, now);
   const previous = s.commands[commandKey];
   if (previous) {
     assert(
       previous.fingerprint === fingerprint,
       'This command ID was already used for a different action.',
     );
-    return previous.secretResult ? services.mail.open(previous.secretResult) : previous.result;
+    const cached = previous.secretResult
+      ? services.mail.open(previous.secretResult)
+      : previous.result;
+    assert(
+      !cached.token || sessionFor(s, cached.token, now),
+      'This sign-in has expired. Sign in again.',
+      401,
+    );
+    return cached;
   }
-  const before = structuredClone(s);
+  const previousCommands = s.commands;
+  const before = structuredClone({ ...s, commands: {} });
+  before.commands = previousCommands;
   let result;
   try {
     result = await dispatch(s, action, p, ctx, services, now, actorSession);
@@ -43,13 +60,17 @@ export async function execute(s, action, p, ctx, services) {
     s.rates = rates;
     for (const [id, count] of Object.entries(guesses))
       if (s.challenges[id]) s.challenges[id].guesses = count;
-    result = { error: error.message, status: error.status };
+    result = {
+      error: error.message,
+      status: error.status,
+      ...(error.code === 'REAUTHENTICATE' ? { code: error.code } : {}),
+    };
   }
   // A lost response can be retried without issuing a second credential or account.
   s.commands[commandKey] = {
     at: now,
     fingerprint,
-    ...(result.token || result.recovery || result.pairingCode
+    ...(result.token || result.takeover
       ? { secretResult: services.mail.seal(result) }
       : { result }),
   };
@@ -71,14 +92,26 @@ async function dispatch(s, action, p, ctx, services, now, session) {
 }
 export function publicLive(live) {
   if (!live) return null;
+  const reveal = ['execution', 'reveal', 'winner'].includes(live.phase);
   return {
-    ...live,
-    question: live.phase === 'reveal' ? live.question : publicQuestion(live.question),
-    roster: Object.values(live.roster).map((e) => ({
+    id: live.id,
+    gameId: live.phase === 'wheel' ? null : live.gameId,
+    phase: live.phase,
+    until: live.until,
+    phaseAt: live.phaseAt,
+    selection: live.selection,
+    level: live.level,
+    question: publicQuestion(live.question, ['reveal', 'winner'].includes(live.phase)),
+
+    message: live.message,
+    winners: live.winners,
+    prizeRecipients: live.prizeRecipients,
+    roster: Object.values(live.roster).map((e, i) => ({
       accountId: e.accountId,
-      score: live.phase === 'question' ? undefined : e.score,
+      mark: i + 1,
+      score: reveal ? e.score : undefined,
       submitted: e.answer !== null,
+      ...(reveal ? { result: e.result, points: e.points, program: e.answer } : {}),
     })),
-    code: live.phase === 'lobby' ? live.code : undefined,
   };
 }

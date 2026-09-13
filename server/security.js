@@ -1,25 +1,7 @@
-import { randomBytes, createHash, scryptSync, timingSafeEqual } from 'node:crypto';
-import * as OTPAuth from 'otpauth';
+import { randomBytes, createHash } from 'node:crypto';
 export const secret = (bytes = 32) => randomBytes(bytes).toString('hex');
 export const hash = (value) => createHash('sha256').update(String(value)).digest('hex');
-export function passwordHash(password, salt = secret(16)) {
-  return `${salt}:${scryptSync(password, salt, 64).toString('hex')}`;
-}
-export function passwordMatches(password, encoded) {
-  if (!encoded || typeof password !== 'string' || password.length > 256) return false;
-  const [salt, expected] = encoded.split(':');
-  const actual = Buffer.from(passwordHash(password, salt).split(':')[1], 'hex');
-  const target = Buffer.from(expected, 'hex');
-  return actual.length === target.length && timingSafeEqual(actual, target);
-}
-export const totp = (seed) =>
-  new OTPAuth.TOTP({
-    issuer: 'BCUSCA Arcade',
-    label: 'Host',
-    secret: OTPAuth.Secret.fromBase32(seed),
-    digits: 6,
-    period: 30,
-  });
+export { encodePassword as passwordHash, checkPassword as passwordMatches } from './passwords.js';
 export function requireValue(condition, message, status = 400) {
   if (!condition) {
     const e = new Error(message);
@@ -32,7 +14,7 @@ export const textValue = (value, length = 120) =>
 export function sessionFor(state, token, now) {
   const session = state.sessions[hash(token || '')];
   if (!session || session.expires <= now) return null;
-  if (session.staffId && state.staff[session.staffId]?.disabled) return null;
+  if (session.staffId && now - session.lastActivity >= 1800000) return null;
   if (
     session.controller &&
     !state.queue.some(
@@ -57,7 +39,9 @@ export function issueSession(state, identity, now) {
   state.sessions[hash(token)] = {
     ...identity,
     created: now,
-    expires: now + (identity.staffId ? 8 : 96) * 3600000,
+    lastActivity: now,
+    reauthenticated: now,
+    expires: now + (identity.staffId ? 12 : 168) * 3600000,
   };
   return token;
 }

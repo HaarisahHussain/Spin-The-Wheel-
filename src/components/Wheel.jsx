@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { games, gameById } from '../../shared/catalog';
+import { availableGames, games, gameById } from '../../shared/catalog';
 import { wheelSlots } from '../../shared/wheel';
 import { useArcade } from '../state';
 const fills = ['fill-[#E4EBE2]', 'fill-[#E7E4DA]', 'fill-[#DDE5EB]', 'fill-[#EEE0DC]'];
@@ -19,7 +19,7 @@ export function Wheel({ selection, idle = false, animate = true }) {
     query.addEventListener('change', update);
     return () => query.removeEventListener('change', update);
   }, []);
-  const slots = selection?.slots || wheelSlots(games.map((g) => g.id));
+  const slots = selection?.slots || wheelSlots(availableGames(state?.config).map((g) => g.id));
   const startedAt = selection?.startedAt;
   const until = selection?.until;
   const sector = selection?.sector ?? 0;

@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.5.1 — 2026-09-13
+
+- Replaced the shared 90-second budget with five 30-second challenges, reweighted scores and matching queue/Live duration bounds.
+- Added first-encounter examples, explicit readiness before a Ranked start, replayable phone help and retained selections after introduction expiry.
+- Restored server-timed Robot movement on phones and monitors, step/collision feedback, editable failed routes, Undo and three bounded solo puzzle runs without charging playback time.
+- Rebuilt Python questions around small values, concept tiers, meaningful distractors and corrected-statement feedback; fixed index faults hidden by duplicate list values.
+- Removed Sort the Stream and Signal Switch. Added Parcel Sorter and Pattern Painter prototypes behind an opt-in rehearsal flag; both remain outside Ranked pending beginner acceptance.
+- Added individual Live puzzle playback, grouped Robot markers and readable featured puzzle results; removed the unused lobby code.
+- Simplified phone navigation during play, registration year selection, verification/resend status, queue language and estimates, completed-challenge review and empty public standings.
+- Added settings draft/save feedback, discard confirmations, descriptive host states, participant pagination and password confirmation within protected actions.
+- Fixed startup/schema failure cleanup and ownership-safe local reset; earlier event data requires an explicitly selected clean database and is never deleted on startup.
+- Expanded Python, independent solver, phase-boundary, lock-recovery, 50-player HTTP/socket and browser checks. Real-device, hosted-load, email and beginner/balance rehearsals remain launch gates; see Validation.
+
+## 0.5.0 — 2026-09-12
+
+- Replaced player recovery secrets with email/password sign-in, verification links/codes and expiring, single-use password reset links.
+- Replaced named staff/MFA accounts with one environment-configured host, explicit takeover, expiring control leases and protected sensitive actions.
+- Added seeded Python questions across twelve families per coding game, procedural Robot mazes, Sort the Stream and Signal Switch; new games begin in Practice and Live.
+- Enabled Live play for all five games, including private puzzle planning and shared Robot execution with numbered coloured markers.
+- Reworked solo scoring around correctness, puzzle efficiency and server-measured response time, a 90-second answering budget and increasingly valuable levels.
+- Added personal Practice top ten and high-score feedback, recent Live results, unread Updates, persistent winner screens and prize email status.
+- Added private participant results and protected CSV export; strengthened finalisation corrections, email retries, retention cleanup and persistence ownership.
+- Added deterministic generation, Python execution, authentication, takeover, scoring, 50-player HTTP/socket and browser checks. Requires a clean pre-launch database; physical-device, hosted-load, SMTP and representative balance validation remain launch gates.
+
 ## 0.4.0 — 2026-09-12
 
 - Added fair ten-slot selection wheels for solo and multiplayer, with the selected game revealed only after spinning and before a shared countdown.

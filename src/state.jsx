@@ -6,11 +6,22 @@ export function ArcadeProvider({ children }) {
     [connected, setConnected] = useState(false),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
-    [recovery, setRecovery] = useState(''),
-    [pairing, setPairing] = useState('');
+    [connectionId, setConnectionId] = useState(null);
+  const stateRef = useRef(null);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+  const tabId = useRef(
+    sessionStorage.getItem('arcade-tab') ||
+      Array.from(crypto.getRandomValues(new Uint8Array(16)), (v) =>
+        v.toString(16).padStart(2, '0'),
+      ).join(''),
+  );
+  sessionStorage.setItem('arcade-tab', tabId.current);
   const socket = useRef(null),
     busyRef = useRef(false);
   const publicOnly = location.pathname.startsWith('/display');
+  const audience = location.pathname === '/host' ? 'host' : publicOnly ? 'display' : 'account';
   const acceptState = (value) =>
     setState((previous) =>
       !previous || previous.eventId !== value.eventId || value.revision >= previous.revision
@@ -18,9 +29,12 @@ export function ArcadeProvider({ children }) {
         : previous,
     );
   const refresh = async () => {
-    const res = await fetch(`/api/state${publicOnly ? '?audience=display' : ''}`, {
-      cache: 'no-store',
-    });
+    const res = await fetch(
+      `/api/state?connection=${encodeURIComponent(socket.current?.id || '')}&audience=${audience}`,
+      {
+        cache: 'no-store',
+      },
+    );
     if (!res.ok) throw Error('Connection interrupted.');
     const value = await res.json();
     acceptState(value);
@@ -28,15 +42,23 @@ export function ArcadeProvider({ children }) {
   useEffect(() => {
     refresh().catch((e) => setError(e.message));
     const live = io({
-      auth: { audience: publicOnly ? 'display' : 'account' },
+      auth: { audience },
+      query: { audience },
       // transports: ['polling', 'websocket'],
       transports: ['websocket'],
       reconnection: true,
     });
     socket.current = live;
     live.on('state', acceptState);
-    live.on('connect', () => setConnected(true));
-    live.on('disconnect', () => setConnected(false));
+    live.on('connect', () => {
+      setConnected(true);
+      setConnectionId(live.id);
+      refresh().catch(() => {});
+    });
+    live.on('disconnect', () => {
+      setConnected(false);
+      setConnectionId(null);
+    });
     live.on('connect_error', () => setConnected(false));
     const resume = () => {
       if (document.visibilityState !== 'visible') return;
@@ -49,12 +71,12 @@ export function ArcadeProvider({ children }) {
       live.disconnect();
     };
   }, []);
-  async function command(action, payload = {}) {
+  async function command(action, payload = {}, { throwOnError = false } = {}) {
     if (busyRef.current) return null;
     busyRef.current = true;
     setBusy(true);
     setError('');
-    // const id = crypto.randomUUID(); // In production
+    // const id = Array.from(crypto.getRandomValues(new Uint8Array(16)),v=>v.toString(16).padStart(2,'0')).join(''); // In production
     const id = Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) =>
       byte.toString(16).padStart(2, '0'),
     ).join(''); // In development (anyhow, it is fine in production too o.o)
@@ -64,8 +86,20 @@ export function ArcadeProvider({ children }) {
         try {
           response = await fetch('/api/command', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action, payload, id }),
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Arcade-Audience': audience,
+              'X-Arcade-Connection': socket.current?.id || '',
+            },
+            body: JSON.stringify({
+              action,
+              payload: {
+                ...payload,
+                tabId: tabId.current,
+                controlEpoch: stateRef.current?.staff?.epoch,
+              },
+              id,
+            }),
             signal: AbortSignal.timeout(10000),
           });
           break;
@@ -74,19 +108,16 @@ export function ArcadeProvider({ children }) {
         }
       }
       const result = await response.json();
-      if (!response.ok || result.error) throw Error(result.error || 'Please try again.');
-      if (result.recovery) setRecovery(result.recovery);
-      if (result.pairingCode) setPairing(result.pairingCode);
-      if (
-        ['register', 'verify', 'recover', 'claimController', 'staffLogin', 'logout'].includes(
-          action,
-        )
-      ) {
-        socket.current?.disconnect().connect();
-      }
+      if (!response.ok || result.error)
+        throw Object.assign(Error(result.error || 'Please try again.'), {
+          status: response.status,
+          code: result.code,
+        });
+      if (result.sessionChanged) socket.current?.disconnect().connect();
       await refresh();
       return result;
     } catch (e) {
+      if (throwOnError) throw e;
       setError(
         e.name === 'TimeoutError'
           ? 'Connection interrupted. Check your current state before trying again.'
@@ -98,19 +129,45 @@ export function ArcadeProvider({ children }) {
       setBusy(false);
     }
   }
+  useEffect(() => {
+    if (!connectionId || !location.pathname.startsWith('/host')) return;
+    const heartbeat = async () => {
+      const current = stateRef.current;
+      if (!current?.staff?.ownsControl) return;
+      try {
+        await fetch('/api/command', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Arcade-Audience': audience,
+            'X-Arcade-Connection': socket.current?.id || '',
+          },
+          body: JSON.stringify({
+            id: Array.from(crypto.getRandomValues(new Uint8Array(16)), (v) =>
+              v.toString(16).padStart(2, '0'),
+            ).join(''),
+            action: 'hostControl',
+            payload: { heartbeat: true, controlEpoch: current.staff.epoch },
+          }),
+        });
+      } catch {
+        /* reconnect refreshes authoritative ownership */
+      }
+    };
+    const timer = setInterval(heartbeat, 5000);
+    return () => clearInterval(timer);
+  }, [connectionId]);
   return (
     <Context.Provider
       value={{
         state,
         connected,
+        connectionId,
+        tabId: tabId.current,
         error,
         setError,
         busy,
         command,
-        recovery,
-        setRecovery,
-        pairing,
-        setPairing,
       }}
     >
       {children}

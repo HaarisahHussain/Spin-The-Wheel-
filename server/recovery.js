@@ -1,5 +1,7 @@
 // A stalled service must not charge a ranked player for unseen question time.
 export function recoverServiceDelay(s, now) {
+  s.hostLease = null;
+  s.controlEpoch++;
   let interrupted = false;
   if (s.active?.phase === 'playing') {
     const attempt = s.attempts.find((a) => a.id === s.active.attemptId);

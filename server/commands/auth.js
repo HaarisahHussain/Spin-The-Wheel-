@@ -5,214 +5,198 @@ import {
   secret,
   issueSession,
   revokeAccountCredentials,
+  passwordHash,
   passwordMatches,
-  totp,
   rate,
   requireValue as assert,
   textValue,
 } from '../security.js';
-import { usedAttempts } from '../state.js';
-import { accountFor, requireEligible } from '../runtime.js';
+import { beginHostLogin, takeover, hostControl, requireHost } from '../host-control.js';
 const uuid = () => crypto.randomUUID();
-const alias = () =>
-  `${['Orbit', 'Pixel', 'Maple', 'Copper', 'Lunar', 'Cedar'][randomInt(6)]}${['Otter', 'Finch', 'Fox', 'Panda', 'Robin', 'Badger'][randomInt(6)]}-${randomInt(1000, 10000)}`;
-export async function authCommand(s, action, p, ctx, services, now, session) {
+const passwordValid = (p) => typeof p === 'string' && p.length >= 15 && p.length <= 256;
+const identity = (s, email) =>
+  Object.values(s.accounts).find((a) => a.email === normalizeEmail(email || ''));
+function challenge(s, account, kind, ctx, mail, now) {
+  assert(mail.available, 'Email delivery is unavailable. Please try again shortly.', 503);
+  rate(s, `mail:${account.email}`, 5, 3600000, now);
+  rate(s, `resend:${account.email}`, 1, 60000, now);
+  for (const c of Object.values(s.challenges))
+    if (c.accountId === account.id && c.kind === kind) c.used = true;
+  const token = secret(),
+    code = String(randomInt(100000, 1000000)),
+    id = uuid();
+  s.challenges[id] = {
+    id,
+    kind,
+    accountId: account.id,
+    flow: hash(ctx.token),
+    tokenHash: hash(token),
+    codeHash: hash(code),
+    guesses: 0,
+    expires: now + 900000,
+    used: false,
+  };
+  s.outbox.push({
+    id: uuid(),
+    challengeId: id,
+    payload: mail.seal({ email: account.email, kind, token, code }),
+    sent: false,
+    next: now,
+    tries: 0,
+  });
+}
+export async function authCommand(s, action, p, ctx, { mail, hostPasswordHash, preparedAuth }, now, session) {
+  const matches=(value,encoded)=>{
+    if(!preparedAuth)return passwordMatches(value,encoded);
+    const check=preparedAuth.checks.find(c=>c.value===value&&c.encoded===encoded);
+    return check?.matches===true;
+  };
+  const encode=value=>{
+    if(!preparedAuth)return passwordHash(value);
+    assert(preparedAuth.newPassword?.value===value,'Retry password setup.',409);
+    return preparedAuth.newPassword.encoded;
+  };
   if (action === 'register') {
-    assert(!s.purgedAt, 'This event has ended and registration is closed.');
+    assert(!s.purgedAt, 'This event has ended.');
     assert(allowedEmail(p.email), 'Use @mail.bcu.ac.uk or @bcu.ac.uk.');
-    rate(s, `register:${ctx.ip}`, 3000, 3600000, now);
-    rate(s, `register-email:${normalizeEmail(p.email)}`, 10, 3600000, now);
-    const email = normalizeEmail(p.email);
-    let account = Object.values(s.accounts).find((a) => a.email === email);
-    const existing = !!account;
-    if (!account) {
-      let name;
-      do {
-        name = alias();
-      } while (Object.values(s.accounts).some((a) => a.alias === name));
-      account = {
-        id: uuid(),
-        email,
-        alias: name,
-        course: textValue(p.course),
-        level: textValue(p.level),
-        consent: p.consent === true,
-        verified: false,
-        created: now,
-      };
-      assert(account.course && account.level, 'Choose your course and academic level.');
-      s.accounts[account.id] = account;
-    }
-    const token = issueSession(s, { accountId: account.id, pending: existing }, now);
-    let recovery;
-    if (!existing && !s.config.requireVerification) {
-      recovery = secret(20);
-      account.recoveryHash = hash(recovery);
-    }
-    return { token, recovery, existing };
-  }
-  if (action === 'recover') {
-    rate(s, `recover:${ctx.ip}`, 300, 3600000, now);
-    const account = Object.values(s.accounts).find((a) => a.recoveryHash === hash(p.code));
-    assert(account, 'Recovery code not recognised.', 401);
-    revokeAccountCredentials(s, account.id);
-    const recovery = secret(20);
-    account.recoveryHash = hash(recovery);
-    return { token: issueSession(s, { accountId: account.id, pending: false }, now), recovery };
-  }
-  if (action === 'claimController') {
-    rate(s, `pair:${ctx.ip}`, 10, 60000, now);
-    const grant = s.controllerGrants?.[hash(p.code)];
-    assert(grant && grant.expires > now && !grant.used, 'Pairing code expired or incorrect.');
-    requireEligible(s, s.accounts[grant.accountId]);
+    rate(s, `register:${ctx.ip}`, 1000, 3600000, now);
+    assert(passwordValid(p.password), 'Use a password of 15–256 characters.');
+    assert(!identity(s, p.email), 'Please sign in or use Forgot password for this address.');
+    const account = {
+      id: uuid(),
+      email: normalizeEmail(p.email),
+      fullName: textValue(p.fullName),
+      course: textValue(p.course),
+      level: textValue(p.level),
+      consent: p.consent === true || p.consent === 'true',
+      verified: false,
+      created: now,
+      password: encode(p.password),
+      recent: [],
+    };
     assert(
-      s.queue.some((q) => q.accountId === grant.accountId && q.sequence === grant.sequence) ||
-        (s.active?.accountId === grant.accountId && s.active.sequence === grant.sequence),
-      'This controller turn has ended.',
+      account.fullName && account.course && account.level,
+      'Enter your name, course and academic year.',
     );
-    grant.used = true;
-    const token = issueSession(
-      s,
-      {
-        accountId: grant.accountId,
-        controller: true,
-        controllerSequence: grant.sequence,
-        pending: false,
-      },
-      now,
-    );
-    s.sessions[hash(token)].expires = now + 1800000;
+    do {
+      account.alias = `${['Cedar', 'Pixel', 'Maple', 'Orbit'][randomInt(4)]}${['Otter', 'Fox', 'Finch', 'Panda'][randomInt(4)]}-${randomInt(1000, 100000)}`;
+    } while (Object.values(s.accounts).some((a) => a.alias === account.alias));
+    s.accounts[account.id] = account;
+    const token = issueSession(s, { accountId: account.id }, now);
+    // Registration remains usable during an SMTP fault; verification can be resent.
+    if (s.config.requireVerification && mail.available)
+      challenge(s, account, 'verify', { ...ctx, token }, mail, now);
     return { token };
   }
-  if (session?.controller)
-    assert(
-      ['ready', 'answer', 'robot', 'quit', 'joinLive', 'liveAnswer', 'logout'].includes(action),
-      'This device is a game controller only.',
-      403,
-    );
-  if (action === 'sendVerification') {
-    assert(session?.accountId, 'Register or sign in first.', 401);
-    const account = s.accounts[session.accountId];
-    rate(s, `mail:${account.email}`, 5, 3600000, now);
-    rate(s, `flow:${hash(ctx.token)}`, 1, 60000, now);
-    assert(
-      services.mail.available,
-      'Email delivery is not configured. Ask the host for help.',
-      503,
-    );
-    const flow = hash(ctx.token);
-    const old = Object.values(s.challenges).find(
-      (c) => c.flow === flow && !c.used && c.expires > now,
-    );
-    if (old && old.guesses < 5) {
-      const message = s.outbox.find((m) => m.challengeId === old.id);
-      if (message) {
-        message.sent = false;
-        message.next = now;
-        message.tries = 0;
-        return { message: 'Verification email queued again.' };
+  if (action === 'login' || action === 'staffLogin') {
+    rate(s, `login-ip:${ctx.ip}`, 300, 900000, now);
+    const key = action === 'staffLogin' ? 'host' : normalizeEmail(p.email || '');
+    rate(s, `login:${key}`, 12, 900000, now);
+    const account = identity(s, p.email);
+    const valid =
+      action === 'staffLogin'
+        ? p.username === 'host' && matches(p.password, hostPasswordHash)
+        : matches(p.password, account?.password || hostPasswordHash) &&
+          account &&
+          !account.disabled;
+    assert(valid, 'Email/username or password is incorrect.', 401);
+    if (action === 'staffLogin') return beginHostLogin(s, ctx, p, now);
+    return { token: issueSession(s, { accountId: account.id }, now) };
+  }
+  if (action === 'hostTakeover') return takeover(s, ctx, p, now);
+  if (action === 'hostControl') return hostControl(s, ctx, p, now);
+  if (action === 'hostReauthenticate') {
+    const sess = requireHost(s, ctx, now);
+    rate(s, `reauth:${ctx.ip}`, 10, 900000, now);
+    assert(matches(p.password, hostPasswordHash), 'Password is incorrect.', 401);
+    sess.reauthenticated = now;
+    sess.lastActivity = now;
+    return {};
+  }
+  if (action === 'forgotPassword') {
+    assert(allowedEmail(p.email), 'Use a BCU email address.');
+    rate(s, `reset-ip:${ctx.ip}`, 30, 3600000, now);
+    const account = identity(s, p.email);
+    if (account) {
+      try {
+        challenge(s, account, 'reset', ctx, mail, now);
+      } catch (e) {
+        if (!e.status) throw e;
       }
     }
-    if (old) old.used = true;
-    const id = uuid(),
-      token = secret(),
-      code = String(randomInt(100000, 1000000));
-    s.challenges[id] = {
-      id,
-      accountId: account.id,
-      email: account.email,
-      flow,
-      tokenHash: hash(token),
-      codeHash: hash(code),
-      expires: now + 900000,
-      guesses: 0,
-      used: false,
-    };
+    return { message: 'If this address is registered, a reset email will arrive shortly.' };
+  }
+  if (action === 'resetPassword') {
+    rate(s, `reset:${ctx.ip}`, 20, 900000, now);
+    assert(passwordValid(p.password), 'Use a password of 15–256 characters.');
+    const ch = Object.values(s.challenges).find(
+      (c) => c.kind === 'reset' && !c.used && c.expires > now && c.tokenHash === hash(p.linkToken),
+    );
+    assert(ch, 'This reset link has expired. Request another.');
+    const a = s.accounts[ch.accountId];
+    a.password = encode(p.password);
+    revokeAccountCredentials(s, a.id);
+    for (const c of Object.values(s.challenges)) if (c.accountId === a.id) c.used = true;
     s.outbox.push({
       id: uuid(),
-      challengeId: id,
-      payload: services.mail.seal({ email: account.email, token, code }),
+      payload: mail.seal({
+        email: a.email,
+        subject: 'Arcade password changed',
+        text: 'Your password was changed. If this was not you, reset it immediately.',
+      }),
       sent: false,
       next: now,
       tries: 0,
     });
+    return { logout: true, message: 'Password changed. Sign in to continue.' };
+  }
+  if (action === 'sendVerification') {
+    assert(session?.accountId, 'Sign in first.', 401);
+    challenge(s, s.accounts[session.accountId], 'verify', ctx, mail, now);
     return { message: 'Verification email queued.' };
   }
   if (action === 'verify') {
-    assert(session?.accountId, 'Open Arcade on the device where you requested verification.', 401);
-    const flow = hash(ctx.token),
-      account = s.accounts[session.accountId];
-    const challenge = Object.values(s.challenges).find(
+    rate(s, `verify-ip:${ctx.ip}`, 300, 900000, now);
+    const ch = Object.values(s.challenges).find(
       (c) =>
-        c.flow === flow &&
-        c.accountId === account.id &&
+        c.kind === 'verify' &&
         !c.used &&
         c.expires > now &&
-        (p.linkToken ? c.tokenHash === hash(p.linkToken) : true),
-    );
-    assert(
-      challenge,
-      'This verification link has expired or belongs to another browser. Enter the emailed code on the original device.',
-    );
-    rate(s, `verify:${account.email}`, 15, 3600000, now);
-    assert(challenge.guesses < 5, 'Too many incorrect codes. Request a new verification email.');
-    challenge.guesses++;
-    assert(
-      challenge.email === account.email &&
         (p.linkToken
-          ? challenge.tokenHash === hash(p.linkToken)
-          : challenge.codeHash === hash(p.code)),
-      'Incorrect code.',
+          ? c.tokenHash === hash(p.linkToken)
+          : c.flow === hash(ctx.token) && c.accountId === session?.accountId),
     );
-    challenge.used = true;
-    account.verified = true;
-    revokeAccountCredentials(s, account.id);
-    const recovery = secret(20);
-    account.recoveryHash = hash(recovery);
-    return {
-      token: issueSession(s, { accountId: account.id, pending: false }, now),
-      recovery,
-      message: 'Email verified.',
-    };
-  }
-  if (action === 'changeEmail') {
-    const account = accountFor(s, ctx, now);
+    assert(ch, 'Verification expired. Request a new email.');
+    assert(ch.guesses < 5, 'Too many guesses. Request a new email.');
+    ch.guesses++;
+    const a = s.accounts[ch.accountId];
     assert(
-      !account.verified &&
-        usedAttempts(s, account.id) === 0 &&
-        !s.queue.some((q) => q.accountId === account.id) &&
-        s.active?.accountId !== account.id,
-      'Ask the host to resolve this identity change.',
+      session?.accountId === a.id || matches(p.password, a.password),
+      'Enter the password used to register this account.',
+      401,
     );
-    assert(allowedEmail(p.email), 'Use a BCU email address.');
-    const email = normalizeEmail(p.email);
-    assert(
-      !Object.values(s.accounts).some((a) => a.id !== account.id && a.email === email),
-      'That address is associated with another registration. Sign in or ask the host.',
-    );
-    account.email = email;
-    for (const ch of Object.values(s.challenges)) if (ch.accountId === account.id) ch.used = true;
-    return { message: 'Email updated.' };
+    assert(p.linkToken || ch.codeHash === hash(p.code), 'Incorrect code.');
+    ch.used = true;
+    a.verified = true;
+    return { message: 'Email verified. You can now play.' };
   }
-  if (action === 'staffLogin') {
-    rate(s, `staff:${ctx.ip}`, 10, 900000, now);
-    const staff = Object.values(s.staff).find((a) => a.username === p.username && !a.disabled);
-
-    assert(staff && passwordMatches(p.password, staff.password), 'Sign-in failed.', 401);
-    const step = totp(staff.totpSecret).validate({
-      token: String(p.otp || ''),
-      timestamp: now,
-      window: 1,
-    });
-    assert(step !== null, 'Sign-in failed.', 401);
-
-    const counter = Math.floor(now / 30000) + step;
-    assert(counter > (staff.lastOtp ?? -1), 'Wait for the next authenticator code.', 401);
-    staff.lastOtp = counter;
-    return { token: issueSession(s, { staffId: staff.id, role: staff.role }, now) };
+  if (action === 'changePassword') {
+    assert(session?.accountId, 'Sign in first.', 401);
+    rate(s, `password:${session.accountId}`, 10, 900000, now);
+    const a = s.accounts[session.accountId];
+    assert(matches(p.currentPassword, a.password), 'Current password is incorrect.', 401);
+    assert(passwordValid(p.password), 'Use a password of 15–256 characters.');
+    a.password = encode(p.password);
+    revokeAccountCredentials(s, a.id);
+    return { token: issueSession(s, { accountId: a.id }, now), message: 'Password changed.' };
   }
   if (action === 'logout') {
+    if (s.hostLease?.session === hash(ctx.token)) {
+      s.hostLease = null;
+      s.controlEpoch++;
+    }
     delete s.sessions[hash(ctx.token)];
     return { logout: true };
   }
+  assert(false, 'Unknown account action.');
 }

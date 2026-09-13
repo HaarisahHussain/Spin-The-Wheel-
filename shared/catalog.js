@@ -1,35 +1,58 @@
 export const games = [
   {
     id: 'debug',
+    ranked: true,
     name: 'Debug Dash',
-    duration: 75,
+    duration: 150,
     live: true,
     description: 'Find the line that prevents the intended result.',
   },
   {
     id: 'output',
+    ranked: true,
     name: 'Guess the Output',
-    duration: 75,
+    duration: 150,
     live: true,
     description: 'Read the code. Choose its output.',
   },
   {
     id: 'robot',
+    ranked: true,
     name: 'Robot Rescue',
-    duration: 100,
-    live: false,
+    duration: 150,
+    live: true,
     description: 'Build a route. Move the robot to the goal.',
+  },
+  {
+    id: 'parcel',
+    prototype: true,
+    ranked: false,
+    name: 'Parcel Sorter',
+    duration: 150,
+    live: true,
+    description: 'Send each parcel to its matching depot.',
+  },
+  {
+    id: 'painter',
+    prototype: true,
+    ranked: false,
+    name: 'Pattern Painter',
+    duration: 150,
+    live: true,
+    description: 'Program a robot to paint the target pattern.',
   },
 ];
 
 export const gameById = (id) => games.find((game) => game.id === id);
 
-export const scoreText = (value) => ((value ?? 0) / 100).toFixed(2);
+export const scoreText = (value) => ((value ?? 0) / 1000000).toFixed(2);
 
 export const grade = (score) =>
-  score === 0
+  Number(scoreText(score)) === 0
     ? 'No score'
-    : ['F', 'E', 'D', 'C', 'B', 'A', 'S', 'SS', 'SSS'][Math.min(8, Math.ceil(score / 100) - 1)];
+    : ['F', 'E', 'D', 'C', 'B', 'A', 'S', 'SS', 'SSS'][
+        Math.min(8, Math.ceil(Number(scoreText(score))) - 1)
+      ];
 
 export const allowedEmail = (input) =>
   typeof input === 'string' &&
@@ -41,6 +64,7 @@ export const allowedEmail = (input) =>
 
 export const normalizeEmail = (email) => email.trim().toLowerCase();
 
-// export const SCORING_VERSION = '0.4.0-feedback-1';
-// export const SCORING_VERSION = '0.4.0-feedback-1';
-export const SCORING_VERSION = '0.4.0-feedback-1';
+export const SCORING_VERSION = '0.5.1-five-challenges-1';
+
+export const availableGames = (config) =>
+  games.filter((g) => !g.prototype || config?.prototypeGames === true);

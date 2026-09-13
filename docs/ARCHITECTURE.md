@@ -1,65 +1,60 @@
-# Architecture and extension guide
+# Architecture and game extension · v0.5.1
 
 ## Boundaries
 
-| Module                      | Responsibility                                                                   |
-| --------------------------- | -------------------------------------------------------------------------------- |
-| `shared/catalog.js`         | Public game metadata, eligibility syntax, score presentation and scoring version |
-| `server/commands/auth.js`   | Registration, verification, recovery, host MFA and controller pairing            |
-| `server/commands/player.js` | Queue and gameplay commands, admission and ownership checks                      |
-| `server/commands/host.js`   | Operations, settings, incidents, awards and retention actions                    |
-| `server/engine.js`          | Idempotent command envelope and dispatch; rollback of rejected mutations         |
-| `server/runtime.js`         | Server deadlines, session transitions, live scheduling and cleanup               |
-| `server/games/`             | Server-only quiz/Robot generation, answer validation and score reducers          |
-| `server/projection.js`      | Explicit public, participant and staff views                                     |
-| `server/storage.js`         | Atomic persistence and serialized mutation access                                |
-| `server/mail.js`            | Encrypted outbox payloads and verification/prize email delivery                  |
-| `src/state.jsx`             | Same-origin commands, Socket.IO snapshots, clock offset and reconnection         |
-| `src/screens/host/`         | Separate host tabs and shared reason dialog                                      |
-| `src/games/Game.jsx`        | Shared questions, feedback and game composition                                           |
-| `src/components/`           | Shared controls, syntax highlighting, scoreboard and wheel                       |
+| Module | Responsibility |
+| --- | --- |
+| shared/catalog.js | Public metadata, fixed release eligibility, BCU syntax and score presentation |
+| shared/scoring.js, timing.js | Integer score formula, level weights and phase durations |
+| server/passwords.js | Bounded asynchronous scrypt work outside database transactions |
+| server/commands/auth.js | Registration, verification, password reset and host authentication |
+| server/host-control.js | Exclusive session/tab/connection lease, epochs and takeover challenges |
+| server/commands/player.js | Account actions, controller ownership, queue and submissions |
+| server/commands/host.js | Settings, incidents, finalisation, exports and cleanup |
+| server/engine.js, runtime.js | Idempotent dispatch, server phases, deadlines and scheduling |
+| server/games/ | Server-only seeded generators, validators and evaluators |
+| server/projection.js | Explicit public, participant and host views |
+| server/storage.js | Serialized atomic aggregate persistence and unique email index |
+| server/mail.js | Encrypted outbox and email transport |
+| src/state.jsx | Same-origin commands, separate audiences, reconnect and heartbeat |
+| src/games/ | Shared quiz/puzzle rendering and phone editors |
 
-## Authority and consistency
+## Authority
 
-The phone sends intentions, never scores or a “game completed” event. The server checks the session, participant, phase, attempt ID, challenge ID and deadline before accepting input. All mutations pass through `storage.transact`. A response is returned only after persistence commits. Domain errors restore prior business state while retaining abuse/verification counters.
+Clients submit an intention with a command ID, challenge ID and connection identity, never scores or trusted timestamps. Mutations run through a serialized transaction. Host commands are fenced by session, connection, epoch and lease before even returning a cached result. Acknowledgements follow persistence. Rejected domain commands restore business state while keeping abuse counters. Password comparisons prepared asynchronously are checked against the exact current hash in the transaction.
 
-Each command has a caller-generated ID and payload fingerprint. Retries return the original result. Credential-bearing results are encrypted before entering the idempotency cache. Socket snapshots are projections of committed state; the client rejects older revisions that arrive after newer ones.
+Public questions use allowlists. Seeds, reference Python, solutions and locked Live programs stay server-side until the appropriate reveal. Participant and host cookies are separate. Public monitor routes request a public projection even in an authenticated browser. Player input belongs to one connected device; transfers require explicit confirmation while another owner is present.
 
-SQLite WAL is the development adapter. PostgreSQL stores one JSONB event aggregate in a locked row. This makes cross-entity rules atomic and reviewable, but rewrites the aggregate and broadcasts snapshots frequently. It is a deliberate **single-event, single-process** design, not a general high-volume service. A row lock serializes transactions; it is not a distributed scheduler lease. Do not run two active schedulers. Before increasing scale, measure state size and tick latency, then migrate accounts, attempts, queue entries, commands and outbox jobs to normalized tables with unique constraints and an explicit scheduler lease.
+## Persistence and recovery
 
-Sessions and event state survive a restart; volatile connection presence does not. A restarted in-progress solo game becomes an interrupted attempt and pauses admissions for staff review. Ranked allowance is preserved until an authorised void. A live game interrupted by a restart is cancelled and rescheduled. Automatic replay would let participants alter an already-seen challenge, so recovery requires an explicit disposition.
+SQLite WAL is local only; PostgreSQL stores one locked JSONB event aggregate and a transactionally maintained unique email table. One dedicated PostgreSQL advisory lock or SQLite process lock prevents competing application writers. This is a bounded, single-event architecture; aggregate rewrites and full snapshots are a scalability constraint. Broadcasts are coalesced at 100 ms. Profile before increasing participant volume or retaining many events.
 
-## Add a game
+Restart revokes host sessions and control ownership. Interrupted solo sessions preserve earned points for review and do not refund Ranked allowance automatically. Unfinished Live sessions are cancelled; saved results and prize records remain. Scheduler stalls pause admissions and require intervention. An interrupted challenge is never silently replayed for free. No migration or deletion runs on ordinary startup.
 
-1. Add stable metadata to `shared/catalog.js`: ID, name, duration, description and `live` capability. The wheel geometry and live selection use this catalogue. Keep enough room for readable wheel labels; inspect the monitor after adding a segment.
-2. Create a server-only adapter in `server/games/` and register it in `registry.js`. `create(level)` builds a challenge. `answer(game, answer, challengeId, now)` validates and reduces quiz input. A simulation may implement `program(game, payload, now)` and `tick(game, now)` instead. These functions mutate only the supplied game and must not perform I/O. Set `game.complete` when finished.
-3. For Live support implement `live.question(level)` and `live.validAnswer(question, value)`. The existing Live shell supports shared question/answer rounds. A fundamentally different multiplayer mechanic needs a new live lifecycle and renderer; setting `live: true` alone is insufficient.
-4. Add the phone/display renderer in `src/games/`. Existing answer-choice and selectable-line layouts can be reused. Keep private answer keys and random generation on the server. Add a renderer selection in `Game.jsx`; new custom action types also need an explicit controller permission and player-command handler.
-5. Extend `publicQuestion`/`publicGame` to strip any new private fields, or add an adapter-specific projection. Never assume a new field is safe simply because it is not named `answer`.
-6. Add behavioural tests for reachable challenges, legal answers, server scoring, stale inputs, deadlines and private-state exclusion. Inspect both phone and monitor views.
-7. Change `SCORING_VERSION` whenever scoring/content difficulty changes. Balance changes through development playtests before reopening Ranked. Do not update the scoring bank during a live Ranked event.
+## Add or change a game
 
-Keep authentication, queueing and prize logic outside game modules. The current quiz module contains the two existing banks, while Robot generation/programming is independent. Do not evaluate client-supplied code on the server; quiz outputs are computed by the trusted generator.
+1. Add metadata to `shared/catalog.js`; initially keep `ranked: false`. Public clients must never import server generators.
+2. Register an adapter with `kind`, `create(level, seed)`, `valid(question, answer)` and `evaluate(question, answer)` in `server/games/registry.js`. Evaluation is pure and bounded; it returns correctness and meaningful efficiency, not a client-provided score.
+3. Provide public fields through `publicQuestion`; preserve answer/solution secrecy before reveal. Add editor and monitor representations to the shared game components, not a new queue or session engine.
+4. Generate a valid reference answer/solution for every seed and bounded retry/fallback behavior. Extend 10,000-seed tests, independent correctness checks and real browser controls. Include Live closure/execution/reveal behavior.
+5. Benchmark difficulty with intended students before enabling Ranked. Freeze content, eligibility, timing and scoring for the actual event; change `SCORING_VERSION` for a new release/event.
 
-## Scores
+Parcel Sorter uses a visible binary conveyor with a Boolean exit swap at each junction. Pattern Painter accepts direction/paint instructions and at most one Repeat block (count two, at most four primitive instructions); expanded work is capped at 24 instructions. Both award completion without inventing an optimal-program efficiency penalty. Robot efficiency uses independent-checked shortest-path cost divided by submitted cost.
 
-The pilot quizzes contain nine challenges worth up to 100 hundredths each, with a bounded response-time bonus. Robot has three core boards worth up to 200 each and three further boards worth up to 100 each, with a route-efficiency component. The core ceiling is 6.00 and the total ceiling is 9.00.
+`prototypeGames` is populated from `ENABLE_PROTOTYPE_GAMES` at startup. `availableGames` filters selection and idle presentation. Prototype metadata keeps both new games out of Ranked even when their test catalogue is enabled.
 
-**Equal ceilings do not prove equal difficulty.** These are pilot reducers, not a calibrated psychometric scale. The existing bank can be learned, and experienced programmers may reach its ceiling. Representative playtests must determine question/board difficulty and timing before prizes use Ranked. Two decimal places improve display precision but cannot eliminate genuine ties. Preserve shared ranks and use the published prize-boundary procedure.
+## Game phases and clocks
 
+Solo: called → wheel → first-encounter introduction (or countdown) → question → execution for puzzles → feedback → next question/result. Tutorial acknowledgement is per game and scoring version. Introduction expiry frees the turn and preserves the unstarted selection. A completed introduction starts a separate three-second countdown; only actual gameplay consumes a Ranked start.
 
-## v0.4.0 timing and presentation boundaries
+Each of five questions has its own 30-second active allowance. A puzzle submission stores a unique run ID, copied program, evaluated path/frames, accumulated thinking time and execution deadline atomically. Robot/paint playback targets 220 ms per action, bounded to 600–4,000 ms; parcels use 4,000 ms. A failed run returns the remaining allowance and draft, or closes at zero after three runs. Score is committed at execution completion once. Client motion is presentation only, using server start/end timestamps and a reduced-motion path.
 
-- `shared/timing.js` owns fixed solo/reveal timing and the six-round Live profile. `shared/wheel.js` arranges ten labels without selecting a game. `server/selection.js` draws a game uniformly, then chooses its sector, and persists that selection with timestamps.
-- `server/games/quiz.js` owns question/feedback transitions, remaining answering milliseconds and one-time scoring. Feedback retains the completed question; the next question is generated only when activated. `publicGame` exposes answers only during feedback; Live projections expose them only once submissions close.
-- `server/runtime.js` freezes lobby settings, closes membership before drawing, manages pending Live/solo fairness and estimates admission capacity with bounded live overhead. Disconnects do not shrink the frozen roster; all-submitted can reveal after two seconds, otherwise a fixed deadline closes the round.
-- `server/migration.js` applies v0.4.0 defaults once, preserves account/history records and blocks mixed-version ranking. `server/recovery.js` interrupts active play after a service-update stall exceeding three seconds. Startup keeps the existing interruption procedure. Neither path refunds ranked attempts automatically.
-- `src/components/AnswerFeedback.jsx`, `Wheel.jsx`, `Code.jsx` and `LiveStatus.jsx` are shared phone/display primitives. Server timestamps own progression. Reduced motion changes rendering only. The Code component preserves source on copy and gives each logical line one selection target after wrapping.
-- `src/games/Robot.jsx` owns board/controller presentation with controls before a fixed-height sequence. `server/games/robot-maze.js` and `robot.js` retain maze authority. Movement increments its scheduled next step instead of accumulating timer jitter; long service stalls follow the recovery path.
+Live: lobby → wheel → ten-second sample → countdown → question → shared execution for puzzles → reveal → next round/winner. Coding uses five 30-second rounds; puzzles use three rounds at 30/35/40 seconds. Only shared closure publishes other players’ programs/results. Live playback reserves four seconds. A player cannot pause or privately test a Live puzzle.
 
-New game adapters must advertise the correct modes. The wheel currently accepts 1–10 eligible games; more than ten requires an explicit visual design change. Editing a competitive game bank, score rule or timing profile requires a new scoring version and fresh calibrated event. The host API does not expose arbitrary ranked timing edits.
+The conservative solo slot is 282 seconds. Admission and phone wait calculations share `estimatedWaitMs`, including current/pending Live and future automatic sessions. Admission retains a ten-minute closing margin. These estimates are bounds, not appointment times.
 
+## Scoring
 
-Wheel motion uses requestAnimationFrame to update functional SVG transforms against server time; no animation completion event controls game state. Visibility recovery refreshes state. The selection label is neutral until the authoritative countdown phase. Idle motion runs continuously unless disabled or reduced motion is requested.
+Solo stores one million integer units per displayed point. Level maxima sum to 9.00. Correct quizzes receive 80% correctness plus up to 20% speed. Puzzles receive 80% completion, up to 15% efficiency and 5% speed. Exact-deadline answers score zero. Execution and feedback never spend thinking allowance. Live normalises the same factors separately to 1,000 points. Display rounds to two decimals; true exact ties share ranks and prize-boundary ties require an audited decision.
 
-Ranked availability is a version-checked, revision-protected Event setting. Switching it leaves attempts, scores and already admitted turns intact. Historical scoring versions remain excluded from current standings; no automatic event reset is performed.
+Changing numbers creates numerical variety but does not establish equal difficulty. The seed benchmark is a duplicate check, not evidence of fair cross-game scores or immunity to memorisation.

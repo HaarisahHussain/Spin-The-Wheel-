@@ -1,8 +1,9 @@
-import { newGame, tickGame } from './games.js';
+import { requireHost } from './host-control.js';
+import { newGame, tickGame, generate, publicQuestion } from './games.js';
 import { adapterFor, liveGames } from './games/registry.js';
 import { randomInt } from 'node:crypto';
 import { selectGame } from './selection.js';
-import { TIMING, LIVE_ROUNDS, liveDuration } from '../shared/timing.js';
+import { TIMING, LIVE_ROUNDS, LIVE_PUZZLE_ROUNDS, liveDuration } from '../shared/timing.js';
 import { requireValue as assert, sessionFor } from './security.js';
 import { usedAttempts, openWindow } from './state.js';
 const uuid = () => crypto.randomUUID();
@@ -22,21 +23,19 @@ function accountFor(s, ctx, now) {
   assert(session?.accountId && !session.pending, 'Please sign in.', 401);
   return s.accounts[session.accountId];
 }
-function staffFor(s, ctx, now, roles = ['host', 'adjudicator', 'admin']) {
-  const session = sessionFor(s, ctx.token, now),
-    staff = s.staff[session?.staffId];
-  assert(
-    staff && roles.includes(staff.role),
-    'This action requires an authorised staff account.',
-    403,
-  );
-  return staff;
+function staffFor(s, ctx, now) {
+  requireHost(s, ctx, now);
+  return s.staff.host;
 }
 function requireOpen(s, now, mode) {
   const window = openWindow(s, now);
   assert(
     window && now < window.cutoff && !s.config.paused && !s.config.finalised,
-    'Admissions are closed.',
+    s.config.finalised
+      ? 'This event has finished.'
+      : s.config.paused
+        ? 'The host has paused admissions.'
+        : 'Outside opening hours.',
   );
   if (mode === 'ranked')
     assert(
@@ -52,7 +51,7 @@ function createAttempt(s, now) {
     active.mode !== 'ranked' || usedAttempts(s, a.id) < 3,
     'All three ranked attempts are used.',
   );
-  const game = newGame(active.gameId, now),
+  const game = newGame(active.gameId, now, (a.recent ||= [])),
     id = uuid();
   s.attempts.push({
     id,
@@ -76,11 +75,50 @@ function finish(s, status, now) {
   const active = s.active,
     attempt = s.attempts.find((a) => a.id === active?.attemptId);
   if (!attempt || attempt.status !== 'started') return;
+  const previousBest = s.attempts
+    .filter(
+      (a) =>
+        a.id !== attempt.id &&
+        a.accountId === attempt.accountId &&
+        a.gameId === attempt.gameId &&
+        a.mode === 'practice' &&
+        a.version === SCORING_VERSION &&
+        ['completed', 'timed_out', 'abandoned'].includes(a.status),
+    )
+    .reduce((best, a) => Math.max(best, a.score), -1);
   Object.assign(attempt, {
+    personalBest: attempt.mode === 'practice' && active.game.score > previousBest,
+    firstScore: active.mode === 'practice' && previousBest < 0,
+    improvement:
+      attempt.mode === 'practice' && previousBest >= 0
+        ? Math.max(0, active.game.score - previousBest)
+        : null,
     status,
     score: active.game.score,
     ended: now,
     history: active.game.history,
+    review: active.game.history.map((q) => ({
+      ...publicQuestion(q, true),
+      correct: q.correct,
+      selected: q.selected,
+      path: q.path,
+      frames: q.frames,
+      painted: q.painted,
+      routes: q.routes,
+      points: q.points,
+      feedback: q.feedback,
+      failedIndex: q.failedIndex,
+      failedCell: q.failedCell,
+      timedOut: q.timedOut,
+    })),
+    breakdown: active.game.history.map((q) => ({
+      level: q.level,
+      correct: q.correct,
+      points: q.points,
+      elapsedMs: q.elapsedMs,
+      allowanceMs: q.allowanceMs,
+      efficiency: q.efficiency,
+    })),
   });
   active.game.complete = true;
   Object.assign(active, { phase: 'result', until: now + TIMING.result });
@@ -105,17 +143,22 @@ export function liveDue(s, now) {
     (!s.config.soloAfterLive || !s.queue.some((q) => eligible(s, s.accounts[q.accountId])))
   );
 }
-export function queueFits(s, now, window) {
-  const pendingMs = s.live
+export function estimatedWaitMs(s, soloTurns) {
+  const pending = s.live
     ? liveDuration(s.live.settings)
-    : s.config.livePending || s.config.autoLive
+    : s.config.livePending
       ? liveDuration(s.config)
       : 0;
-  const soloMs = (s.queue.length + 1 + (s.active ? 1 : 0)) * TIMING.soloSlot;
-  const futureLiveMs = s.config.autoLive
-    ? Math.ceil(soloMs / (s.config.interval * 1000)) * liveDuration(s.config)
+  const solo = soloTurns * TIMING.soloSlot;
+  const future = s.config.autoLive
+    ? Math.ceil(solo / (s.config.interval * 1000)) * liveDuration(s.config)
     : 0;
-  return now + soloMs + pendingMs + futureLiveMs + 600000 < window.end;
+  return solo + pending + future;
+}
+export function queueFits(s, now, window) {
+  const turns =
+    s.queue.filter((q) => eligible(s, s.accounts[q.accountId])).length + 1 + (s.active ? 1 : 0);
+  return now + estimatedWaitMs(s, turns) + 600000 < window.end;
 }
 function liveStart(s, now) {
   assert(!s.active && !s.live, 'Finish the current turn first.');
@@ -125,14 +168,14 @@ function liveStart(s, now) {
     canStartLive(s, now),
     'Live admissions are closed or there is insufficient time before closing.',
   );
-  const available = liveGames();
+  const available = liveGames(s.config);
   assert(available.length && available.length <= 10, 'Configure 1–10 multiplayer games.');
   s.config.livePending = false;
   s.live = {
     id: uuid(),
     gameId: null,
     phase: 'lobby',
-    code: String(randomInt(100000, 1000000)),
+
     until: now + s.config.lobbySeconds * 1000,
     roster: {},
     level: 0,
@@ -159,28 +202,36 @@ function holdUnverified(s, now) {
   }
 }
 export function tick(s, now, _connected = new Set()) {
-  s.queue = s.queue.filter(
-    (q) =>
-      (!q.heldUntil || q.heldUntil > now) &&
-      s.config.windows.some((w) => now < w.end && q.admitted >= w.start),
+  s.queue = s.queue.filter((q) =>
+    s.config.windows.some((w) => now < w.end && q.admitted >= w.start),
   );
   for (const q of s.queue) if (eligible(s, s.accounts[q.accountId])) q.heldUntil = null;
   const a = s.active;
   if (a) {
     if (a.phase === 'playing') {
-      if (a.game.id === 'robot' && now >= a.game.deadline) finish(s, 'timed_out', now);
-      else {
-        tickGame(a.game, now);
-        a.until = a.game.phase === 'feedback' ? a.game.feedbackUntil : a.game.deadline;
-        if (a.game.complete) finish(s, a.game.completionStatus || 'completed', now);
-      }
+      tickGame(a.game, now);
+      a.until =
+        a.game.phase === 'feedback'
+          ? a.game.feedbackUntil
+          : a.game.phase === 'execution'
+            ? a.game.execution.until
+            : a.game.deadline;
+      if (a.game.complete) finish(s, a.game.completionStatus || 'completed', now);
     } else if (now >= a.until) {
-      if (a.phase === 'called' || a.phase === 'result') {
+      if (a.phase === 'called' || a.phase === 'introduction' || a.phase === 'result') {
+        if (a.phase === 'introduction')
+          s.accounts[a.accountId].turnNotice =
+            'Your introduction timed out. Review How to play, then join again. No Ranked start was used.';
         for (const [key, session] of Object.entries(s.sessions))
           if (session.controller && session.accountId === a.accountId) delete s.sessions[key];
         s.active = null;
       } else if (a.phase === 'wheel')
-        Object.assign(a, { phase: 'countdown', until: now + TIMING.countdown });
+        Object.assign(
+          a,
+          s.accounts[a.accountId].tutorials?.[a.gameId] === SCORING_VERSION
+            ? { phase: 'countdown', until: now + TIMING.countdown }
+            : { phase: 'introduction', until: now + TIMING.introduction },
+        );
       else if (a.phase === 'countdown') {
         if (eligible(s, s.accounts[a.accountId])) createAttempt(s, now);
         else holdUnverified(s, now);
@@ -207,13 +258,21 @@ export function tick(s, now, _connected = new Set()) {
         });
       }
     } else if (live.phase === 'wheel')
+      Object.assign(live, { phase: 'introduction', until: now + TIMING.liveIntroduction });
+    else if (live.phase === 'introduction')
       Object.assign(live, { phase: 'countdown', until: now + TIMING.countdown });
     else if (live.phase === 'countdown') nextLiveQuestion(s, now);
     else if (live.phase === 'question')
+      Object.assign(live, {
+        phase: adapterFor(live.gameId).kind === 'puzzle' ? 'execution' : 'reveal',
+        until: now + (adapterFor(live.gameId).kind === 'puzzle' ? 4000 : TIMING.feedback),
+        phaseAt: now,
+      });
+    else if (live.phase === 'execution')
       Object.assign(live, { phase: 'reveal', until: now + TIMING.feedback });
     else if (live.phase === 'reveal') {
       live.level++;
-      if (live.level >= LIVE_ROUNDS.length) finishLive(s, now);
+      if (live.level >= (adapterFor(live.gameId).kind === 'puzzle' ? 3 : 5)) finishLive(s, now);
       else nextLiveQuestion(s, now);
     } else if (live.phase === 'winner' || live.phase === 'cancelled') {
       s.live = null;
@@ -223,7 +282,9 @@ export function tick(s, now, _connected = new Set()) {
   if (!canStartLive(s, now)) s.config.livePending = false;
   if (!s.active && liveDue(s, now)) liveStart(s, now);
   for (const [key, session] of Object.entries(s.sessions))
-    if (session.expires <= now) delete s.sessions[key];
+    if (session.expires <= now || (session.staffId && now - session.lastActivity >= 1800000))
+      delete s.sessions[key];
+  for (const [key, t] of Object.entries(s.takeovers)) if (t.expires <= now) delete s.takeovers[key];
   for (const [key, command] of Object.entries(s.commands))
     if (command.at < now - 86400000) delete s.commands[key];
   for (const [key, values] of Object.entries(s.rates)) {
@@ -236,13 +297,25 @@ export function tick(s, now, _connected = new Set()) {
 function nextLiveQuestion(s, now) {
   const live = s.live;
   for (const id of Object.keys(live.roster)) s.accounts[id].attendedAt ||= now;
-  live.question = adapterFor(live.gameId).live.question(live.level);
+  live.question = generate(
+    live.gameId,
+    Math.min(4, live.level * (adapterFor(live.gameId).kind === 'puzzle' ? 2 : 1)),
+    [],
+  );
   live.phase = 'question';
   live.questionAt = now;
-  live.until = now + Math.round(LIVE_ROUNDS[live.level] * live.settings.liveTimeScale) * 1000;
+  live.until =
+    now +
+    Math.round(
+      (adapterFor(live.gameId).kind === 'puzzle' ? LIVE_PUZZLE_ROUNDS : LIVE_ROUNDS)[live.level] *
+        live.settings.liveTimeScale,
+    ) *
+      1000;
   for (const entry of Object.values(live.roster)) {
     entry.answer = null;
     entry.correct = null;
+    entry.result = null;
+    entry.points = 0;
   }
 }
 function finishLive(s, now) {
@@ -255,7 +328,27 @@ function finishLive(s, now) {
   live.winners = winners.map((e) => e.accountId);
   live.phase = 'winner';
   live.until = now + TIMING.winner;
-  for (const entry of winners)
+  for (const entry of entries)
+    s.liveResults.push({
+      id: uuid(),
+      liveId: live.id,
+      accountId: entry.accountId,
+      gameId: live.gameId,
+      score: entry.score,
+      at: now,
+      won: live.winners.includes(entry.accountId),
+    });
+  const reserved = s.awards.filter(
+    (a) => a.type === 'instant' && !a.collected && !a.forfeited,
+  ).length;
+  const stock = Math.max(0, s.config.instantPrizes - reserved);
+  const recipients = [...winners];
+  for (let i = recipients.length - 1; i > 0; i--) {
+    const j = randomInt(i + 1);
+    [recipients[i], recipients[j]] = [recipients[j], recipients[i]];
+  }
+  live.prizeRecipients = recipients.slice(0, stock).map((e) => e.accountId);
+  for (const entry of recipients.slice(0, stock))
     s.awards.push({
       id: uuid(),
       type: 'instant',

@@ -1,59 +1,57 @@
-# BCUSCA Welcome Week Arcade · v0.4.0
+# BCUSCA Welcome Week Arcade · v0.5.1
 
-A React application for two public monitors, students’ phones and a private host laptop. Express serves the client, API and Socket.IO from one origin. This source release implements the v0.4.0 presentation and timing changes on the v0.3 event flow and includes a pilot game bank. Ranked starts off; enable it under Host → Event → Ranked play and save settings.
+Three programming games and two optional puzzle prototypes for students’ phones, two public monitors and one host laptop. React, Tailwind v4, Express and Socket.IO share one origin.
 
-## New in v0.4.0
+## Start locally
 
-Ten-slot wheels select games with equal odds, including Live selection after the lobby closes. Coding games now reveal each answer prominently on both screens for three seconds without spending the 75-second answering budget. Python wraps without changing logical line numbers. Robot controls remain above the scrolling sequence.
-
-Host → Event offers Text only / Wheel only / Both and a continuous-animation switch. All Event form settings, including verification and automatic Live, apply when **Save settings** is pressed. Live defaults: a 20-second lobby, 3-second wheel, 3-second countdown, six 15/15/20/20/25/25-second questions, 3-second reveals and 8-second winners. Automatic Live waits five minutes after the previous event finishes; it never interrupts a selected solo turn.
-
-**Upgrading:** keep your existing private environment configuration and data separately. This source ZIP excludes credentials, SQLite data, dependencies and compiled assets. Run `npm ci` and rebuild. Upgrade between sessions. Existing identities/history are retained, but Ranked is disabled and older scoring versions are excluded from current standings. Existing Ranked starts still count; switching Ranked off and on never resets attempts. For a genuinely separate competition, use a separate event database and retain the old event for outstanding prizes. See [Operations](docs/OPERATIONS.md).
-
-The [v0.4.0 specification](docs/SPECIFICATION-v0.4.0.md) overrides the changed presentation/timing sections of the retained v0.3 baseline. See [Validation](docs/VALIDATION.md) for automated evidence and outstanding venue gates.
-
-## Run locally
-
-Install Node.js 24 or newer, then run these commands from this directory:
+Use Node.js 24 or newer. Python 3 is needed for generated-snippet tests, not for running the website.
 
 ```sh
 npm ci
 cp .env.example .env
-npm run staff
+```
+
+Set `HOST_PASSWORD` to a unique passphrase of 15–256 characters. Set `PUBLIC_ORIGIN` to the exact URL you open, without a trailing slash. Use the laptop’s LAN IP for phone testing, and connect devices to the same network. Then:
+
+```sh
 npm run dev
 ```
 
-The staff command creates a named account and prints an authenticator setup URI. Add it to your authenticator. Use the username, password and current six-digit authenticator code at `/host`. There is no default host password. `STAFF_ROLE` may be `host`, `adjudicator` or `admin`; the default for this setup command is `admin`. Prefer supplying `STAFF_PASSWORD` securely through your environment because the interactive password prompt is visible.
+Open `/host`, username **host**, with your environment password. There is no MFA, staff creation command or admin account. A second browser must explicitly take over; additional tabs stay read-only until control is transferred. Separate host/player cookies allow testing both in one browser.
 
-Open **http://localhost:3001**. Do not open Vite on a separate port. `PUBLIC_ORIGIN` must exactly match the browser origin, including scheme and port, with no trailing slash. Development uses local SQLite and a private email preview on the requesting browser; no real email is sent in preview mode.
+Under Host → Event, save actual opening times, admission cutoff and closing time. No dates are invented. Verification defaults ON. Development previews email on the requesting device; production requires SMTP. Ranked defaults OFF; turn it on only after playtesting.
 
-In Host → Event, add the actual opening dates, admission cutoffs and closing times. No event dates are invented automatically. Leave Ranked closed while testing the games. Practice works once an opening window is active and the account satisfies the verification policy.
+## Clean pre-launch setup
+
+**v0.5.1 requires a clean database.** There is no upgrade migration from earlier versions. Preserve any old data separately and point this release at an empty database or new SQLite file. Startup refuses an older schema and never deletes data. For a deliberate local test reset, stop the server and run `npm run reset:dev`; it asks for an exact confirmation and refuses PostgreSQL/production. Do not reset a real event.
+
+The ZIP excludes private environment files, database contents, dependencies and compiled assets. Run `npm ci` and rebuild after extracting.
 
 ## Screens
 
-| Device           | Route           | Purpose                                                                    |
-| ---------------- | --------------- | -------------------------------------------------------------------------- |
-| Monitor 1        | `/display/join` | Stable QR code, top-five Ranked standings, next-player/live status         |
-| Monitor 2        | `/display/play` | Ready, ten-slot wheel, countdown, solo/live gameplay, feedback and results      |
-| Host laptop      | `/host`         | Live operations, event settings, results/prizes, Updates                   |
-| Student phone    | `/`             | Registration, verification, queue, controller, leaderboard and Updates     |
-| Spare controller | `/controller`   | One-use pairing code issued by the host for an eligible participant’s turn |
+| Device | Route | Content |
+| --- | --- | --- |
+| Join monitor | `/display/join` | Stable QR, top-five Ranked standings, next Live timer |
+| Play monitor | `/display/play` | Idle wheel/text, selection, games, answer reveals and winners |
+| Host laptop | `/host` | Live, Event, Players & Results, Updates |
+| Player phone | `/` | Register/sign in, Play, Scores, Updates and Account |
 
-Use the browser’s full-screen mode for the monitors. Both public display routes request public projections even when opened in a browser that also has a host session.
+Public routes never receive host identity details. Phone Scores shows personal Practice top ten, recent Live results, the full Ranked leaderboard and confirmed prize information.
 
-## Event rules implemented
+## What changed in v0.5.1
 
-- Exact `@mail.bcu.ac.uk` and `@bcu.ac.uk` domains only. Verification is ON by default for Practice, Ranked and Live. The host can turn it OFF without changing domain restrictions or resetting attempts.
-- One solo queue entry per account. Staff confirm presence by calling the next participant; the phone has 20 seconds to respond. Every completed turn requires re-enqueueing at the back.
-- Practice is unlimited. Ranked permits three started, non-void attempts across the entire event. A start is recorded atomically when gameplay begins. Closing the browser does not refund it.
-- The server selects the game. Cancelling before a Ranked start retains its selected game. Best Ranked score counts; shared scores retain shared ranks.
-- Scores use integer hundredths internally, displayed as `0.00–9.00`. Grade bands are `(0,1] F`, `(1,2] E`, `(2,3] D`, `(3,4] C`, `(4,5] B`, `(5,6] A`, `(6,7] S`, `(7,8] SS`, `(8,9] SSS`; zero is “No score”.
-- Debug Dash and Guess the Output support solo and 2–50-player Live. Robot Rescue is solo-only. Live has its own scores and instant-prize records.
-- A due live lobby waits for a selected solo turn. After Live, the queue resumes; if players are waiting, serve a solo turn before another live event.
-- Account recovery preserves the identity and allowance. Spare controllers cannot read private account data or manage queues and expire with their assigned turn.
-- Technical interruptions require an audited staff decision. Only technical voids refund Ranked attempts. Award collection is recorded once; unclaimed awards can be explicitly closed with a reason.
+- Five independently timed challenges, 30 seconds each. First encounters have a separate example and explicit readiness before a Ranked start is used.
+- Robot Rescue animates the submitted route on both screens, highlights the current or blocked step, and retains failed work. Solo puzzles allow three runs; playback does not spend thinking time.
+- Smaller Python values, five concept tiers, misconception-based options and corrected-statement feedback. Completed challenge reviews remain available in Scores.
+- Sort the Stream and Signal Switch are removed. Parcel Sorter uses visible conveyor junctions; Pattern Painter separates movement and painting, with a bounded Repeat instruction.
+- Focused phone gameplay, clearer verification and queue status, compact empty standings, explicit settings drafts and contextual host password confirmation.
+- Startup failures release owned resources. Reset can reclaim a provably dead local writer without removing a live or uncertain owner's lock.
 
-## Deploy
+**Prototype gate:** `ENABLE_PROTOTYPE_GAMES=false` by default. Set it to `true` and restart a test event to try Parcel Sorter and Pattern Painter in Practice/Live. Both remain excluded from Ranked. They have automated coverage but have not passed the required beginner observations; keep them disabled for launch until that gate is completed. No calibration form or extra host game switches are added.
+
+**Ranked pool:** Debug Dash, Guess the Output and Robot Rescue. Five challenge maxima are 0.80, 1.20, 1.80, 2.30 and 2.90. Exact integer scores use correctness first, with smaller efficiency/speed contributions. The best of three started sessions counts. Equal cross-game difficulty still requires rehearsal; freeze content and `SCORING_VERSION` for the actual event.
+
+## Production
 
 ```sh
 npm ci
@@ -61,13 +59,11 @@ npm run build
 npm start
 ```
 
-Production requires `DATABASE_URL`, a 64-character hexadecimal `MAIL_KEY`, and an HTTPS `PUBLIC_ORIGIN`. Configure SMTP using `.env.example`; set `MAIL_MODE=smtp`. Place the application behind a trusted HTTPS reverse proxy that forwards the original Host header and supports WebSocket upgrades. Run **one application instance**; do not use a cluster or autoscaling replicas with this event scheduler.
+Set `HOST_PASSWORD`, `DATABASE_URL`, a 64-character hexadecimal `MAIL_KEY`, an HTTPS `PUBLIC_ORIGIN`, and working SMTP settings. Run one application instance behind one trusted HTTPS reverse proxy with WebSocket support. PostgreSQL advisory ownership rejects another writer. Do not autoscale replicas. Protect both the database and encryption key in backups.
 
-The QR encodes `PUBLIC_ORIGIN`, not a room ID or placeholder endpoint. `localhost` points to each student’s own phone, so it cannot be the event QR address. Use an HTTPS address reachable on both venue Wi-Fi and mobile data. Check `/api/health`, then scan the actual monitor QR from an unrelated phone before admitting players.
+Test real BCU mailbox delivery, the monitor QR and all devices on the actual deployment before opening admissions. This ZIP is a tested pre-launch release, not proof of production readiness.
 
-Keep PostgreSQL credentials, `MAIL_KEY`, staff passwords and authenticator secrets out of Git. Back up the database and encryption key separately. Existing data is not automatically migrated from the earlier room-based prototype; this version starts a new event database. See [Operations](docs/OPERATIONS.md) before running a prize-bearing event.
-
-## Development
+## Development and extension
 
 ```sh
 npm run check
@@ -75,8 +71,4 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-`check` runs lint, backend/integration tests and a production client build. Browser tests serve isolated synthetic fixtures from `tests/browser-server.js`; never run that server at the event. Browser tests require a built `dist` directory. `npm ci` uses the supplied lockfile.
-
-Styling uses Tailwind CSS v4 utilities, local Poppins fonts, charcoal text and off-white surfaces. The only application stylesheet imports Tailwind. Prism supplies code tokens styled with utilities; React Icons supplies the few functional icons. SVG geometry describes the wheel and does not require custom CSS.
-
-Read [Architecture and game extension](docs/ARCHITECTURE.md), [Validation and release limits](docs/VALIDATION.md), and the complete [v0.3 specification](docs/SPECIFICATION-v0.3.md).
+`check` runs lint, server/HTTP/generator tests and a production build. Browser tests use synthetic isolated fixtures; never deploy the test server. See [Architecture](docs/ARCHITECTURE.md), [Operations](docs/OPERATIONS.md), [Validation](docs/VALIDATION.md) and [v0.5.1 specification](docs/SPECIFICATION-v0.5.1.md). Earlier specifications remain historical references.

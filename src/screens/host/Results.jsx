@@ -1,24 +1,33 @@
+import { useConfirmation } from '../../components/useConfirmation';
+import { useSensitiveAction } from './useSensitiveAction';
 import { useState } from 'react';
 import { useArcade } from '../../state';
 import { Button, Field, Textarea } from '../../components/ui';
 import { scoreText, gameById } from '../../../shared/catalog';
 import { ReasonDialog } from './ReasonDialog';
 export function Results() {
-  const { state, command, busy } = useArcade(),
+  const { state, busy } = useArcade(),
+    [peopleLimit, setPeopleLimit] = useState(30),
+    [limit, setLimit] = useState(100),
     [query, setQuery] = useState(''),
     [dialog, setDialog] = useState(null),
     [selected, setSelected] = useState([]),
     [tieReason, setTieReason] = useState(''),
     [showAudit, setShowAudit] = useState(false);
+  const { command, dialog: sensitiveDialog } = useSensitiveAction();
   const host = state.host;
-  const name = (id) => host.accounts.find((a) => a.id === id)?.alias || 'Former participant';
+  const [confirm, confirmation] = useConfirmation();
+  const name = (id) => host.accounts.find((a) => a.id === id)?.fullName || 'Former participant';
   const found = host.accounts.filter((a) =>
-    `${a.alias} ${a.email}`.toLowerCase().includes(query.toLowerCase()),
+    `${a.alias} ${a.fullName} ${a.email} ${a.course} ${a.level}`
+      .toLowerCase()
+      .includes(query.toLowerCase()),
   );
   return (
     <div>
+      {confirmation}
       <div className="mb-8 flex items-center justify-between">
-        <h1 className="text-3xl font-medium">Results & prizes</h1>
+        <h1 className="text-3xl font-medium">Players & Results</h1>
         <Button secondary onClick={() => setShowAudit(!showAudit)}>
           Activity log
         </Button>
@@ -36,18 +45,44 @@ export function Results() {
           </p>
         ))}
       </details>
+      <details className="mb-6 rounded-lg border border-[#DDDDD5] p-4">
+        <summary className="cursor-pointer text-sm font-medium">Email delivery</summary>
+        {host.mail
+          .filter((m) => !m.sent)
+          .map((m) => (
+            <div key={m.id} className="flex items-center justify-between gap-3 py-3 text-sm">
+              <span>
+                {m.error || 'Queued'} · {m.tries} attempts
+              </span>
+              {m.error && (
+                <Button
+                  secondary
+                  disabled={busy}
+                  onClick={() => command('host.retryMail', { id: m.id })}
+                >
+                  Retry
+                </Button>
+              )}
+            </div>
+          ))}
+      </details>
       <Field
         label="Find participant"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Alias or email"
+        placeholder="Name, alias, email or course"
       />
-      {query && (
+      {
         <div className="my-5 space-y-3">
-          {found.slice(0, 8).map((a) => (
+          {found.slice(0, peopleLimit).map((a) => (
             <div key={a.id} className="flex justify-between gap-5 rounded-lg bg-white p-4">
               <div>
-                <p>{a.alias}</p>
+                <p>
+                  {a.fullName} <span className="text-sm text-[#62625C]">{a.alias}</span>
+                </p>
+                <p className="text-sm">
+                  {a.course} · {a.level}
+                </p>
                 <p className="text-sm text-[#62625C]">
                   {a.email} · {a.used}/3 attempts
                 </p>
@@ -77,29 +112,18 @@ export function Results() {
                 >
                   Queue ranked
                 </Button>
-                <Button
-                  secondary
-                  onClick={() => command('host.pair', { accountId: a.id, identityConfirmed: true })}
-                >
-                  Pair controller
-                </Button>
-                <Button
-                  secondary
-                  onClick={() =>
-                    setDialog({
-                      title: 'Recover participant account',
-                      action: 'host.resolveIdentity',
-                      payload: { accountId: a.id, identityConfirmed: true },
-                      minimum: 20,
-                    })
-                  }
-                >
-                  Assist recovery
-                </Button>
               </div>
             </div>
           ))}
         </div>
+      }
+      <p className="text-xs text-[#62625C]">
+        Showing {Math.min(peopleLimit, found.length)} of {found.length} participants
+      </p>
+      {found.length > peopleLimit && (
+        <Button secondary onClick={() => setPeopleLimit(peopleLimit + 30)}>
+          Show more participants
+        </Button>
       )}
       <div className="my-8 overflow-x-auto">
         <table className="w-full text-left text-sm">
@@ -116,7 +140,7 @@ export function Results() {
             {[...host.attempts]
               .reverse()
               .filter((a) => !query || found.some((f) => f.id === a.accountId))
-              .slice(0, 100)
+              .slice(0, limit)
               .map((a) => (
                 <tr key={a.id}>
                   <td className="border-b border-[#DDDDD5] py-4">{name(a.accountId)}</td>
@@ -150,6 +174,11 @@ export function Results() {
           </tbody>
         </table>
       </div>
+      {host.attempts.length > limit && (
+        <Button secondary onClick={() => setLimit(limit + 100)}>
+          Show more results
+        </Button>
+      )}
       <section className="my-10">
         <h2 className="mb-5 text-xl font-medium">Prize collection</h2>
         {host.awards.length ? (
@@ -164,8 +193,8 @@ export function Results() {
               <Button
                 secondary
                 disabled={busy || a.collected || a.forfeited}
-                onClick={() => {
-                  if (confirm('Have you confirmed the claimant and their account identity?'))
+                onClick={async () => {
+                  if (await confirm('Have you confirmed the claimant and their account identity?'))
                     command('host.collect', { id: a.id, identityConfirmed: true });
                 }}
               >
@@ -245,19 +274,20 @@ export function Results() {
       <section className="mt-10">
         <Button
           secondary
-          onClick={() => {
-            const reason = prompt(
-              'After prize collection and the correction period: why are you deleting personal data?',
-            );
-            if (
-              reason &&
-              confirm('Delete personal data and sign out all accounts? This is irreversible.')
-            )
-              command('host.purge', { reason, confirmation: 'DELETE PERSONAL DATA' });
-          }}
+          onClick={() =>
+            setDialog({
+              title: 'Delete personal data after prize distribution',
+              action: 'host.purge',
+              payload: { confirmation: 'DELETE PERSONAL DATA' },
+              minimum: 20,
+            })
+          }
         >
           Retention cleanup
         </Button>
+        <p className="mt-2 text-xs text-[#62625C]">
+          Irreversible. Resolve prizes and reach the configured cleanup date first.
+        </p>
       </section>
       {showAudit && (
         <section className="mt-8">
@@ -270,7 +300,25 @@ export function Results() {
           ))}
         </section>
       )}
-      {dialog && <ReasonDialog dialog={dialog} onClose={() => setDialog(null)} />}
+      {sensitiveDialog}
+      <Button
+        secondary
+        disabled={busy}
+        onClick={async () => {
+          const r = await command('host.export');
+          if (r?.csv) {
+            const url = URL.createObjectURL(new Blob([r.csv], { type: 'text/csv;charset=utf-8' }));
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'ranked-results.csv';
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+          }
+        }}
+      >
+        Export ranked results
+      </Button>
+      {dialog && <ReasonDialog execute={command} dialog={dialog} onClose={() => setDialog(null)} />}
     </div>
   );
 }

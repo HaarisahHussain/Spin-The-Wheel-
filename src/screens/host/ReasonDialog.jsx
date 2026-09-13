@@ -1,6 +1,6 @@
 import { useArcade } from '../../state';
 import { Button, Textarea, Modal } from '../../components/ui';
-export function ReasonDialog({ dialog, onClose }) {
+export function ReasonDialog({ dialog, onClose, execute }) {
   const { command, busy } = useArcade();
   return (
     <Modal title={dialog.title} onClose={onClose}>
@@ -8,7 +8,7 @@ export function ReasonDialog({ dialog, onClose }) {
         className="space-y-5"
         onSubmit={async (e) => {
           e.preventDefault();
-          const result = await command(dialog.action, {
+          const result = await (execute || command)(dialog.action, {
             ...dialog.payload,
             reason: new FormData(e.currentTarget).get('reason'),
           });

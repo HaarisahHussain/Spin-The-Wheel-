@@ -1,13 +1,6 @@
 import { SCORING_VERSION } from '../../shared/catalog.js';
 import { attendanceSummary } from '../attendance.js';
-import {
-  secret,
-  hash,
-  sessionFor,
-  revokeAccountCredentials,
-  requireValue as assert,
-  textValue,
-} from '../security.js';
+import { sessionFor, requireValue as assert, textValue } from '../security.js';
 import { usedAttempts, leaderboard, openWindow, log } from '../state.js';
 import {
   eligible,
@@ -39,37 +32,55 @@ export function hostCommand(s, action, p, ctx, now, services) {
     now,
     privileged.includes(action) ? ['adjudicator', 'admin'] : undefined,
   );
-  if (privileged.includes(action))
-    assert(
-      now - sessionFor(s, ctx.token, now).created < 1800000,
-      'Sign in again before this sensitive action.',
-      401,
-    );
+  if (
+    ['purge', 'reopen', 'export', 'finalise'].includes(action) &&
+    now - sessionFor(s, ctx.token, now).reauthenticated >= 900000
+  )
+    throw Object.assign(Error('Re-enter the host password before this action.'), {
+      status: 401,
+      code: 'REAUTHENTICATE',
+    });
   const reason = textValue(p.reason, 500);
-  if (action === 'pair') {
-    assert(p.identityConfirmed === true, 'Confirm the participant is present.');
-    const account = s.accounts[p.accountId];
-    requireEligible(s, account);
-    assert(
-      s.queue.some((q) => q.accountId === account.id) || s.active?.accountId === account.id,
-      'Enqueue this participant before assigning a controller.',
-    );
-    for (const [key, value] of Object.entries(s.sessions))
-      if (value.accountId === account.id && value.controller) delete s.sessions[key];
-    s.controllerGrants ||= {};
-    for (const grant of Object.values(s.controllerGrants))
-      if (grant.accountId === account.id) grant.used = true;
-    const turn = s.queue.find((q) => q.accountId === account.id) || s.active;
-    const code = secret(6);
-    s.controllerGrants[hash(code)] = {
-      accountId: account.id,
-      sequence: turn.sequence,
-      expires: now + 300000,
-      used: false,
+  if (action === 'export') {
+    const cell = (value) => {
+      let text = String(value ?? '');
+      if (/^[\s]*[=+@-]/.test(text)) text = "'" + text;
+      return '"' + text.replaceAll('"', '""') + '"';
     };
-    log(s, staff.id, action, { accountId: account.id }, now);
-    return { pairingCode: code };
-  } else if (action === 'assistedEnqueue') {
+    const rows = [
+      [
+        'Full name',
+        'Email',
+        'Course',
+        'Academic year',
+        'Public alias',
+        'Game',
+        'Mode',
+        'Score',
+        'Status',
+        'Attempt ID',
+      ],
+    ];
+    for (const attempt of s.attempts.filter((a) => a.mode === 'ranked')) {
+      const a = s.accounts[attempt.accountId] || {};
+      rows.push([
+        a.fullName,
+        a.email,
+        a.course,
+        a.level,
+        a.alias,
+        attempt.gameId,
+        attempt.mode,
+        (attempt.score / 1000000).toFixed(2),
+        attempt.status,
+        attempt.id,
+      ]);
+    }
+    log(s, staff.id, 'host.export', { count: rows.length - 1 }, now);
+    return { csv: rows.map((row) => row.map(cell).join(',')).join('\r\n') };
+  }
+
+  if (action === 'assistedEnqueue') {
     const account = s.accounts[p.accountId];
     requireEligible(s, account);
     assert(p.identityConfirmed === true, 'Confirm participant identity.');
@@ -176,10 +187,21 @@ export function hostCommand(s, action, p, ctx, now, services) {
             w.cutoff < w.end,
           'Each window needs start < cutoff < end.',
         );
-      s.config.windows = p.windows;
+      const sorted = [...p.windows].sort((a, b) => a.start - b.start);
+      assert(
+        sorted.every((w, i) => !i || sorted[i - 1].end <= w.start),
+        'Opening windows must not overlap.',
+      );
+      s.config.windows = sorted;
     }
-    for (const key of ['playoffAt', 'playoffLocation', 'replyDeadline'])
-      if (key in p) s.config[key] = textValue(p[key], 160);
+    for (const key of [
+      'playoffAt',
+      'playoffLocation',
+      'replyDeadline',
+      'prizeInstructions',
+      'cleanupAt',
+    ])
+      if (key in p) s.config[key] = textValue(p[key], key === 'prizeInstructions' ? 1500 : 160);
     if (s.config.interval !== oldInterval || s.config.autoLive !== oldAuto)
       s.config.nextLobbyAt = now + s.config.interval * 1000;
     s.config.policyVersion++;
@@ -191,6 +213,12 @@ export function hostCommand(s, action, p, ctx, now, services) {
       at: now,
       system: true,
     });
+  } else if (action === 'retryMail') {
+    const job = s.outbox.find((j) => j.id === p.id);
+    assert(job && !job.sent && !job.cancelled, 'Choose a failed or pending message.');
+    job.tries = 0;
+    job.next = now;
+    job.error = null;
   } else if (action === 'openLive') {
     assert(!s.live, 'A live event is already active.');
     assert(
@@ -220,15 +248,14 @@ export function hostCommand(s, action, p, ctx, now, services) {
     s.active = null;
     s.config.paused = true;
   } else if (action === 'void') {
-    assert(reason, 'Record evidence for the technical void.');
+    assert(
+      reason.length >= 20,
+      'Record the technical fault and evidence (at least 20 characters).',
+    );
     assert(!s.config.finalised, 'Reopen finalisation first.');
     const attempt = s.attempts.find((a) => a.id === p.attemptId);
     assert(attempt && attempt.status !== 'started', 'Choose a finished or interrupted attempt.');
     if (attempt.status === 'voided') return {};
-    const previous = s.attempts.filter(
-      (a) => a.accountId === attempt.accountId && a.status === 'voided',
-    ).length;
-    assert(previous < 1 || staff.role === 'admin', 'A repeated void requires an administrator.');
     attempt.status = 'voided';
     attempt.voidReason = reason;
     attempt.voidBy = staff.id;
@@ -252,6 +279,10 @@ export function hostCommand(s, action, p, ctx, now, services) {
     update.archived = true;
   } else if (action === 'finalise') {
     if (s.config.finalised) return {};
+    assert(
+      s.config.prizeInstructions,
+      'Set prize collection instructions in Event settings first.',
+    );
     assert(
       !s.active &&
         !s.live &&
@@ -283,7 +314,39 @@ export function hostCommand(s, action, p, ctx, now, services) {
       ),
       'A collected prize is affected. Resolve the physical prize with the event lead before changing recipients.',
     );
-    s.awards = s.awards.filter((a) => a.type !== 'grand' || a.collected);
+    const removed = s.awards.filter(
+      (a) => a.type === 'grand' && !chosen.some((r) => r.accountId === a.accountId),
+    );
+    if (removed.length) {
+      assert(
+        now - sessionFor(s, ctx.token, now).reauthenticated < 900000 && reason.length >= 20,
+        'Re-enter the host password and record the correction reason.',
+      );
+      for (const award of removed) {
+        const message =
+          'The final prize decision was corrected. Please speak to the host about your result.';
+        s.notifications.push({
+          id: uuid(),
+          accountId: award.accountId,
+          title: 'Prize decision updated',
+          body: message,
+          at: now,
+        });
+        for (const job of s.outbox) if (job.awardId === award.id && !job.sent) job.cancelled = true;
+        s.outbox.push({
+          id: uuid(),
+          payload: services.mail.seal({
+            email: s.accounts[award.accountId].email,
+            subject: 'Arcade prize decision updated',
+            text: message,
+          }),
+          sent: false,
+          next: now,
+          tries: 0,
+        });
+      }
+    }
+    s.awards = s.awards.filter((a) => !removed.includes(a));
     for (const row of chosen)
       if (!s.awards.some((a) => a.type === 'grand' && a.accountId === row.accountId)) {
         s.awards.push({
@@ -295,16 +358,18 @@ export function hostCommand(s, action, p, ctx, now, services) {
         });
         s.outbox.push({
           id: uuid(),
+          awardId: s.awards.at(-1).id,
           payload: services.mail.seal({
             email: s.accounts[row.accountId].email,
             subject: 'BCUSCA Arcade prize',
-            text: 'You have been selected for a BCUSCA Arcade grand prize. Open the Arcade on your signed-in device and speak to the event team to confirm your identity and arrange collection.',
+            text: s.config.prizeInstructions,
           }),
           sent: false,
           next: now,
           tries: 0,
         });
       }
+    s.finalStandings = structuredClone(rows);
     s.config.finalised = true;
   } else if (action === 'reopen') {
     assert(reason, 'Record the correction reason.');
@@ -339,23 +404,10 @@ export function hostCommand(s, action, p, ctx, now, services) {
     award.forfeited = true;
     award.forfeitReason = reason;
     award.closedAt = now;
-  } else if (action === 'resolveIdentity') {
-    assert(
-      reason.length >= 20 && p.identityConfirmed === true,
-      'Record the identity check and correction evidence.',
-    );
-    const a = s.accounts[p.accountId];
-    assert(a && !s.active && !s.live, 'Resolve identity while no game is active.');
-    // Recovery is issued to the operator privately; does not mark email verified.
-    const recovery = secret(20);
-    a.recoveryHash = hash(recovery);
-    revokeAccountCredentials(s, a.id);
-    log(s, staff.id, action, { accountId: a.id, reason }, now);
-    return { recovery };
   } else if (action === 'purge') {
     if (s.purgedAt) return {};
     assert(
-      staff.role === 'admin' &&
+      staff.id === 'host' &&
         s.config.finalised &&
         p.confirmation === 'DELETE PERSONAL DATA' &&
         reason,
@@ -365,20 +417,31 @@ export function hostCommand(s, action, p, ctx, now, services) {
       !s.awards.some((a) => !a.collected && !a.forfeited),
       'Complete prize distribution before cleanup.',
     );
+    assert(
+      s.config.cleanupAt && Date.parse(s.config.cleanupAt) <= now,
+      'Set a reached cleanup date in Event settings.',
+    );
     s.attendanceSummary = attendanceSummary(s.accounts);
     s.purgedAt = now;
     s.accounts = {};
     s.attempts = [];
+    s.liveResults = [];
+    s.finalStandings = [];
+    s.notifications = [];
     s.awards = [];
     s.incidents = [];
     s.audit = [];
     s.controllerGrants = {};
     s.sessions = {};
+    s.hostLease = null;
+    s.controlEpoch++;
     s.challenges = {};
     s.outbox = [];
     s.rates = {};
     s.commands = {};
   } else assert(false, 'Unknown host action.');
+  const actingSession = sessionFor(s, ctx.token, now);
+  if (actingSession) actingSession.lastActivity = now;
   log(
     s,
     staff.id,
