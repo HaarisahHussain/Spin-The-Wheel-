@@ -1,8 +1,8 @@
-# Operations · v0.5.1
+# Operations · v0.6.0
 
 ## Before a rehearsal
 
-Use a clean v0.5.1 database, not an earlier event. Keep private `.env` values outside source control. Set a strong `HOST_PASSWORD`, log in as `host`, and keep the password available only to authorised operators. Rotating it requires restart, which revokes host sessions. There is no bypass account, admin or MFA setup page.
+Use a clean v0.6.0 database, not an earlier event. Keep private `.env` values outside source control. Set a strong `HOST_PASSWORD`, log in as `host`, and keep the password available only to authorised operators. Rotating it requires restart, which revokes host sessions. There is no bypass account, admin or MFA setup page.
 
 Production requires HTTPS, PostgreSQL, one trusted proxy hop, one application writer and SMTP. Use a database connection that supports the dedicated advisory-lock connection; verify ownership behavior with the actual provider/pooler. Do not run multiple replicas. Keep `MAIL_KEY` consistent across restarts and restores. Without it, queued encrypted messages cannot be decrypted.
 
@@ -38,7 +38,7 @@ Run `npm run check` and `npm run test:e2e`, then rehearse against the deployed U
 
 ## Local storage and failed startup
 
-An empty `DATABASE_URL` selects SQLite; it does not mean no database exists. `.env.example` selects `data/arcade-v051.sqlite`. With no SQLITE_PATH the fallback is `data/arcade.sqlite`, relative to the project working directory. Use Node.js 24 or newer; earlier versions are rejected explicitly.
+An empty `DATABASE_URL` selects SQLite; it does not mean no database exists. `.env.example` selects `data/arcade-v060.sqlite`. With no SQLITE_PATH the fallback is `data/arcade.sqlite`, relative to the project working directory. Use Node.js 24 or newer; earlier versions are rejected explicitly.
 
 If startup reports an incompatible schema, point SQLITE_PATH at a new filename or deliberately run `npm run reset:dev` for disposable local test data. Ordinary startup never deletes data. Startup failures after acquiring ownership close the database and release only this process's lock.
 
@@ -46,6 +46,6 @@ Reset refuses PostgreSQL, production mode and a live SQLite owner. A lock with a
 
 ## Timing and prototype rehearsal
 
-Each queued session has five challenges with 30 seconds each. First-time instructions reserve up to 20 seconds; a player who does not confirm is returned to Ready without using a Ranked start. The selected Ranked game is retained. Phone How to play is untimed. Three runs per solo puzzle share one thinking allowance; playback is separate. Longer slots can approach five minutes. Rehearse throughput and use conservative queue estimates rather than promising an exact start time.
+Each queued session has five challenges with 30 seconds each. First-time instructions reserve up to 20 seconds; a player who does not confirm is returned to Ready without using a Ranked start. The selected Ranked game is retained. Phone How to play is untimed. Three runs per solo puzzle share one thinking allowance; playback is separate. Successful retries earn 90% then 80% of the calculated challenge value. Invalid submissions do not count as runs. Longer slots can approach five minutes. Rehearse throughput and use conservative queue estimates rather than promising an exact start time.
 
 The new puzzle prototypes default OFF. Enable `ENABLE_PROTOTYPE_GAMES=true` only for a test event, then restart. Observe at least five unfamiliar participants per candidate as described in the specification. Keep failed/unobserved prototypes out of launch; keep both out of Ranked in this release. Established games also need representative scoring/balance checks before prize-bearing play.

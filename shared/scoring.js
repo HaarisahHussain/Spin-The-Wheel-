@@ -9,11 +9,13 @@ export function scoreChallenge({
   allowance,
   maximum,
   puzzle = false,
+  runs = 1,
 }) {
   if (!correct || elapsed < 0 || elapsed >= allowance) return 0;
   const speed = Math.max(0, Math.min(1, 1 - elapsed / allowance));
   return Math.round(
     maximum *
+      (puzzle ? Math.max(0.8, 1 - 0.1 * (Math.max(1, runs) - 1)) : 1) *
       (puzzle
         ? 0.8 + 0.15 * Math.max(0, Math.min(1, efficiency)) + 0.05 * speed
         : 0.8 + 0.2 * speed),

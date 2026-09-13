@@ -1,4 +1,4 @@
-# Architecture and game extension · v0.5.1
+# Architecture and game extension · v0.6.0
 
 ## Boundaries
 
@@ -39,7 +39,13 @@ Restart revokes host sessions and control ownership. Interrupted solo sessions p
 4. Generate a valid reference answer/solution for every seed and bounded retry/fallback behavior. Extend 10,000-seed tests, independent correctness checks and real browser controls. Include Live closure/execution/reveal behavior.
 5. Benchmark difficulty with intended students before enabling Ranked. Freeze content, eligibility, timing and scoring for the actual event; change `SCORING_VERSION` for a new release/event.
 
-Parcel Sorter uses a visible binary conveyor with a Boolean exit swap at each junction. Pattern Painter accepts direction/paint instructions and at most one Repeat block (count two, at most four primitive instructions); expanded work is capped at 24 instructions. Both award completion without inventing an optimal-program efficiency penalty. Robot efficiency uses independent-checked shortest-path cost divided by submitted cost.
+Game modules are independent: `robot.js`, `parcel.js`, `painter.js`; `quiz-content.js` contains authored Python AST families and `program.js` renders/interprets only that bounded grammar. `registry.js` wires validators/evaluators to session creation. The interpreter never evaluates arbitrary source or player code.
+
+`content-bank.json` is a checked-in, server-only source artifact. `content.js` selects and copies a prepared challenge in bounded time. `scripts/build-game-content.js` performs expensive shortest-route, exhaustive-order and exact-grammar searches offline. It rejects unproved candidates and writes the bank plus 150 annotated fixtures. Rebuild deliberately with `npm run content:build`; never add these solvers to a request/transaction path. Generation is deterministic for its versioned seed set.
+
+Robot search includes collected-item state, not just location. Parcel evaluation uses first-match rules and accepts every correct permutation; opaque rule IDs and storage order do not reveal a solution. Painter search uses the exact one-Repeat grammar, visible tile cost and expanded-action cap. Its optimum is private; the tile budget is public because it is part of the puzzle.
+
+`src/games/Parcel.jsx` owns rule controls and matching feedback; `Painter.jsx` owns canvas and Repeat editing; `Robot.jsx` owns the board and collected state. `Puzzles.jsx` shares sequence editing, execution/reveal and Live presentation. Server events identify source instruction, repeat-body index and iteration. Render frames using persisted server timestamps; reconnect must not restart evaluation. Live recent fingerprints are stored separately from account histories.
 
 `prototypeGames` is populated from `ENABLE_PROTOTYPE_GAMES` at startup. `availableGames` filters selection and idle presentation. Prototype metadata keeps both new games out of Ranked even when their test catalogue is enabled.
 
@@ -55,6 +61,6 @@ The conservative solo slot is 282 seconds. Admission and phone wait calculations
 
 ## Scoring
 
-Solo stores one million integer units per displayed point. Level maxima sum to 9.00. Correct quizzes receive 80% correctness plus up to 20% speed. Puzzles receive 80% completion, up to 15% efficiency and 5% speed. Exact-deadline answers score zero. Execution and feedback never spend thinking allowance. Live normalises the same factors separately to 1,000 points. Display rounds to two decimals; true exact ties share ranks and prize-boundary ties require an audited decision.
+Solo stores one million integer units per displayed point. Level maxima sum to 9.00. Correct quizzes receive 80% correctness plus up to 20% speed. Puzzles receive 80% completion, up to 15% efficiency and 5% speed. Solo puzzle success is then multiplied by 1.0/0.9/0.8 for the first/second/third accepted run, rounding only after multiplication. Live has one lock and no retry multiplier. Exact-deadline answers score zero. Execution and feedback never spend thinking allowance. Live normalises the same factors separately to 1,000 points. Display rounds to two decimals; true exact ties share ranks and prize-boundary ties require an audited decision.
 
 Changing numbers creates numerical variety but does not establish equal difficulty. The seed benchmark is a duplicate check, not evidence of fair cross-game scores or immunity to memorisation.

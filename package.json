@@ -1,6 +1,6 @@
 {
   "name": "bcusca-arcade",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -15,6 +15,7 @@
     "lint": "oxlint --deny-warnings",
     "check": "npm run lint && npm test && npm run build",
     "reset:dev": "node --env-file-if-exists=.env scripts/reset-dev.js",
+    "content:build": "node scripts/build-game-content.js",
     "test:generators": "node --test tests/generators.test.js"
   },
   "dependencies": {

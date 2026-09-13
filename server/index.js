@@ -36,9 +36,9 @@ try {
     initial: initialState(),
   });
   await storage.transact((s) => {
-    if (s.schemaVersion !== 6)
+    if (s.schemaVersion !== 7)
       throw Error(
-        'Use a clean v0.5.1 database. Set SQLITE_PATH to a new file locally, or select an empty PostgreSQL database. No data was deleted.',
+        'Use a clean v0.6.0 database. Set SQLITE_PATH to a new file locally, or select an empty PostgreSQL database. No data was deleted.',
       );
     for (const [id, session] of Object.entries(s.sessions))
       if (session.staffId) delete s.sessions[id];

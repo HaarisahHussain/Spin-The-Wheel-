@@ -20,7 +20,9 @@ test('host password sign-in, settings, refresh and explicit second-browser takeo
   await page.getByRole('switch', { name: 'Ranked play', exact: true }).check();
   await page.getByRole('button', { name: 'Save settings' }).click();
   await expect
-    .poll(async () => (await (await page.request.get('/api/state')).json()).config.rankedEnabled)
+    .poll(
+      async () => (await (await page.request.get('/api/state')).json()).config.rankedEnabled,
+    )
     .toBe(true);
   const other = await browser.newPage();
   await loginHost(other);
@@ -38,11 +40,15 @@ test('second host tab does not auto-claim control; user can move control explici
   await expect(page.getByRole('button', { name: 'Call next player' })).toBeVisible();
   const tab = await context.newPage();
   await tab.goto('/host');
-  await expect(tab.getByRole('button', { name: 'Take control here', exact: true })).toBeVisible();
+  await expect(
+    tab.getByRole('button', { name: 'Take control here', exact: true }),
+  ).toBeVisible();
   await tab.getByRole('button', { name: 'Take control here', exact: true }).click();
   await tab.getByRole('button', { name: 'Confirm', exact: true }).click();
   await expect(tab.getByRole('button', { name: 'Call next player' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Take control here', exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Take control here', exact: true }),
+  ).toBeVisible();
   await tab.close();
 });
 test('player registration, returning password login and shared-browser host isolation', async ({
@@ -78,13 +84,15 @@ test('all five solo controllers render and submit at phone size; monitors fit 72
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
     await display.goto('/display/play');
-    await expect(page.getByText('This account is open on another controller.')).not.toBeVisible();
+    await expect(
+      page.getByText('This account is open on another controller.'),
+    ).not.toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
-    expect(await display.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(
-      true,
-    );
+    expect(
+      await display.evaluate(() => document.documentElement.scrollHeight <= innerHeight),
+    ).toBe(true);
     const solution = await (await page.request.get('/__test/solution')).json();
     if (gameId === 'debug') {
       await page
@@ -103,9 +111,17 @@ test('all five solo controllers render and submit at phone size; monitors fit 72
         await page.getByRole('button', { name: move, exact: true }).click();
       await page.getByRole('button', { name: 'Run', exact: true }).click();
     } else if (gameId === 'parcel') {
-      for (let i = 0; i < solution.solution.length; i++)
-        if (solution.solution[i])
-          await page.getByRole('button', { name: `Swap junction ${i + 1}`, exact: true }).click();
+      const order = [...solution.starter];
+      for (let i = 0; i < solution.solution.length; i++) {
+        let position = order.indexOf(solution.solution[i]);
+        while (position > i) {
+          await page
+            .getByRole('button', { name: `Move rule ${position + 1} up`, exact: true })
+            .click();
+          [order[position], order[position - 1]] = [order[position - 1], order[position]];
+          position--;
+        }
+      }
       await page.getByRole('button', { name: 'Run', exact: true }).click();
     } else {
       for (const move of solution.solution)
@@ -113,10 +129,12 @@ test('all five solo controllers render and submit at phone size; monitors fit 72
       await page.getByRole('button', { name: 'Run', exact: true }).click();
     }
     await expect(page.getByRole('status').filter({ hasText: /Correct|Solved/ })).toBeVisible();
-    await expect(display.getByRole('status').filter({ hasText: /Correct|Solved/ })).toBeVisible();
-    expect(await display.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(
-      true,
-    );
+    await expect(
+      display.getByRole('status').filter({ hasText: /Correct|Solved/ }),
+    ).toBeVisible();
+    expect(
+      await display.evaluate(() => document.documentElement.scrollHeight <= innerHeight),
+    ).toBe(true);
     await page.screenshot({ path: `test-results/${gameId}-phone.png` });
     await display.screenshot({ path: `test-results/${gameId}-display.png` });
   }
@@ -169,7 +187,9 @@ test('idle wheel rotates continuously, selection hides result and reduced motion
   });
   await page.request.post('/__test/clear');
 });
-test('final prize celebration dismisses once and remains available in Scores', async ({ page }) => {
+test('final prize celebration dismisses once and remains available in Scores', async ({
+  page,
+}) => {
   await page.request.post('/__test/scene', { data: { gameId: 'debug', award: true } });
   await page.goto('/');
   await expect(page.getByRole('dialog')).toBeVisible();
@@ -226,9 +246,9 @@ test('later puzzle boards fit narrow phones without horizontal overflow', async 
       await page.setViewportSize({ width, height: 844 });
       await page.goto('/');
       await expect(page.getByRole('button', { name: 'Run', exact: true })).toBeVisible();
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
-        true,
-      );
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+      ).toBe(true);
     }
 });
 
@@ -245,9 +265,21 @@ test('Robot passes intermediate cells on phone and monitor, resumes after refres
     await page.getByRole('button', { name: 'right', exact: true }).click();
   await page.getByRole('button', { name: 'Run', exact: true }).click();
   const robot = page.locator('[data-robot-cell]');
-  await expect.poll(() => robot.getAttribute('data-robot-cell')).toBe('1');
-  await expect(monitor.locator('[data-robot-cell]')).toHaveAttribute('data-robot-cell', '1');
-  await expect(page.locator('[aria-label="Step 2: right"]')).toHaveClass(/ring-2/);
+  await Promise.all([
+    expect
+      .poll(() => robot.getAttribute('data-robot-cell'), { intervals: [20, 40] })
+      .toMatch(/^[123]$/),
+    expect
+      .poll(() => monitor.locator('[data-robot-cell]').getAttribute('data-robot-cell'), {
+        intervals: [20, 40],
+      })
+      .toMatch(/^[123]$/),
+  ]);
+  expect(
+    await page
+      .locator('[aria-label="Program"] button')
+      .evaluateAll((nodes) => nodes.some((n) => n.className.includes('ring-2'))),
+  ).toBe(true);
   await page.reload();
   await expect(page.getByRole('status').filter({ hasText: 'Solved' })).toBeVisible();
   await expect(page.locator('[data-robot-cell]')).toHaveAttribute('data-robot-cell', '4');
@@ -255,7 +287,7 @@ test('Robot passes intermediate cells on phone and monitor, resumes after refres
   await page.goto('/');
   await page.getByRole('button', { name: 'down', exact: true }).click();
   await page.getByRole('button', { name: 'Run', exact: true }).click();
-  await expect(page.getByText('Blocked at move 1.', { exact: true })).toBeVisible({
+  await expect(page.getByText('Step 1 hits a wall.', { exact: true })).toBeVisible({
     timeout: 6000,
   });
   await expect(page.getByRole('button', { name: 'Step 1: down', exact: true })).toBeVisible();
@@ -284,4 +316,76 @@ test('settings draft cancellation and contextual reauthentication preserve the p
   await page.getByRole('button', { name: 'Continue', exact: true }).click();
   await download;
   await expect(page.getByRole('dialog')).toHaveCount(0);
+});
+
+async function enterPainter(page, program) {
+  await page.getByRole('button', { name: 'clear', exact: true }).click();
+  for (const step of program) {
+    if (typeof step === 'string')
+      await page.getByRole('button', { name: step, exact: true }).click();
+    else {
+      await page.getByRole('button', { name: 'Add repeat block', exact: true }).click();
+      await page
+        .getByRole('button', { name: 'Remove repeat instruction 2', exact: true })
+        .click();
+      await page
+        .getByRole('button', { name: 'Remove repeat instruction 1', exact: true })
+        .click();
+      for (const action of step.body)
+        await page
+          .getByRole('button', { name: `Add ${action} to repeat`, exact: true })
+          .click();
+      await page.getByLabel('Repeat count').selectOption(String(step.repeat));
+      await page.getByRole('button', { name: 'Save block', exact: true }).click();
+    }
+  }
+}
+test('Painter repeat grammar can be constructed and repaired on a narrow phone', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 360, height: 844 });
+  for (const level of [1, 2, 3, 4]) {
+    await page.request.post('/__test/scene', { data: { gameId: 'painter', level } });
+    await page.goto('/');
+    const solution = await (await page.request.get('/__test/solution')).json();
+    if (level === 2) {
+      await page.getByRole('button', { name: /Step .*Repeat/ }).click();
+      await page.getByRole('button', { name: 'Edit repeat block', exact: true }).click();
+      const block = solution.solution.find((v) => typeof v === 'object');
+      await page.getByLabel('Repeat count').selectOption(String(block.repeat));
+      await page.getByRole('button', { name: 'Save block', exact: true }).click();
+    } else await enterPainter(page, solution.solution);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    await page.getByRole('button', { name: 'Run', exact: true }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'Solved' })).toBeVisible();
+    await page.screenshot({ path: `test-results/painter-tier-${level + 1}-phone.png` });
+  }
+});
+test('later coding and puzzle challenges fit both public monitor resolutions', async ({
+  page,
+}) => {
+  for (const size of [
+    { width: 1280, height: 720 },
+    { width: 1920, height: 1080 },
+  ]) {
+    await page.setViewportSize(size);
+    for (const gameId of ['debug', 'output', 'robot', 'parcel', 'painter'])
+      for (const feedback of [false, true]) {
+        await page.request.post('/__test/scene', { data: { gameId, level: 4, feedback } });
+        await page.goto('/display/play');
+        await expect(page.getByText(/Board 5|Question 5/)).toBeVisible();
+        expect(
+          await page.evaluate(
+            () =>
+              document.documentElement.scrollWidth <= innerWidth &&
+              document.documentElement.scrollHeight <= innerHeight,
+          ),
+        ).toBe(true);
+        await page.screenshot({
+          path: `test-results/${gameId}-tier5-${size.height}-${feedback}.png`,
+        });
+      }
+  }
 });

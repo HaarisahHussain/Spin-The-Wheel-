@@ -9,7 +9,10 @@ import {
 } from 'react-icons/hi2';
 import { useArcade } from '../state';
 import { Button, cx } from '../components/ui';
-import { Board } from './Robot';
+import { Board, ItemSymbol } from './Robot';
+import { ParcelBoard } from './Parcel';
+import { Canvas, RepeatEditor, programCost, actionCount, instructionLabel } from './Painter';
+export { ParcelBoard } from './Parcel';
 const icons = {
   up: HiOutlineArrowUp,
   down: HiOutlineArrowDown,
@@ -26,7 +29,6 @@ const palettes = [
   'bg-[#F0E6CB]',
 ];
 export const markerClass = (mark) => palettes[(mark - 1) % palettes.length];
-export const shapes = ['●', '■', '▲', '◆'];
 export function useProgress(start, until) {
   const { state } = useArcade(),
     offset = useRef(0),
@@ -60,204 +62,47 @@ export function useProgress(start, until) {
     reduced,
   };
 }
-function Canvas({ q, painted = [], cell = q.start, target = false }) {
-  return (
-    <div>
-      <p className="mb-2 text-xs text-[#62625C]">{target ? 'Target' : 'Your canvas'}</p>
-      <div
-        className="grid aspect-square grid-cols-4 gap-1 rounded-lg bg-[#E9E9E1] p-1"
-        role="img"
-        aria-label={target ? 'Target pattern' : 'Painted canvas'}
-      >
-        {Array.from({ length: 16 }, (_, i) => (
-          <div
-            key={i}
-            className={cx(
-              'grid aspect-square place-items-center rounded-sm text-sm',
-              painted.includes(i) ? 'bg-[#365E53] text-white' : 'bg-white text-[#365E53]',
-              !target &&
-                painted.includes(i) &&
-                !q.target.includes(i) &&
-                'ring-2 ring-inset ring-[#A33030]',
-            )}
-          >
-            {target
-              ? painted.includes(i)
-                ? '●'
-                : ''
-              : i === cell
-                ? '▣'
-                : painted.includes(i)
-                  ? q.target.includes(i)
-                    ? '●'
-                    : '×'
-                  : q.target.includes(i)
-                    ? '·'
-                    : ''}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-export function ParcelBoard({
-  q,
-  program = [],
-  onToggle,
-  locked = false,
-  activeType = null,
-  routes = null,
-  progress = 1,
-}) {
-  const position = (index) => {
-    const depth = Math.floor(Math.log2(index + 1));
-    return { x: ((index - (2 ** depth - 1) + 0.5) * 400) / 2 ** depth, y: 60 + depth * 105 };
-  };
-  const activeRoute = routes?.find((r) => r.type === activeType);
-  const path = activeRoute
-    ? [...(activeRoute.path || [0]), q.groups.length + activeRoute.destination].map(position)
-    : [];
-  const part = (progress * q.packets.length) % 1;
-  const travel = part * Math.max(0, path.length - 1),
-    segment = Math.floor(travel);
-  const from = path[segment],
-    to = path[Math.min(segment + 1, path.length - 1)];
-  return (
-    <div className="mx-auto w-full max-w-lg">
-      <div className="mb-2 flex justify-center gap-4" aria-label="Parcels">
-        {q.packets.map((t) => (
-          <span
-            key={t}
-            className={cx(
-              'text-2xl',
-              activeType === t && 'rounded bg-[#DDEBE0] ring-2 ring-[#365E53]',
-            )}
-          >
-            {shapes[t]}
-          </span>
-        ))}
-      </div>
-      <svg
-        viewBox={`0 0 400 ${q.depth * 105 + 145}`}
-        className="w-full"
-        aria-label="Parcel conveyor routes"
-      >
-        {q.groups.flatMap((_, i) =>
-          [i * 2 + 1, i * 2 + 2].map((child) => {
-            const a = position(i),
-              b = position(child);
-            return (
-              <line
-                key={child}
-                x1={a.x}
-                y1={a.y + 22}
-                x2={b.x}
-                y2={b.y - 22}
-                className="stroke-[#B6B6AD]"
-                strokeWidth="7"
-              />
-            );
-          }),
-        )}
-        {q.groups.map((group, i) => {
-          const { x, y } = position(i),
-            other = q.packets.filter((t) => !group.includes(t));
-          return (
-            <foreignObject key={i} x={x - 80} y={y - 30} width="160" height="64">
-              <button
-                aria-label={`Swap junction ${i + 1}`}
-                disabled={locked || !onToggle}
-                onClick={() => onToggle(i)}
-                className="h-full w-full rounded-lg border border-[#62625C] bg-white text-sm disabled:cursor-default"
-              >
-                <span className="block text-[10px] text-[#62625C]">
-                  {onToggle ? 'Tap to swap' : 'Junction'}
-                </span>
-                <span className="block text-lg">
-                  ↙ {(program[i] ? other : group).map((t) => shapes[t]).join('')}　
-                  {(program[i] ? group : other).map((t) => shapes[t]).join('')} ↘
-                </span>
-              </button>
-            </foreignObject>
-          );
-        })}
-        {q.depots.map((t, i) => {
-          const { x, y } = position(q.groups.length + i);
-          return (
-            <g key={i}>
-              <rect
-                x={x - 32}
-                y={y - 25}
-                width="64"
-                height="50"
-                rx="8"
-                className="fill-[#DDEBE0] stroke-[#365E53]"
-              />
-              <text x={x} y={y + 8} textAnchor="middle" className="fill-[#252525] text-2xl">
-                {shapes[t]}
-              </text>
-              <text x={x} y={y + 43} textAnchor="middle" className="fill-[#62625C] text-[11px]">
-                Depot
-              </text>
-              {progress >= 1 &&
-                routes
-                  ?.filter((r) => r.destination === i)
-                  .map((r, n) => (
-                    <text
-                      key={r.type}
-                      x={x}
-                      y={y + 60 + n * 16}
-                      textAnchor="middle"
-                      className="fill-[#252525] text-xs"
-                    >
-                      {shapes[r.type]} {r.type === t ? '✓' : '×'}
-                    </text>
-                  ))}
-            </g>
-          );
-        })}
-        {from && to && progress < 1 && (
-          <g
-            transform={`translate(${from.x + (to.x - from.x) * (travel - segment)} ${from.y + (to.y - from.y) * (travel - segment)})`}
-          >
-            <circle r="17" className="fill-white stroke-[#365E53]" strokeWidth="2" />
-            <text y="7" textAnchor="middle" className="fill-[#252525] text-xl">
-              {shapes[activeType]}
-            </text>
-          </g>
-        )}
-      </svg>
-    </div>
-  );
-}
 export function PuzzleView({ q, display = false }) {
-  if (q.game === 'robot') return <Board board={q} display={display} />;
-  if (q.game === 'parcel') return <ParcelBoard q={q} program={q.program || []} />;
+  if (q.game === 'robot')
+    return (
+      <div className="space-y-3">
+        {display && (
+          <p className="text-center text-lg">
+            {q.prompt} · {q.maxMoves} steps
+          </p>
+        )}
+        <Board board={q} display={display} />
+      </div>
+    );
+  if (q.game === 'parcel')
+    return <ParcelBoard q={q} program={q.program || []} display={display} />;
   return (
-    <div className={cx('mx-auto grid grid-cols-2 gap-4', display ? 'max-w-lg' : 'max-w-sm')}>
-      <Canvas q={q} painted={q.target} target />
-      <Canvas
-        q={q}
-        painted={q.lastResult?.painted || q.lastResult?.frames?.at(-1)?.painted || []}
-        cell={q.lastResult?.frames?.at(-1)?.cell ?? q.start}
-      />
+    <div className={cx('mx-auto space-y-3', display ? 'max-w-lg' : 'max-w-sm')}>
+      {display && (
+        <p className="text-center text-lg">
+          {q.prompt} · {q.maxTiles} tiles
+        </p>
+      )}
+      <div className="grid grid-cols-2 gap-4">
+        <Canvas q={q} painted={q.target} target />
+        <Canvas
+          q={q}
+          painted={q.lastResult?.painted || q.lastResult?.frames?.at(-1)?.painted || []}
+          cell={q.lastResult?.frames?.at(-1)?.cell ?? q.start}
+        />
+      </div>
+      {display && q.starter?.length > 0 && <Sequence program={q.starter} locked />}
     </div>
   );
 }
 function stepLabel(v) {
-  return typeof v === 'number'
-    ? v
-      ? 'Swap exits'
-      : 'Keep exits'
-    : typeof v === 'string'
-      ? v
-      : `Repeat ${v.repeat}: ${v.body.join(', ')}`;
+  return typeof v === 'string' ? v : `Repeat ${v.repeat}: ${v.body.join(', ')}`;
 }
-export function Sequence({ program, selected, onSelect, locked, active, failed }) {
+export function Sequence({ program, selected, onSelect, locked, active, failed, event }) {
   return (
     <div
       aria-label="Program"
-      className="flex min-h-14 max-h-28 flex-wrap content-start gap-1 overflow-y-auto rounded-lg border border-[#DDDDD5] bg-white p-2"
+      className="flex min-h-14 flex-wrap content-start gap-1 rounded-lg border border-[#DDDDD5] bg-white p-2"
     >
       {program.map((v, i) => {
         const Icon = icons[v];
@@ -276,7 +121,35 @@ export function Sequence({ program, selected, onSelect, locked, active, failed }
             )}
           >
             <span>{i + 1}</span>
-            {Icon ? <Icon className="size-4" /> : <span>{stepLabel(v)}</span>}
+            {Icon ? (
+              <Icon className="size-4" />
+            ) : (
+              <span>
+                {typeof v === 'object' ? (
+                  <span className="inline-flex flex-wrap items-center gap-1">
+                    <span>Repeat ×{v.repeat}</span>
+                    {v.body.map((m, j) => (
+                      <span
+                        key={j}
+                        className={cx(
+                          'rounded border border-[#DDDDD5] p-1',
+                          active === i && event?.bodyIndex === j && 'bg-[#365E53] text-white',
+                        )}
+                      >
+                        {instructionLabel[m]}
+                      </span>
+                    ))}
+                    {active === i && event?.iteration !== undefined && (
+                      <span>
+                        ({event.iteration + 1}/{v.repeat})
+                      </span>
+                    )}
+                  </span>
+                ) : (
+                  stepLabel(v)
+                )}
+              </span>
+            )}
           </button>
         );
       })}
@@ -292,13 +165,19 @@ function sourceStep(program, index) {
   }
   return null;
 }
-export function PuzzleEditor({ q, onSubmit, locked = false, live = false, runs = 0, maxRuns = 3 }) {
+export function PuzzleEditor({
+  q,
+  onSubmit,
+  locked = false,
+  live = false,
+  runs = 0,
+  maxRuns = 3,
+}) {
   const { busy } = useArcade(),
-    [program, setProgram] = useState(
-      q.program?.length ? q.program : q.game === 'parcel' ? q.groups.map(() => 0) : [],
-    ),
+    [program, setProgram] = useState(q.program?.length ? q.program : q.starter || []),
     [selected, setSelected] = useState(sourceStep(q.program || [], q.failedIndex)),
-    [undo, setUndo] = useState(null);
+    [undo, setUndo] = useState(null),
+    [repeatEditing, setRepeatEditing] = useState(false);
   const disabled = busy || locked;
   const expandedLength = program.reduce(
     (n, v) => n + (typeof v === 'object' ? v.repeat * v.body.length : 1),
@@ -309,18 +188,24 @@ export function PuzzleEditor({ q, onSubmit, locked = false, live = false, runs =
     setProgram(next);
   };
   const edit = (v) => {
-    change(selected === null ? [...program, v] : program.map((m, i) => (i === selected ? v : m)));
+    change(
+      selected === null ? [...program, v] : program.map((m, i) => (i === selected ? v : m)),
+    );
     setSelected(null);
   };
   return (
     <div className="space-y-3">
-      {q.prompt && <h2 className="text-sm font-medium">{q.prompt}</h2>}
+      {q.prompt && q.game !== 'parcel' && <h2 className="text-sm font-medium">{q.prompt}</h2>}
       {q.game === 'parcel' ? (
         <ParcelBoard
           q={q}
           program={program}
           locked={disabled}
-          onToggle={(i) => change(program.map((v, n) => (n === i ? 1 - v : v)))}
+          onMove={(i, direction) => {
+            const next = [...program];
+            [next[i], next[i + direction]] = [next[i + direction], next[i]];
+            change(next);
+          }}
         />
       ) : (
         <>
@@ -358,7 +243,9 @@ export function PuzzleEditor({ q, onSubmit, locked = false, live = false, runs =
                     name === 'clear'
                       ? (change([]), setSelected(null))
                       : name === 'remove'
-                        ? (change(program.filter((_, i) => i !== (selected ?? program.length - 1))),
+                        ? (change(
+                            program.filter((_, i) => i !== (selected ?? program.length - 1)),
+                          ),
                           setSelected(null))
                         : edit(name)
                   }
@@ -370,7 +257,9 @@ export function PuzzleEditor({ q, onSubmit, locked = false, live = false, runs =
           </div>
           <div className="flex justify-between gap-2 text-xs">
             <span>
-              {expandedLength}/{q.maxMoves} steps
+              {q.game === 'painter'
+                ? `${programCost(program)}/${q.maxTiles} tiles · ${actionCount(program)}/18 actions`
+                : `${expandedLength}/${q.maxMoves} steps`}
             </span>
             {undo && (
               <button
@@ -385,27 +274,33 @@ export function PuzzleEditor({ q, onSubmit, locked = false, live = false, runs =
               </button>
             )}
           </div>
-          {q.allowRepeat && (
-            <div>
-              <p className="text-xs text-[#62625C]">
-                Repeat example: (→ Paint) ×2 runs → Paint → Paint.
-              </p>
+          {q.allowRepeat &&
+            (repeatEditing ? (
+              <RepeatEditor
+                key={selected ?? 'new'}
+                value={typeof program[selected] === 'object' ? program[selected] : null}
+                disabled={disabled}
+                onCancel={() => setRepeatEditing(false)}
+                onSave={(v) => {
+                  edit(v);
+                  setRepeatEditing(false);
+                }}
+              />
+            ) : (
               <button
                 className="min-h-11 text-sm underline"
                 disabled={
                   disabled ||
-                  program.length < 2 ||
-                  expandedLength + 2 > q.maxMoves ||
-                  program.some((v) => typeof v === 'object')
+                  (program.some((v) => typeof v === 'object') &&
+                    typeof program[selected] !== 'object')
                 }
-                onClick={() =>
-                  change([...program.slice(0, -2), { repeat: 2, body: program.slice(-2) }])
-                }
+                onClick={() => setRepeatEditing(true)}
               >
-                Repeat last two steps ×2
+                {typeof program[selected] === 'object'
+                  ? 'Edit repeat block'
+                  : 'Add repeat block'}
               </button>
-            </div>
-          )}
+            ))}
           <Sequence
             program={program}
             selected={selected}
@@ -417,14 +312,21 @@ export function PuzzleEditor({ q, onSubmit, locked = false, live = false, runs =
       )}
       <Button
         className="w-full"
-        disabled={disabled || !program.length}
+        disabled={
+          disabled ||
+          !program.length ||
+          repeatEditing ||
+          expandedLength > q.maxMoves ||
+          (q.game === 'painter' && programCost(program) > q.maxTiles)
+        }
         onClick={() => onSubmit(program)}
       >
         {locked ? 'Locked' : live ? 'Lock program' : 'Run'}
       </Button>
       {!live && (
         <p className="text-xs text-[#62625C]">
-          {maxRuns - runs} runs left · playback does not use thinking time
+          {maxRuns - runs} runs left · next success worth {Math.max(80, 100 - runs * 10)}% ·
+          playback pauses time
         </p>
       )}
       {q.feedback && (
@@ -474,6 +376,7 @@ export function PuzzleExecution({ q, execution, display = false, finished = fals
           board={{
             ...q,
             position: from,
+            mask: frame.mask || 0,
             robotPoint: {
               x: (from % q.size) + ((to % q.size) - (from % q.size)) * fraction,
               y:
@@ -487,9 +390,7 @@ export function PuzzleExecution({ q, execution, display = false, finished = fals
         <ParcelBoard
           q={q}
           program={program}
-          activeType={
-            q.packets[Math.min(q.packets.length - 1, Math.floor(ratio * q.packets.length))]
-          }
+          display={display}
           routes={r.routes}
           progress={ratio}
         />
@@ -503,7 +404,12 @@ export function PuzzleExecution({ q, execution, display = false, finished = fals
         <Sequence
           program={program}
           locked
-          active={finished ? null : expandedIndices[activeStep]}
+          active={
+            finished
+              ? null
+              : (r.events?.[activeStep]?.sourceIndex ?? expandedIndices[activeStep])
+          }
+          event={r.events?.[activeStep]}
           failed={finished ? expandedIndices[r.failedIndex] : undefined}
         />
       )}
@@ -534,7 +440,11 @@ export function PuzzleReveal({ q, result, display = false }) {
       {q.solution && !display && (
         <details className="text-sm">
           <summary className="min-h-11 cursor-pointer">One possible solution</summary>
-          <p>{q.solution.map(stepLabel).join(' · ')}</p>
+          {q.game === 'parcel' ? (
+            <ParcelBoard q={q} program={q.solution} />
+          ) : (
+            <Sequence program={q.solution} locked />
+          )}
         </details>
       )}
     </div>
@@ -556,7 +466,9 @@ export function RobotRace({ live }) {
         {Array.from({ length: q.size * q.size }, (_, cell) => {
           const robots = live.roster.filter((e) => {
             const path = e.result?.path || [q.start];
-            return path[Math.min(path.length - 1, Math.floor(ratio * (path.length - 1)))] === cell;
+            return (
+              path[Math.min(path.length - 1, Math.floor(ratio * (path.length - 1)))] === cell
+            );
           });
           return (
             <div
@@ -567,6 +479,23 @@ export function RobotRace({ live }) {
               )}
             >
               {cell === q.goal && <span>⚑</span>}
+              {q.items
+                ?.filter((v) => v.cell === cell)
+                .map((v) => (
+                  <svg key={v.id} viewBox="0 0 50 50" className="size-8">
+                    <ItemSymbol item={v} />
+                  </svg>
+                ))}
+              {q.gates
+                ?.filter((v) => v.cell === cell)
+                .map((v) => (
+                  <span
+                    key={v.key}
+                    className="rounded border-2 border-[#754F32] px-1 text-[#754F32]"
+                  >
+                    {v.label}
+                  </span>
+                ))}
               {robots.length > 0 && (
                 <span className={cx('rounded-full px-1', markerClass(robots[0].mark))}>
                   {robots.length === 1 ? robots[0].mark : `${robots.length} robots`}

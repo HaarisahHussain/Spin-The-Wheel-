@@ -63,7 +63,7 @@ test('failed SQLite initialisation and incompatible-schema startup release their
       timeout: 10000,
     });
     assert.equal(result.status, 1, result.stderr);
-    assert.match(result.stderr, /clean v0.5.1 database/);
+    assert.match(result.stderr, /clean v0.6.0 database/);
     assert(!existsSync(file + '.instance'));
     const again = await createStorage({ filename: file, initial: initialState() });
     assert.equal(again.snapshot().schemaVersion, 5);

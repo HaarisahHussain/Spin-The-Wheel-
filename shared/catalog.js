@@ -64,7 +64,7 @@ export const allowedEmail = (input) =>
 
 export const normalizeEmail = (email) => email.trim().toLowerCase();
 
-export const SCORING_VERSION = '0.5.1-five-challenges-1';
+export const SCORING_VERSION = '0.6.0-five-challenges-1';
 
 export const availableGames = (config) =>
   games.filter((g) => !g.prototype || config?.prototypeGames === true);

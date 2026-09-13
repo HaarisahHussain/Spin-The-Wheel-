@@ -1,57 +1,39 @@
-# v0.5.1 validation and release limits
+# v0.6.0 validation and release limits
 
-Pre-launch source release, validated on 13 September 2026 with Node 24, local SQLite and desktop Chromium. Automation establishes implemented behaviour, not equal game difficulty or production readiness.
+Pre-launch source release, checked on 13 September 2026 with Node 24, Python 3, local SQLite and Chromium. Automation establishes implemented behaviour; it does not establish equal difficulty or production readiness.
 
 ## Automated evidence
 
-- `npm run check`: lint, 45 server/generator/HTTP/recovery tests and production build pass.
-- Eleven Chromium browser tests cover host login/refresh/takeover, player registration and password reset, all five solo controllers, Live Robot privacy/execution, wheel motion/reduced motion, persistent prizes, settings draft cancellation and contextual export reauthentication.
-- Robot regression checks assert intermediate cells on phone and monitor, matching instruction highlighting, completion after refreshing mid-run, retained collision drafts and the remaining run count. They do not merely wait for a Solved label.
-- Layout checks use 320/360/390 px phone widths and a 1280×720 monitor. Solo question and result layouts are checked for monitor overflow; screenshots are inspected for visual hierarchy and clipping. These are desktop browser viewports, not actual phones or viewing-distance tests.
-- Python independently executes 720 generated coding samples. Every sampled Debug fault changes observable behaviour; the intentional non-terminating loop is checked through its corrected program. This is not an exhaustive proof that no alternative semantic fix exists.
-- All five generators are exercised across 10,000 deterministic seeds each. Separate Robot breadth-first search checks 1,000 shortest paths; independent Parcel traversal checks 1,000 solutions. Coding checks enforce small literals, bounded answers and four distinct answer choices. Painter tests cover legal solutions, expanded Repeat limits, nested-repeat rejection and failure frames.
-- The HTTP/socket harness completes all five Live formats with 50 authenticated participants: **950 accepted answers and 250 final participant records**. Latest local p95 acknowledgement: **166 ms**. Other v0.5.1 runs measured 187–325 ms. Deadlines are enlarged and phases advanced deterministically for this correctness/load harness; it does not represent human-paced play or the hosted network.
-- Tests cover exact-deadline rejection, five independent allowances, score maxima, three-run exhaustion, duplicate submissions, introduction expiry/readiness and unchanged Ranked allowance, prototype exclusion, private projections, account recovery, exclusive host ownership and finalisation.
-- SQLite tests cover transaction rollback, competing writers, failed initialization, incompatible-schema startup, dead-PID reclamation, uncertain/live ownership refusal and reset refusing a live writer. Old schema/data remains intact after failed startup.
+- `npm run check`: lint, **53 server/content/HTTP/recovery tests**, and the production build pass.
+- 10,000 seeded selections per game verify legal reference solutions, determinism, bounded inputs and content variety. Coding uses thirty tier/family combinations per task and at most ten logical lines with ordinary literals no larger than ten.
+- Independent Python executes 1,200 coding samples. Each Debug reference changes observable output, and replacing exactly the selected statement restores the reference output. This is not an exhaustive proof against all compensating edits; the stated algorithm constrains the intended diagnosis.
+- Independent state-aware breadth-first search verifies all 2,560 prepared Robot optima. Independent first-match routing checks every permutation for all 2,560 Parcel puzzles. A separately implemented exact-grammar search verifies all 320 Painter optima, including the single-Repeat and 18-action bounds.
+- 150 annotated fixtures cover six examples per game per tier. They contain goals, mistakes, reference solutions and validation status. They are representative authored-family/seed fixtures, not a claim of 150 human-observed playtests.
+- Tests check retry multiplication and final rounding, all three successful-run positions, invalid/duplicate rejection, item reset, repeat source/body/iteration events, idempotent painting, malformed/nested/excessive payloads and public projection secrecy.
+- Existing account, queue, Ranked allowance, exclusive host, recovery and prize regressions remain. The HTTP/socket harness completes all five Live formats with 50 authenticated players, **950 accepted answers and 250 final participant records**. Latest local p95 acknowledgement was **837 ms**; this is a shared test environment and not a hosted capacity guarantee. Deadlines are enlarged and phases advanced deterministically in the harness.
+- Browser coverage includes host/player authentication, takeover, password reset, all solo controls, Live Robot privacy, movement on both screens, refresh during playback, failed-draft repair, repeat construction/repair, wheel reduced motion, prizes, settings and contextual reauthentication. Narrow phone widths are 320/360/390 px; monitor checks cover 1280×720 and 1920×1080 questions/results. The full 13-test browser suite passed; focused controller/monitor checks were repeated after the final presentation adjustments.
 
-## Generator coverage
+## Content inventory and variety
 
-| Game | Unique fingerprints / 10,000 seeds | Coverage |
-| --- | ---: | --- |
-| Guess the Output | 211 | 12 concept families across five tiers |
-| Debug Dash | 211 | 12 fault families across five tiers |
-| Robot Rescue | 9,995 | Two board sizes; bounded reachable routes |
-| Parcel Sorter | 196 | One- and two-decision-depth conveyors |
-| Pattern Painter | 1,912 | Spatial move/paint targets; later bounded Repeat |
+| Game | Prepared inventory | Unique fingerprints / 10,000 seeded selections |
+| --- | --- | ---: |
+| Guess the Output | Runtime bounded AST families | 3,746 |
+| Debug Dash | Runtime bounded AST families | 3,746 |
+| Robot Rescue | 512 per tier; 2,560 total | 2,507 |
+| Parcel Sorter | 512 per tier; 2,560 total | 2,507 |
+| Pattern Painter | 64 per tier; 320 total | 313 |
 
-These figures deliberately replace the old 99% uniqueness target. Small beginner inputs repeat; cosmetic or numerical permutations are not evidence of novel reasoning. Recent-challenge avoidance is bounded and cannot guarantee no repetition in a finite domain. The candidate generators and new score weights need observation before any fairness claim. No score band measures intelligence.
+Fingerprints distinguish playable content, not guaranteed distinct reasoning. Smaller beginner families repeat more often. Recent avoidance is bounded for both account and Live histories; permanent novelty is impossible in these finite banks. Numerical variation alone cannot prevent memorisation. The change prioritises interactions and dependencies rather than an arbitrary uniqueness percentage.
 
-## Catalogue acceptance
+Heavy solvers run only through `npm run content:build`. Normal game creation selects a prepared puzzle and evaluates only bounded submitted work. The bank remains server-side and is absent from the browser bundle. No dependency additions were required.
 
-The default catalogue contains Debug Dash, Guess the Output and Robot Rescue. Parcel Sorter and Pattern Painter are integrated prototypes, disabled by default through `ENABLE_PROTOTYPE_GAMES=false`. Set it to true for a rehearsal and restart. Both remain excluded from Ranked regardless of that flag.
+## Required human and deployment gates
 
-Neither replacement has passed observed beginner acceptance. Before including either at launch, observe at least five unfamiliar participants, including beginners: can they explain the goal, find controls, read with time left, execute a program, explain a failure and repair it without coaching? If a candidate fails, keep it disabled. Do not treat automated solution submission as this gate.
+- Observe at least five unfamiliar people per game, including beginners. Check independent understanding, reading time, control discovery, explaining failure and repairing a program. Record completion by tier and device. None of these observations has been performed here.
+- Compare beginner/experienced score and completion distributions across the three Ranked games. A shared formula cannot prove equal difficulty. Freeze content, timing and scoring version before prize-bearing play.
+- Parcel Sorter and Pattern Painter remain disabled by default and excluded from Ranked even with `ENABLE_PROTOTYPE_GAMES=true`. Enable them only for rehearsal until beginner acceptance succeeds.
+- Test actual Android Chrome and iPhone Safari, background/resume, enlarged text, reduced motion, network interruptions and monitor viewing distance. Desktop viewport automation is not physical-phone testing.
+- Rehearse the intended HTTPS proxy, PostgreSQL/pooler, 50-player traffic, concurrent registrations, backup/restore and prize reconciliation. Local SQLite does not validate hosted persistence or latency.
+- Check real verification/reset/winner mail delivery to both BCU domains, including spam handling. Only preview transport was exercised.
 
-## Remaining deployment and gameplay gates
-
-| Area | Required rehearsal |
-| --- | --- |
-| Physical devices/accessibility | Android Chrome and iPhone Safari, background/resume, slow delivery, reconnect, enlarged text, keyboard/focus and reduced motion. Check actual monitor viewing distance and 1080p presentation. |
-| Hosted load | Repeat 50-player sessions over the intended HTTPS proxy and PostgreSQL, with latency/loss and concurrent registration. Record p95 and confirm no lost or duplicated accepted answers. Local p95 does not establish hosted capacity. |
-| PostgreSQL/recovery | Exercise advisory ownership, database failures, backup restore and prize reconciliation on the intended provider/pooler. SQLite testing is not PostgreSQL validation. |
-| Email | Deliver verification, reset, winner and correction messages to both BCU domains. Check spam folders, expiry, retry and failures. Only preview transport was used here. Sent means provider acceptance, not inbox delivery. |
-| Game balance | Compare beginner/experienced completion rates, reading time, medians, upper percentiles and score/time relationships by tier and game. Freeze content/scoring before prize-bearing Ranked. The formula alone cannot equalise games. |
-| Throughput | Rehearse conservative 282-second solo slots, Live interruptions, cutoff and closing policy with realistic queue traffic. Reduce challenge count only through a consistent pre-event release if throughput is unacceptable. |
-| Security/operations | Rehearse origin/cookie/proxy behaviour, takeovers, technical voids, prize collection and cleanup; review dependencies and deployment security. No independent penetration test is claimed. |
-
-The service remains a single-writer event aggregate. Expected event history size affects persistence and broadcast costs. Clients cannot claim latency refunds or extra thinking time using their own clocks. The release requires an explicitly selected clean v0.5.1 database; no automatic migration or data deletion occurs.
-
-## Audit coverage
-
-A01–A09: execution, clock/score changes, small coding inputs, removed old puzzles, gated replacements, examples, content tiers, corrected feedback and individual/group Live playback are implemented. Human clarity and balance remain gates above.
-
-A10–A16: required academic-year selection, verification destination/status/resend, familiar queue labels and estimates, focused play, completed-challenge review, compact empty standings and direct Live joining are implemented.
-
-A17–A20: local host blocking reasons, settings drafts/save/discard, contextual password confirmation, participant pagination and ownership-safe startup/reset are implemented.
-
-A21: correctness and browser coverage is expanded. Physical-device, hosted and unfamiliar-player observations remain explicitly unperformed.
+The application remains a single-writer event aggregate with full snapshots; large histories and broadcasts are scaling constraints. This release requires an explicitly selected fresh schema-7 database. Failed startup preserves earlier data and releases only owned resources.

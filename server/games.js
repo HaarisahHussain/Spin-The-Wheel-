@@ -47,6 +47,7 @@ function closeQuestion(g, selected, result, now, timedOut = false) {
     elapsed,
     allowance: g.allowance,
     maximum: LEVEL_MAXIMA[g.level],
+    runs: g.runs,
     puzzle: adapterFor(g.id).kind === 'puzzle',
   });
   g.score += points;
@@ -56,6 +57,7 @@ function closeQuestion(g, selected, result, now, timedOut = false) {
     selected,
     points,
     elapsedMs: elapsed,
+    runs: g.runs,
     allowanceMs: g.allowance,
     timedOut,
   };
@@ -64,7 +66,12 @@ function closeQuestion(g, selected, result, now, timedOut = false) {
   g.feedbackUntil = now + TIMING.feedback;
 }
 export function answerGame(g, answer, challengeId, now) {
-  if (g.complete || g.phase !== 'question' || now >= g.deadline || g.question.id !== challengeId)
+  if (
+    g.complete ||
+    g.phase !== 'question' ||
+    now >= g.deadline ||
+    g.question.id !== challengeId
+  )
     return false;
   const a = adapterFor(g.id);
   if (!a.valid(g.question, answer)) return false;
@@ -147,6 +154,12 @@ export function publicQuestion(q, reveal = false) {
     'depots',
     'target',
     'allowRepeat',
+    'items',
+    'gates',
+    'rules',
+    'fallback',
+    'maxTiles',
+    'starter',
   ];
   const out = Object.fromEntries(keys.filter((k) => q[k] !== undefined).map((k) => [k, q[k]]));
   if (q.game === 'robot') out.position = q.start;
@@ -175,6 +188,9 @@ export function publicGame(g, own = false) {
     'elapsedMs',
     'allowanceMs',
     'efficiency',
+    'runs',
+    'events',
+    'failedSource',
   ];
   const safeResult = (r) =>
     Object.fromEntries(resultKeys.filter((k) => r?.[k] !== undefined).map((k) => [k, r[k]]));

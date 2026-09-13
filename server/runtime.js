@@ -106,8 +106,11 @@ function finish(s, status, now) {
       painted: q.painted,
       routes: q.routes,
       points: q.points,
+      runs: q.runs,
       feedback: q.feedback,
       failedIndex: q.failedIndex,
+      failedSource: q.failedSource,
+      events: q.events,
       failedCell: q.failedCell,
       timedOut: q.timedOut,
     })),
@@ -115,6 +118,7 @@ function finish(s, status, now) {
       level: q.level,
       correct: q.correct,
       points: q.points,
+      runs: q.runs,
       elapsedMs: q.elapsedMs,
       allowanceMs: q.allowanceMs,
       efficiency: q.efficiency,
@@ -181,11 +185,15 @@ function liveStart(s, now) {
     level: 0,
     question: null,
     available: available.map((g) => ({ id: g.id })),
-    settings: { lobbySeconds: s.config.lobbySeconds, liveTimeScale: s.config.liveTimeScale ?? 1 },
+    settings: {
+      lobbySeconds: s.config.lobbySeconds,
+      liveTimeScale: s.config.liveTimeScale ?? 1,
+    },
   };
 }
 function holdUnverified(s, now) {
-  for (const q of s.queue) if (!eligible(s, s.accounts[q.accountId])) q.heldUntil ||= now + 300000;
+  for (const q of s.queue)
+    if (!eligible(s, s.accounts[q.accountId])) q.heldUntil ||= now + 300000;
   if (
     s.active &&
     !['playing', 'result'].includes(s.active.phase) &&
@@ -284,7 +292,8 @@ export function tick(s, now, _connected = new Set()) {
   for (const [key, session] of Object.entries(s.sessions))
     if (session.expires <= now || (session.staffId && now - session.lastActivity >= 1800000))
       delete s.sessions[key];
-  for (const [key, t] of Object.entries(s.takeovers)) if (t.expires <= now) delete s.takeovers[key];
+  for (const [key, t] of Object.entries(s.takeovers))
+    if (t.expires <= now) delete s.takeovers[key];
   for (const [key, command] of Object.entries(s.commands))
     if (command.at < now - 86400000) delete s.commands[key];
   for (const [key, values] of Object.entries(s.rates)) {
@@ -300,15 +309,16 @@ function nextLiveQuestion(s, now) {
   live.question = generate(
     live.gameId,
     Math.min(4, live.level * (adapterFor(live.gameId).kind === 'puzzle' ? 2 : 1)),
-    [],
+    (s.liveRecent ||= []),
   );
   live.phase = 'question';
   live.questionAt = now;
   live.until =
     now +
     Math.round(
-      (adapterFor(live.gameId).kind === 'puzzle' ? LIVE_PUZZLE_ROUNDS : LIVE_ROUNDS)[live.level] *
-        live.settings.liveTimeScale,
+      (adapterFor(live.gameId).kind === 'puzzle' ? LIVE_PUZZLE_ROUNDS : LIVE_ROUNDS)[
+        live.level
+      ] * live.settings.liveTimeScale,
     ) *
       1000;
   for (const entry of Object.values(live.roster)) {
@@ -360,7 +370,8 @@ function finishLive(s, now) {
   s.config.soloAfterLive = true;
 }
 function endLive(s, now, message) {
-  if (s.live) Object.assign(s.live, { phase: 'cancelled', message, until: now + TIMING.cancelled });
+  if (s.live)
+    Object.assign(s.live, { phase: 'cancelled', message, until: now + TIMING.cancelled });
   s.config.nextLobbyAt = now + s.config.interval * 1000;
   s.config.soloAfterLive = true;
 }

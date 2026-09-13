@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.0 — 2026-09-13
+
+- Redesigned minigames around programmatic thinking: small-input state tracing, explicit Debug goals, dependency routes, first-match rules and repeated painting.
+- Added thirty authored tier/family combinations per coding task, independently executed Python references and one-statement repair checks.
+- Rebuilt Robot Rescue with required items, numbered keys/gates and progressively tighter legal route budgets; retained moving robots and added collected-state playback.
+- Replaced Parcel conveyor toggles with reorderable rules and acceptance of every valid order; removed solution clues from rule IDs and storage order.
+- Added editable Painter Repeat blocks, separate visible-tile/executed-action budgets, exact-grammar efficiency scoring and source/body/iteration highlights.
+- Applied 100%/90%/80% solo puzzle success multipliers, with no extra run charged for invalid or duplicate input; retained independent thinking clocks and one-lock Live play.
+- Added offline verified puzzle banks, 150 annotated examples, Live recent-challenge avoidance, independent puzzle solvers and broader phone/monitor regressions.
+- Removed superseded puzzle generators and updated game-extension/setup documentation. Requires a clean schema-7 pre-launch database; startup never deletes earlier data.
+- Preserved platform flows and the default three-game pool. Parcel and Painter remain opt-in, unranked prototypes pending unfamiliar-player testing; cross-game balance remains a rehearsal gate.
+
 ## 0.5.1 — 2026-09-13
 
 - Replaced the shared 90-second budget with five 30-second challenges, reweighted scores and matching queue/Live duration bounds.

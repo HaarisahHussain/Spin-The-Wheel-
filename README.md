@@ -1,4 +1,4 @@
-# BCUSCA Welcome Week Arcade · v0.5.1
+# BCUSCA Welcome Week Arcade · v0.6.0
 
 Three programming games and two optional puzzle prototypes for students’ phones, two public monitors and one host laptop. React, Tailwind v4, Express and Socket.IO share one origin.
 
@@ -23,7 +23,7 @@ Under Host → Event, save actual opening times, admission cutoff and closing ti
 
 ## Clean pre-launch setup
 
-**v0.5.1 requires a clean database.** There is no upgrade migration from earlier versions. Preserve any old data separately and point this release at an empty database or new SQLite file. Startup refuses an older schema and never deletes data. For a deliberate local test reset, stop the server and run `npm run reset:dev`; it asks for an exact confirmation and refuses PostgreSQL/production. Do not reset a real event.
+**v0.6.0 requires a clean database.** There is no upgrade migration from earlier versions. Preserve any old data separately and point this release at an empty database or new SQLite file. Startup refuses an older schema and never deletes data. For a deliberate local test reset, stop the server and run `npm run reset:dev`; it asks for an exact confirmation and refuses PostgreSQL/production. Do not reset a real event.
 
 The ZIP excludes private environment files, database contents, dependencies and compiled assets. Run `npm ci` and rebuild after extracting.
 
@@ -38,14 +38,14 @@ The ZIP excludes private environment files, database contents, dependencies and 
 
 Public routes never receive host identity details. Phone Scores shows personal Practice top ten, recent Live results, the full Ranked leaderboard and confirmed prize information.
 
-## What changed in v0.5.1
+## What changed in v0.6.0
 
-- Five independently timed challenges, 30 seconds each. First encounters have a separate example and explicit readiness before a Ranked start is used.
-- Robot Rescue animates the submitted route on both screens, highlights the current or blocked step, and retains failed work. Solo puzzles allow three runs; playback does not spend thinking time.
-- Smaller Python values, five concept tiers, misconception-based options and corrected-statement feedback. Completed challenge reviews remain available in Scores.
-- Sort the Stream and Signal Switch are removed. Parcel Sorter uses visible conveyor junctions; Pattern Painter separates movement and painting, with a bounded Repeat instruction.
-- Focused phone gameplay, clearer verification and queue status, compact empty standings, explicit settings drafts and contextual host password confirmation.
-- Startup failures release owned resources. Reset can reclaim a provably dead local writer without removing a live or uncertain owner's lock.
+- Rebuilt the minigames around state tracking, dependencies, rule priority and repetition, with small Python inputs and five reasoning tiers.
+- Robot Rescue adds required items, numbered keys/gates and tighter route budgets, with authoritative movement and collection playback.
+- Parcel Sorter now uses first-match rule ordering. Pattern Painter has an editable Repeat block, separate tile/action budgets and independently checked optimum scores.
+- Solo puzzle retries earn 100%, 90% or 80% of the calculated challenge score. Invalid/duplicate submissions do not consume runs; Live still allows one locked program.
+- Added offline verified puzzle banks, 150 annotated fixtures, independent Python/solver checks, expanded phone/monitor tests and Live repeat avoidance.
+- Preserved registration, login, queue policies, host controls, prizes and deployment. Removed superseded puzzle generators.
 
 **Prototype gate:** `ENABLE_PROTOTYPE_GAMES=false` by default. Set it to `true` and restart a test event to try Parcel Sorter and Pattern Painter in Practice/Live. Both remain excluded from Ranked. They have automated coverage but have not passed the required beginner observations; keep them disabled for launch until that gate is completed. No calibration form or extra host game switches are added.
 
@@ -67,8 +67,10 @@ Test real BCU mailbox delivery, the monitor QR and all devices on the actual dep
 
 ```sh
 npm run check
+# Only after changing prepared puzzle generation:
+npm run content:build
 npx playwright install chromium
 npm run test:e2e
 ```
 
-`check` runs lint, server/HTTP/generator tests and a production build. Browser tests use synthetic isolated fixtures; never deploy the test server. See [Architecture](docs/ARCHITECTURE.md), [Operations](docs/OPERATIONS.md), [Validation](docs/VALIDATION.md) and [v0.5.1 specification](docs/SPECIFICATION-v0.5.1.md). Earlier specifications remain historical references.
+`check` runs lint, server/HTTP/generator tests and a production build. Browser tests use synthetic isolated fixtures; never deploy the test server. See [Architecture](docs/ARCHITECTURE.md), [Operations](docs/OPERATIONS.md), [Validation](docs/VALIDATION.md) and [v0.6.0 specification](docs/SPECIFICATION-v0.6.0.md). Prepared puzzle banks are committed source data; normal installs do not regenerate them. Change the relevant game module, rebuild the bank, and rerun tests when extending puzzles. Earlier specifications remain historical references.

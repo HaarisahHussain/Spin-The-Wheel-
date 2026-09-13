@@ -6,7 +6,7 @@ import { createStorage } from '../server/storage.js';
 import { createMail } from '../server/mail.js';
 import { createApp } from '../server/app.js';
 import { secret, passwordHash, issueSession } from '../server/security.js';
-import { newGame } from '../server/games.js';
+import { newGame, answerGame, tickGame } from '../server/games.js';
 import { adapterFor } from '../server/games/registry.js';
 import { selectGame } from '../server/selection.js';
 import { games, SCORING_VERSION } from '../shared/catalog.js';
@@ -67,6 +67,8 @@ app.app.post('/__test/scene', async (req, res) => {
     if (req.body.robotPath) {
       Object.assign(g.question, {
         size: 5,
+        items: [],
+        gates: [],
         start: 0,
         position: 0,
         goal: 4,
@@ -78,6 +80,11 @@ app.app.post('/__test/scene', async (req, res) => {
     }
     g.deadline = now + 90000;
     g.allowance = 90000;
+    if (req.body.feedback) {
+      answerGame(g, g.question.answer ?? g.question.solution, g.question.id, now + 100);
+      if (g.execution) tickGame(g, g.execution.until);
+      g.feedbackUntil = now + 90000;
+    }
     const attemptId = crypto.randomUUID();
     s.attempts.push({
       id: attemptId,
@@ -130,7 +137,13 @@ app.app.post('/__test/scene', async (req, res) => {
       s.active = null;
       s.config.prizeInstructions =
         'Keep an eye on your email. Speak to the host to collect your prize.';
-      s.awards.push({ id: 'award-test', type: 'grand', accountId: id, at: now, collected: false });
+      s.awards.push({
+        id: 'award-test',
+        type: 'grand',
+        accountId: id,
+        at: now,
+        collected: false,
+      });
     }
     return issueSession(s, { accountId: id }, now);
   });
