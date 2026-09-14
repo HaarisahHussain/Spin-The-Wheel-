@@ -6,22 +6,10 @@
     "level": 0,
     "items": [],
     "gates": [],
-    "blocks": [
-      12,
-      18,
-      20,
-      23
-    ],
+    "blocks": [12, 18, 20, 23],
     "start": 9,
     "goal": 17,
-    "solution": [
-      "left",
-      "left",
-      "left",
-      "down",
-      "down",
-      "right"
-    ],
+    "solution": ["left", "left", "left", "down", "down", "right"],
     "optimum": 6,
     "maxMoves": 10,
     "family": "route",
@@ -42,23 +30,10 @@
     "level": 0,
     "items": [],
     "gates": [],
-    "blocks": [
-      2,
-      3,
-      4,
-      6,
-      14,
-      18
-    ],
+    "blocks": [2, 3, 4, 6, 14, 18],
     "start": 0,
     "goal": 21,
-    "solution": [
-      "down",
-      "down",
-      "right",
-      "down",
-      "down"
-    ],
+    "solution": ["down", "down", "right", "down", "down"],
     "optimum": 5,
     "maxMoves": 9,
     "family": "route",
@@ -79,21 +54,10 @@
     "level": 0,
     "items": [],
     "gates": [],
-    "blocks": [
-      3,
-      7,
-      9,
-      17
-    ],
+    "blocks": [3, 7, 9, 17],
     "start": 15,
     "goal": 2,
-    "solution": [
-      "up",
-      "up",
-      "up",
-      "right",
-      "right"
-    ],
+    "solution": ["up", "up", "up", "right", "right"],
     "optimum": 5,
     "maxMoves": 9,
     "family": "route",
@@ -114,20 +78,10 @@
     "level": 0,
     "items": [],
     "gates": [],
-    "blocks": [
-      0,
-      7,
-      8,
-      16
-    ],
+    "blocks": [0, 7, 8, 16],
     "start": 23,
     "goal": 11,
-    "solution": [
-      "up",
-      "up",
-      "left",
-      "left"
-    ],
+    "solution": ["up", "up", "left", "left"],
     "optimum": 4,
     "maxMoves": 8,
     "family": "route",
@@ -148,22 +102,10 @@
     "level": 0,
     "items": [],
     "gates": [],
-    "blocks": [
-      1,
-      10,
-      12,
-      13,
-      24
-    ],
+    "blocks": [1, 10, 12, 13, 24],
     "start": 15,
     "goal": 0,
-    "solution": [
-      "right",
-      "up",
-      "up",
-      "left",
-      "up"
-    ],
+    "solution": ["right", "up", "up", "left", "up"],
     "optimum": 5,
     "maxMoves": 9,
     "family": "route",
@@ -184,22 +126,10 @@
     "level": 0,
     "items": [],
     "gates": [],
-    "blocks": [
-      2,
-      7,
-      11,
-      12,
-      19,
-      23
-    ],
+    "blocks": [2, 7, 11, 12, 19, 23],
     "start": 18,
     "goal": 10,
-    "solution": [
-      "left",
-      "left",
-      "left",
-      "up"
-    ],
+    "solution": ["left", "left", "left", "up"],
     "optimum": 4,
     "maxMoves": 8,
     "family": "route",
@@ -227,26 +157,10 @@
       }
     ],
     "gates": [],
-    "blocks": [
-      0,
-      9,
-      13,
-      19,
-      20
-    ],
+    "blocks": [0, 9, 13, 19, 20],
     "start": 22,
     "goal": 5,
-    "solution": [
-      "up",
-      "up",
-      "up",
-      "up",
-      "right",
-      "down",
-      "left",
-      "left",
-      "left"
-    ],
+    "solution": ["up", "up", "up", "up", "right", "down", "left", "left", "left"],
     "optimum": 9,
     "maxMoves": 12,
     "family": "detour",
@@ -274,24 +188,10 @@
       }
     ],
     "gates": [],
-    "blocks": [
-      4,
-      5,
-      7,
-      14,
-      15,
-      16
-    ],
+    "blocks": [4, 5, 7, 14, 15, 16],
     "start": 9,
     "goal": 11,
-    "solution": [
-      "left",
-      "down",
-      "left",
-      "left",
-      "left",
-      "right"
-    ],
+    "solution": ["left", "down", "left", "left", "left", "right"],
     "optimum": 6,
     "maxMoves": 9,
     "family": "detour",
@@ -319,29 +219,10 @@
       }
     ],
     "gates": [],
-    "blocks": [
-      3,
-      4,
-      8,
-      10,
-      12,
-      19,
-      20,
-      21
-    ],
+    "blocks": [3, 4, 8, 10, 12, 19, 20, 21],
     "start": 7,
     "goal": 14,
-    "solution": [
-      "up",
-      "left",
-      "down",
-      "down",
-      "down",
-      "right",
-      "right",
-      "up",
-      "right"
-    ],
+    "solution": ["up", "left", "down", "down", "down", "right", "right", "up", "right"],
     "optimum": 9,
     "maxMoves": 12,
     "family": "detour",
@@ -369,25 +250,10 @@
       }
     ],
     "gates": [],
-    "blocks": [
-      0,
-      2,
-      4,
-      7,
-      9,
-      14,
-      24
-    ],
+    "blocks": [0, 2, 4, 7, 9, 14, 24],
     "start": 12,
     "goal": 18,
-    "solution": [
-      "down",
-      "left",
-      "left",
-      "right",
-      "right",
-      "right"
-    ],
+    "solution": ["down", "left", "left", "right", "right", "right"],
     "optimum": 6,
     "maxMoves": 9,
     "family": "detour",
@@ -415,23 +281,10 @@
       }
     ],
     "gates": [],
-    "blocks": [
-      0,
-      10,
-      15,
-      17,
-      21
-    ],
+    "blocks": [0, 10, 15, 17, 21],
     "start": 18,
     "goal": 16,
-    "solution": [
-      "up",
-      "right",
-      "left",
-      "left",
-      "left",
-      "down"
-    ],
+    "solution": ["up", "right", "left", "left", "left", "down"],
     "optimum": 6,
     "maxMoves": 9,
     "family": "detour",
@@ -459,27 +312,10 @@
       }
     ],
     "gates": [],
-    "blocks": [
-      3,
-      11,
-      13,
-      15,
-      16,
-      17,
-      19,
-      24
-    ],
+    "blocks": [3, 11, 13, 15, 16, 17, 19, 24],
     "start": 1,
     "goal": 12,
-    "solution": [
-      "right",
-      "down",
-      "right",
-      "right",
-      "left",
-      "left",
-      "down"
-    ],
+    "solution": ["right", "down", "right", "right", "left", "left", "down"],
     "optimum": 7,
     "maxMoves": 10,
     "family": "detour",
@@ -513,24 +349,10 @@
         "label": "1"
       }
     ],
-    "blocks": [
-      2,
-      7,
-      12,
-      17
-    ],
+    "blocks": [2, 7, 12, 17],
     "start": 0,
     "goal": 24,
-    "solution": [
-      "down",
-      "down",
-      "down",
-      "right",
-      "down",
-      "right",
-      "right",
-      "right"
-    ],
+    "solution": ["down", "down", "down", "right", "down", "right", "right", "right"],
     "optimum": 8,
     "maxMoves": 10,
     "family": "key-gate",
@@ -564,24 +386,10 @@
         "label": "1"
       }
     ],
-    "blocks": [
-      2,
-      7,
-      9,
-      12,
-      22
-    ],
+    "blocks": [2, 7, 9, 12, 22],
     "start": 0,
     "goal": 19,
-    "solution": [
-      "down",
-      "right",
-      "down",
-      "down",
-      "right",
-      "right",
-      "right"
-    ],
+    "solution": ["down", "right", "down", "down", "right", "right", "right"],
     "optimum": 7,
     "maxMoves": 9,
     "family": "key-gate",
@@ -615,25 +423,10 @@
         "label": "1"
       }
     ],
-    "blocks": [
-      2,
-      7,
-      12,
-      15,
-      22
-    ],
+    "blocks": [2, 7, 12, 15, 22],
     "start": 0,
     "goal": 14,
-    "solution": [
-      "down",
-      "right",
-      "down",
-      "down",
-      "right",
-      "right",
-      "up",
-      "right"
-    ],
+    "solution": ["down", "right", "down", "down", "right", "right", "up", "right"],
     "optimum": 8,
     "maxMoves": 10,
     "family": "key-gate",
@@ -667,13 +460,7 @@
         "label": "1"
       }
     ],
-    "blocks": [
-      2,
-      7,
-      10,
-      12,
-      17
-    ],
+    "blocks": [2, 7, 10, 12, 17],
     "start": 20,
     "goal": 24,
     "solution": [
@@ -723,15 +510,7 @@
         "label": "1"
       }
     ],
-    "blocks": [
-      1,
-      2,
-      3,
-      7,
-      12,
-      20,
-      22
-    ],
+    "blocks": [1, 2, 3, 7, 12, 20, 22],
     "start": 15,
     "goal": 9,
     "solution": [
@@ -781,14 +560,7 @@
         "label": "1"
       }
     ],
-    "blocks": [
-      2,
-      3,
-      5,
-      12,
-      17,
-      22
-    ],
+    "blocks": [2, 3, 5, 12, 17, 22],
     "start": 10,
     "goal": 19,
     "solution": [
@@ -848,17 +620,7 @@
         "label": "2"
       }
     ],
-    "blocks": [
-      3,
-      6,
-      10,
-      11,
-      13,
-      16,
-      18,
-      21,
-      23
-    ],
+    "blocks": [3, 6, 10, 11, 13, 16, 18, 21, 23],
     "start": 0,
     "goal": 9,
     "solution": [
@@ -920,17 +682,7 @@
         "label": "2"
       }
     ],
-    "blocks": [
-      3,
-      4,
-      6,
-      8,
-      11,
-      16,
-      18,
-      21,
-      23
-    ],
+    "blocks": [3, 4, 6, 8, 11, 16, 18, 21, 23],
     "start": 0,
     "goal": 19,
     "solution": [
@@ -992,30 +744,10 @@
         "label": "2"
       }
     ],
-    "blocks": [
-      1,
-      3,
-      6,
-      8,
-      11,
-      13,
-      18,
-      21
-    ],
+    "blocks": [1, 3, 6, 8, 11, 13, 18, 21],
     "start": 15,
     "goal": 19,
-    "solution": [
-      "down",
-      "up",
-      "right",
-      "right",
-      "up",
-      "down",
-      "down",
-      "right",
-      "right",
-      "up"
-    ],
+    "solution": ["down", "up", "right", "right", "up", "down", "down", "right", "right", "up"],
     "optimum": 10,
     "maxMoves": 11,
     "family": "two-dependencies",
@@ -1060,17 +792,7 @@
         "label": "2"
       }
     ],
-    "blocks": [
-      0,
-      1,
-      3,
-      6,
-      8,
-      11,
-      13,
-      21,
-      23
-    ],
+    "blocks": [0, 1, 3, 6, 8, 11, 13, 21, 23],
     "start": 10,
     "goal": 9,
     "solution": [
@@ -1132,31 +854,10 @@
         "label": "2"
       }
     ],
-    "blocks": [
-      1,
-      3,
-      10,
-      11,
-      13,
-      15,
-      16,
-      18,
-      21,
-      23
-    ],
+    "blocks": [1, 3, 10, 11, 13, 15, 16, 18, 21, 23],
     "start": 5,
     "goal": 14,
-    "solution": [
-      "up",
-      "down",
-      "right",
-      "right",
-      "down",
-      "up",
-      "right",
-      "right",
-      "down"
-    ],
+    "solution": ["up", "down", "right", "right", "down", "up", "right", "right", "down"],
     "optimum": 9,
     "maxMoves": 10,
     "family": "two-dependencies",
@@ -1201,29 +902,10 @@
         "label": "2"
       }
     ],
-    "blocks": [
-      3,
-      6,
-      8,
-      11,
-      16,
-      18,
-      21,
-      23
-    ],
+    "blocks": [3, 6, 8, 11, 16, 18, 21, 23],
     "start": 0,
     "goal": 19,
-    "solution": [
-      "down",
-      "up",
-      "right",
-      "right",
-      "down",
-      "down",
-      "right",
-      "right",
-      "down"
-    ],
+    "solution": ["down", "up", "right", "right", "down", "down", "right", "right", "down"],
     "optimum": 9,
     "maxMoves": 10,
     "family": "two-dependencies",
@@ -1274,30 +956,10 @@
         "label": "2"
       }
     ],
-    "blocks": [
-      1,
-      3,
-      6,
-      8,
-      11,
-      16,
-      18,
-      23
-    ],
+    "blocks": [1, 3, 6, 8, 11, 16, 18, 23],
     "start": 10,
     "goal": 14,
-    "solution": [
-      "down",
-      "down",
-      "right",
-      "right",
-      "up",
-      "up",
-      "right",
-      "right",
-      "down",
-      "up"
-    ],
+    "solution": ["down", "down", "right", "right", "up", "up", "right", "right", "down", "up"],
     "optimum": 10,
     "maxMoves": 10,
     "family": "tight-dependencies",
@@ -1348,16 +1010,7 @@
         "label": "2"
       }
     ],
-    "blocks": [
-      1,
-      6,
-      8,
-      11,
-      13,
-      16,
-      18,
-      23
-    ],
+    "blocks": [1, 6, 8, 11, 13, 16, 18, 23],
     "start": 5,
     "goal": 9,
     "solution": [
@@ -1424,16 +1077,7 @@
         "label": "2"
       }
     ],
-    "blocks": [
-      1,
-      3,
-      6,
-      8,
-      11,
-      16,
-      18,
-      23
-    ],
+    "blocks": [1, 3, 6, 8, 11, 16, 18, 23],
     "start": 15,
     "goal": 4,
     "solution": [
@@ -1501,17 +1145,7 @@
         "label": "2"
       }
     ],
-    "blocks": [
-      1,
-      3,
-      6,
-      13,
-      16,
-      18,
-      21,
-      23,
-      24
-    ],
+    "blocks": [1, 3, 6, 13, 16, 18, 21, 23, 24],
     "start": 10,
     "goal": 14,
     "solution": [
@@ -1580,31 +1214,10 @@
         "label": "2"
       }
     ],
-    "blocks": [
-      1,
-      3,
-      6,
-      13,
-      16,
-      18,
-      20,
-      21,
-      23
-    ],
+    "blocks": [1, 3, 6, 13, 16, 18, 20, 21, 23],
     "start": 5,
     "goal": 19,
-    "solution": [
-      "down",
-      "right",
-      "right",
-      "up",
-      "right",
-      "right",
-      "up",
-      "down",
-      "down",
-      "down"
-    ],
+    "solution": ["down", "right", "right", "up", "right", "right", "up", "down", "down", "down"],
     "optimum": 10,
     "maxMoves": 10,
     "family": "tight-dependencies",
@@ -1655,16 +1268,7 @@
         "label": "2"
       }
     ],
-    "blocks": [
-      1,
-      3,
-      8,
-      11,
-      16,
-      18,
-      21,
-      23
-    ],
+    "blocks": [1, 3, 8, 11, 16, 18, 21, 23],
     "start": 5,
     "goal": 9,
     "solution": [
@@ -1768,16 +1372,8 @@
         "target": 1
       }
     ],
-    "solution": [
-      "rule-23e783306aec",
-      "rule-4c49ec2a26f8",
-      "rule-d31ecf14abae"
-    ],
-    "starter": [
-      "rule-23e783306aec",
-      "rule-d31ecf14abae",
-      "rule-4c49ec2a26f8"
-    ],
+    "solution": ["rule-23e783306aec", "rule-4c49ec2a26f8", "rule-d31ecf14abae"],
+    "starter": ["rule-23e783306aec", "rule-d31ecf14abae", "rule-4c49ec2a26f8"],
     "validOrders": 2,
     "prompt": "Reorder the rules. Each parcel follows the first match; otherwise it goes to C.",
     "fingerprint": "2969208080d0bfbd063c1c0f34d4dbb8d250f423ec6911cfe6ca05553d0bdb02",
@@ -1864,16 +1460,8 @@
         "target": 2
       }
     ],
-    "solution": [
-      "rule-8acc714f945b",
-      "rule-cc202a53e870",
-      "rule-af5c6b2c13ff"
-    ],
-    "starter": [
-      "rule-af5c6b2c13ff",
-      "rule-8acc714f945b",
-      "rule-cc202a53e870"
-    ],
+    "solution": ["rule-8acc714f945b", "rule-cc202a53e870", "rule-af5c6b2c13ff"],
+    "starter": ["rule-af5c6b2c13ff", "rule-8acc714f945b", "rule-cc202a53e870"],
     "validOrders": 1,
     "prompt": "Reorder the rules. Each parcel follows the first match; otherwise it goes to C.",
     "fingerprint": "6048eb928341cc66363f20a8ada41f24a60bbaefad6e192865e0a1c19e9a4c3e",
@@ -1960,16 +1548,8 @@
         "target": 0
       }
     ],
-    "solution": [
-      "rule-31ab69b942b1",
-      "rule-41b5844b36fe",
-      "rule-3b1431b7f9d6"
-    ],
-    "starter": [
-      "rule-3b1431b7f9d6",
-      "rule-31ab69b942b1",
-      "rule-41b5844b36fe"
-    ],
+    "solution": ["rule-31ab69b942b1", "rule-41b5844b36fe", "rule-3b1431b7f9d6"],
+    "starter": ["rule-3b1431b7f9d6", "rule-31ab69b942b1", "rule-41b5844b36fe"],
     "validOrders": 1,
     "prompt": "Reorder the rules. Each parcel follows the first match; otherwise it goes to C.",
     "fingerprint": "9146057a2493a2d3ed78c8817accec77c5a3895776fec3b8e492e1012af11a38",
@@ -2056,16 +1636,8 @@
         "target": 1
       }
     ],
-    "solution": [
-      "rule-12dcf9e9aee8",
-      "rule-a7036228cbc2",
-      "rule-00f495e5c806"
-    ],
-    "starter": [
-      "rule-00f495e5c806",
-      "rule-12dcf9e9aee8",
-      "rule-a7036228cbc2"
-    ],
+    "solution": ["rule-12dcf9e9aee8", "rule-a7036228cbc2", "rule-00f495e5c806"],
+    "starter": ["rule-00f495e5c806", "rule-12dcf9e9aee8", "rule-a7036228cbc2"],
     "validOrders": 2,
     "prompt": "Reorder the rules. Each parcel follows the first match; otherwise it goes to C.",
     "fingerprint": "7d0ea163c404173f5a6a862c92df554f5e13c2a3df8ae9ad64f15c6eecc110ca",
@@ -2152,16 +1724,8 @@
         "target": 2
       }
     ],
-    "solution": [
-      "rule-9bd221f0ca56",
-      "rule-f23f9c5f11e5",
-      "rule-318821c2fd4b"
-    ],
-    "starter": [
-      "rule-318821c2fd4b",
-      "rule-9bd221f0ca56",
-      "rule-f23f9c5f11e5"
-    ],
+    "solution": ["rule-9bd221f0ca56", "rule-f23f9c5f11e5", "rule-318821c2fd4b"],
+    "starter": ["rule-318821c2fd4b", "rule-9bd221f0ca56", "rule-f23f9c5f11e5"],
     "validOrders": 2,
     "prompt": "Reorder the rules. Each parcel follows the first match; otherwise it goes to C.",
     "fingerprint": "76da84b187dbaacf00c5523b8a2cae5221d9453cb25de2a92af9b078b45bf292",
@@ -2248,16 +1812,8 @@
         "target": 2
       }
     ],
-    "solution": [
-      "rule-b4a2057e0d5b",
-      "rule-79817c1af3d3",
-      "rule-9957cc80f6c5"
-    ],
-    "starter": [
-      "rule-79817c1af3d3",
-      "rule-9957cc80f6c5",
-      "rule-b4a2057e0d5b"
-    ],
+    "solution": ["rule-b4a2057e0d5b", "rule-79817c1af3d3", "rule-9957cc80f6c5"],
+    "starter": ["rule-79817c1af3d3", "rule-9957cc80f6c5", "rule-b4a2057e0d5b"],
     "validOrders": 1,
     "prompt": "Reorder the rules. Each parcel follows the first match; otherwise it goes to C.",
     "fingerprint": "c7c597f674f3bf2292bd17766fdab25d762a75cd63a25f06362ef0f4af5634cf",
@@ -2344,16 +1900,8 @@
         "target": 0
       }
     ],
-    "solution": [
-      "rule-6bc5ce0186fe",
-      "rule-0ce7819a1830",
-      "rule-a66ffc9025e3"
-    ],
-    "starter": [
-      "rule-0ce7819a1830",
-      "rule-a66ffc9025e3",
-      "rule-6bc5ce0186fe"
-    ],
+    "solution": ["rule-6bc5ce0186fe", "rule-0ce7819a1830", "rule-a66ffc9025e3"],
+    "starter": ["rule-0ce7819a1830", "rule-a66ffc9025e3", "rule-6bc5ce0186fe"],
     "validOrders": 1,
     "prompt": "Reorder the rules. Each parcel follows the first match; otherwise it goes to C.",
     "fingerprint": "63ae646558365e72595ef32bcd8cf7ef7fe40ab267233f45dd5ba265c48e4304",
@@ -2440,16 +1988,8 @@
         "target": 1
       }
     ],
-    "solution": [
-      "rule-13a374660c06",
-      "rule-2a10a59c0b5b",
-      "rule-fb4706493237"
-    ],
-    "starter": [
-      "rule-fb4706493237",
-      "rule-2a10a59c0b5b",
-      "rule-13a374660c06"
-    ],
+    "solution": ["rule-13a374660c06", "rule-2a10a59c0b5b", "rule-fb4706493237"],
+    "starter": ["rule-fb4706493237", "rule-2a10a59c0b5b", "rule-13a374660c06"],
     "validOrders": 2,
     "prompt": "Reorder the rules. Each parcel follows the first match; otherwise it goes to C.",
     "fingerprint": "21359b34f1091416619361f857390480c7e3462c5d8082d7edf93baa3284edb7",
@@ -2536,16 +2076,8 @@
         "target": 1
       }
     ],
-    "solution": [
-      "rule-f023d674410c",
-      "rule-2153e0724347",
-      "rule-641f7fc473ae"
-    ],
-    "starter": [
-      "rule-641f7fc473ae",
-      "rule-f023d674410c",
-      "rule-2153e0724347"
-    ],
+    "solution": ["rule-f023d674410c", "rule-2153e0724347", "rule-641f7fc473ae"],
+    "starter": ["rule-641f7fc473ae", "rule-f023d674410c", "rule-2153e0724347"],
     "validOrders": 2,
     "prompt": "Reorder the rules. Each parcel follows the first match; otherwise it goes to C.",
     "fingerprint": "d2cc597bfc99023055173830ef4d1559d2bfe9290f3e42cfbc46bf631614ef65",
@@ -2632,16 +2164,8 @@
         "target": 0
       }
     ],
-    "solution": [
-      "rule-ff682f58a6b4",
-      "rule-730522f9dc9f",
-      "rule-d07f69a8dd5a"
-    ],
-    "starter": [
-      "rule-730522f9dc9f",
-      "rule-d07f69a8dd5a",
-      "rule-ff682f58a6b4"
-    ],
+    "solution": ["rule-ff682f58a6b4", "rule-730522f9dc9f", "rule-d07f69a8dd5a"],
+    "starter": ["rule-730522f9dc9f", "rule-d07f69a8dd5a", "rule-ff682f58a6b4"],
     "validOrders": 2,
     "prompt": "Reorder the rules. Each parcel follows the first match; otherwise it goes to C.",
     "fingerprint": "0c4503a2c3129e70f1f44684c1170164762246fad336e17b7da7b7ab63b45ff2",
@@ -2728,16 +2252,8 @@
         "target": 1
       }
     ],
-    "solution": [
-      "rule-cc3ec2873ee0",
-      "rule-490444d99296",
-      "rule-b1f5998cf4ba"
-    ],
-    "starter": [
-      "rule-490444d99296",
-      "rule-b1f5998cf4ba",
-      "rule-cc3ec2873ee0"
-    ],
+    "solution": ["rule-cc3ec2873ee0", "rule-490444d99296", "rule-b1f5998cf4ba"],
+    "starter": ["rule-490444d99296", "rule-b1f5998cf4ba", "rule-cc3ec2873ee0"],
     "validOrders": 1,
     "prompt": "Reorder the rules. Each parcel follows the first match; otherwise it goes to C.",
     "fingerprint": "c2e52cdb64bdaebaded5ac2f69dc8859f628b5526a11904573357c42ca63d882",
@@ -2824,16 +2340,8 @@
         "target": 1
       }
     ],
-    "solution": [
-      "rule-0d6c9e5cb3d3",
-      "rule-06363bac76c3",
-      "rule-2c481bae4a84"
-    ],
-    "starter": [
-      "rule-2c481bae4a84",
-      "rule-0d6c9e5cb3d3",
-      "rule-06363bac76c3"
-    ],
+    "solution": ["rule-0d6c9e5cb3d3", "rule-06363bac76c3", "rule-2c481bae4a84"],
+    "starter": ["rule-2c481bae4a84", "rule-0d6c9e5cb3d3", "rule-06363bac76c3"],
     "validOrders": 1,
     "prompt": "Reorder the rules. Each parcel follows the first match; otherwise it goes to C.",
     "fingerprint": "20a3657a174df509fd9df85bae430d28ff7a1bd539e5959e2969a9c3c1061fb8",
@@ -2942,12 +2450,7 @@
       "rule-0a3c6f0c3da1",
       "rule-280869a8e6de"
     ],
-    "starter": [
-      "rule-0a3c6f0c3da1",
-      "rule-ba83f4e4f0ca",
-      "rule-ac31231c36f0",
-      "rule-280869a8e6de"
-    ],
+    "starter": ["rule-0a3c6f0c3da1", "rule-ba83f4e4f0ca", "rule-ac31231c36f0", "rule-280869a8e6de"],
     "validOrders": 4,
     "prompt": "Reorder the rules. Each parcel follows the first match; otherwise it goes to C.",
     "fingerprint": "4d7e81a1d3d1d23f18b0f980a6e395e88c2f9419b5e1283c0199b8443808225e",
@@ -3054,12 +2557,7 @@
       "rule-389f7a303c1f",
       "rule-b775ab238557"
     ],
-    "starter": [
-      "rule-b775ab238557",
-      "rule-c4c32e923c6c",
-      "rule-b07679b6b0b3",
-      "rule-389f7a303c1f"
-    ],
+    "starter": ["rule-b775ab238557", "rule-c4c32e923c6c", "rule-b07679b6b0b3", "rule-389f7a303c1f"],
     "validOrders": 4,
     "prompt": "Reorder the rules. Each parcel follows the first match; otherwise it goes to C.",
     "fingerprint": "c5da37cf60749a7b7d5205baaf01950ea60c4292f24d131910cc88c81c20e867",
@@ -3166,12 +2664,7 @@
       "rule-8da8f4e05b00",
       "rule-912155d0f23b"
     ],
-    "starter": [
-      "rule-8da8f4e05b00",
-      "rule-c1b8a43e0d2b",
-      "rule-364cdd846b00",
-      "rule-912155d0f23b"
-    ],
+    "starter": ["rule-8da8f4e05b00", "rule-c1b8a43e0d2b", "rule-364cdd846b00", "rule-912155d0f23b"],
     "validOrders": 2,
     "prompt": "Reorder the rules. Each parcel follows the first match; otherwise it goes to C.",
     "fingerprint": "035d009b3985155023ca7b24ce39fbeef59d7ce54a3e84db2905950824cd79de",
@@ -3280,12 +2773,7 @@
       "rule-102443930d41",
       "rule-ca82a812a05a"
     ],
-    "starter": [
-      "rule-cb1ccf7407ba",
-      "rule-ca82a812a05a",
-      "rule-102443930d41",
-      "rule-d549a9eb67d3"
-    ],
+    "starter": ["rule-cb1ccf7407ba", "rule-ca82a812a05a", "rule-102443930d41", "rule-d549a9eb67d3"],
     "validOrders": 4,
     "prompt": "Reorder the rules. Each parcel follows the first match; otherwise it goes to C.",
     "fingerprint": "be679ccaa768e95321416850137b5d3f518ab43c5ab7cd80fde06ada6ebf62ac",
@@ -3394,12 +2882,7 @@
       "rule-32d47375163d",
       "rule-5d1766a708f8"
     ],
-    "starter": [
-      "rule-e81e12ba10ba",
-      "rule-32d47375163d",
-      "rule-5d1766a708f8",
-      "rule-9ea8e949a5f2"
-    ],
+    "starter": ["rule-e81e12ba10ba", "rule-32d47375163d", "rule-5d1766a708f8", "rule-9ea8e949a5f2"],
     "validOrders": 3,
     "prompt": "Reorder the rules. Each parcel follows the first match; otherwise it goes to C.",
     "fingerprint": "7007481804036d1b0280af81edbfab9b2660e9d98e1c3b2a807299bd9e463cc2",
@@ -3507,12 +2990,7 @@
       "rule-1a4bf4e1b92f",
       "rule-0c8ce1251322"
     ],
-    "starter": [
-      "rule-9506dc53a410",
-      "rule-0c8ce1251322",
-      "rule-1a4bf4e1b92f",
-      "rule-b92ec9ccc0e2"
-    ],
+    "starter": ["rule-9506dc53a410", "rule-0c8ce1251322", "rule-1a4bf4e1b92f", "rule-b92ec9ccc0e2"],
     "validOrders": 2,
     "prompt": "Reorder the rules. Each parcel follows the first match; otherwise it goes to C.",
     "fingerprint": "e56714e153f9f68b7990e81a71a3e841a3e2172509516e09a31e2993dc2a373f",
@@ -3629,12 +3107,7 @@
       "rule-2301fc0703e0",
       "rule-2570f7ad0647"
     ],
-    "starter": [
-      "rule-a53784619bf0",
-      "rule-2570f7ad0647",
-      "rule-237049955351",
-      "rule-2301fc0703e0"
-    ],
+    "starter": ["rule-a53784619bf0", "rule-2570f7ad0647", "rule-237049955351", "rule-2301fc0703e0"],
     "validOrders": 2,
     "prompt": "Reorder the rules. Each parcel follows the first match; otherwise it goes to C.",
     "fingerprint": "cf92621a302dfe980b0a3fa104604bf14f2aed32d2a1caaf8a3628ad9f2b0056",
@@ -3748,12 +3221,7 @@
       "rule-4fbe3fcf956d",
       "rule-e2fdbd6d747a"
     ],
-    "starter": [
-      "rule-e2fdbd6d747a",
-      "rule-4fbe3fcf956d",
-      "rule-3b76d13d1cae",
-      "rule-c8901c33cdfc"
-    ],
+    "starter": ["rule-e2fdbd6d747a", "rule-4fbe3fcf956d", "rule-3b76d13d1cae", "rule-c8901c33cdfc"],
     "validOrders": 2,
     "prompt": "Reorder the rules. Each parcel follows the first match; otherwise it goes to C.",
     "fingerprint": "1217b138a579413eaa4a9d0d2dbd2d2f73ceb3bdc66bb5bda2e4bd5fec47c200",
@@ -3868,12 +3336,7 @@
       "rule-a78b0d15970d",
       "rule-7c69b66ddbee"
     ],
-    "starter": [
-      "rule-cec4ee6c4836",
-      "rule-a78b0d15970d",
-      "rule-e08e94c357cf",
-      "rule-7c69b66ddbee"
-    ],
+    "starter": ["rule-cec4ee6c4836", "rule-a78b0d15970d", "rule-e08e94c357cf", "rule-7c69b66ddbee"],
     "validOrders": 2,
     "prompt": "Reorder the rules. Each parcel follows the first match; otherwise it goes to C.",
     "fingerprint": "85a0d605b6db79b67831fc5dd7dee5ed2f34ebfe44c23d2e40fd878d089f1656",
@@ -3988,12 +3451,7 @@
       "rule-8bdc7892f855",
       "rule-a485bf55cd16"
     ],
-    "starter": [
-      "rule-a485bf55cd16",
-      "rule-1d442428ea6b",
-      "rule-8bdc7892f855",
-      "rule-447a4e317465"
-    ],
+    "starter": ["rule-a485bf55cd16", "rule-1d442428ea6b", "rule-8bdc7892f855", "rule-447a4e317465"],
     "validOrders": 2,
     "prompt": "Reorder the rules. Each parcel follows the first match; otherwise it goes to C.",
     "fingerprint": "5f12031a42af738473d5cffd3eed427b41a291b725a802b0acf99b2ecbd3e991",
@@ -4107,12 +3565,7 @@
       "rule-932b47fdbd5f",
       "rule-af679778dd09"
     ],
-    "starter": [
-      "rule-932b47fdbd5f",
-      "rule-af679778dd09",
-      "rule-b50246aa567c",
-      "rule-7ab33616bca1"
-    ],
+    "starter": ["rule-932b47fdbd5f", "rule-af679778dd09", "rule-b50246aa567c", "rule-7ab33616bca1"],
     "validOrders": 2,
     "prompt": "Reorder the rules. Each parcel follows the first match; otherwise it goes to C.",
     "fingerprint": "588a5520285de4d9916553cd6c111555eb99d596ec3d6565084bddfe5d7abdce",
@@ -4226,12 +3679,7 @@
       "rule-2dbb40f788cd",
       "rule-2728742325ad"
     ],
-    "starter": [
-      "rule-a962b08e270c",
-      "rule-42090d2e185e",
-      "rule-2728742325ad",
-      "rule-2dbb40f788cd"
-    ],
+    "starter": ["rule-a962b08e270c", "rule-42090d2e185e", "rule-2728742325ad", "rule-2dbb40f788cd"],
     "validOrders": 2,
     "prompt": "Reorder the rules. Each parcel follows the first match; otherwise it goes to C.",
     "fingerprint": "f383561f71239cb6517d4a15a6dd78076aff8143fd28686e419144dca51da6e1",
@@ -5030,17 +4478,9 @@
     "allowRepeat": false,
     "maxTiles": 6,
     "maxMoves": 18,
-    "target": [
-      17,
-      22
-    ],
+    "target": [17, 22],
     "optimum": 4,
-    "solution": [
-      "down",
-      "paint",
-      "down",
-      "paint"
-    ],
+    "solution": ["down", "paint", "down", "paint"],
     "starter": [],
     "family": "move-paint",
     "prompt": "Match the target. Move changes position; Paint marks the square.",
@@ -5062,16 +4502,9 @@
     "allowRepeat": false,
     "maxTiles": 5,
     "maxMoves": 18,
-    "target": [
-      20,
-      21
-    ],
+    "target": [20, 21],
     "optimum": 3,
-    "solution": [
-      "paint",
-      "right",
-      "paint"
-    ],
+    "solution": ["paint", "right", "paint"],
     "starter": [],
     "family": "move-paint",
     "prompt": "Match the target. Move changes position; Paint marks the square.",
@@ -5093,17 +4526,9 @@
     "allowRepeat": false,
     "maxTiles": 6,
     "maxMoves": 18,
-    "target": [
-      1,
-      6
-    ],
+    "target": [1, 6],
     "optimum": 4,
-    "solution": [
-      "left",
-      "paint",
-      "up",
-      "paint"
-    ],
+    "solution": ["left", "paint", "up", "paint"],
     "starter": [],
     "family": "move-paint",
     "prompt": "Match the target. Move changes position; Paint marks the square.",
@@ -5125,17 +4550,9 @@
     "allowRepeat": false,
     "maxTiles": 6,
     "maxMoves": 18,
-    "target": [
-      12,
-      13
-    ],
+    "target": [12, 13],
     "optimum": 4,
-    "solution": [
-      "up",
-      "paint",
-      "left",
-      "paint"
-    ],
+    "solution": ["up", "paint", "left", "paint"],
     "starter": [],
     "family": "move-paint",
     "prompt": "Match the target. Move changes position; Paint marks the square.",
@@ -5157,16 +4574,9 @@
     "allowRepeat": false,
     "maxTiles": 5,
     "maxMoves": 18,
-    "target": [
-      18,
-      23
-    ],
+    "target": [18, 23],
     "optimum": 3,
-    "solution": [
-      "paint",
-      "up",
-      "paint"
-    ],
+    "solution": ["paint", "up", "paint"],
     "starter": [],
     "family": "move-paint",
     "prompt": "Match the target. Move changes position; Paint marks the square.",
@@ -5188,16 +4598,9 @@
     "allowRepeat": false,
     "maxTiles": 5,
     "maxMoves": 18,
-    "target": [
-      22,
-      23
-    ],
+    "target": [22, 23],
     "optimum": 3,
-    "solution": [
-      "paint",
-      "left",
-      "paint"
-    ],
+    "solution": ["paint", "left", "paint"],
     "starter": [],
     "family": "move-paint",
     "prompt": "Match the target. Move changes position; Paint marks the square.",
@@ -5219,18 +4622,12 @@
     "allowRepeat": true,
     "maxTiles": 4,
     "maxMoves": 18,
-    "target": [
-      10,
-      11
-    ],
+    "target": [10, 11],
     "optimum": 3,
     "solution": [
       {
         "repeat": 2,
-        "body": [
-          "left",
-          "paint"
-        ]
+        "body": ["left", "paint"]
       }
     ],
     "starter": [],
@@ -5254,18 +4651,12 @@
     "allowRepeat": true,
     "maxTiles": 4,
     "maxMoves": 18,
-    "target": [
-      6,
-      7
-    ],
+    "target": [6, 7],
     "optimum": 3,
     "solution": [
       {
         "repeat": 2,
-        "body": [
-          "left",
-          "paint"
-        ]
+        "body": ["left", "paint"]
       }
     ],
     "starter": [],
@@ -5289,20 +4680,12 @@
     "allowRepeat": true,
     "maxTiles": 4,
     "maxMoves": 18,
-    "target": [
-      1,
-      6,
-      11,
-      16
-    ],
+    "target": [1, 6, 11, 16],
     "optimum": 3,
     "solution": [
       {
         "repeat": 4,
-        "body": [
-          "up",
-          "paint"
-        ]
+        "body": ["up", "paint"]
       }
     ],
     "starter": [],
@@ -5326,19 +4709,12 @@
     "allowRepeat": true,
     "maxTiles": 4,
     "maxMoves": 18,
-    "target": [
-      5,
-      6,
-      7
-    ],
+    "target": [5, 6, 7],
     "optimum": 3,
     "solution": [
       {
         "repeat": 3,
-        "body": [
-          "left",
-          "paint"
-        ]
+        "body": ["left", "paint"]
       }
     ],
     "starter": [],
@@ -5362,18 +4738,12 @@
     "allowRepeat": true,
     "maxTiles": 4,
     "maxMoves": 18,
-    "target": [
-      16,
-      21
-    ],
+    "target": [16, 21],
     "optimum": 3,
     "solution": [
       {
         "repeat": 2,
-        "body": [
-          "down",
-          "paint"
-        ]
+        "body": ["down", "paint"]
       }
     ],
     "starter": [],
@@ -5397,18 +4767,12 @@
     "allowRepeat": true,
     "maxTiles": 4,
     "maxMoves": 18,
-    "target": [
-      19,
-      24
-    ],
+    "target": [19, 24],
     "optimum": 3,
     "solution": [
       {
         "repeat": 2,
-        "body": [
-          "down",
-          "paint"
-        ]
+        "body": ["down", "paint"]
       }
     ],
     "starter": [],
@@ -5432,27 +4796,18 @@
     "allowRepeat": true,
     "maxTiles": 3,
     "maxMoves": 18,
-    "target": [
-      0,
-      1
-    ],
+    "target": [0, 1],
     "optimum": 3,
     "solution": [
       {
         "repeat": 2,
-        "body": [
-          "left",
-          "paint"
-        ]
+        "body": ["left", "paint"]
       }
     ],
     "starter": [
       {
         "repeat": 3,
-        "body": [
-          "left",
-          "paint"
-        ]
+        "body": ["left", "paint"]
       }
     ],
     "family": "repair-repeat",
@@ -5475,27 +4830,18 @@
     "allowRepeat": true,
     "maxTiles": 3,
     "maxMoves": 18,
-    "target": [
-      15,
-      20
-    ],
+    "target": [15, 20],
     "optimum": 3,
     "solution": [
       {
         "repeat": 2,
-        "body": [
-          "down",
-          "paint"
-        ]
+        "body": ["down", "paint"]
       }
     ],
     "starter": [
       {
         "repeat": 3,
-        "body": [
-          "down",
-          "paint"
-        ]
+        "body": ["down", "paint"]
       }
     ],
     "family": "repair-repeat",
@@ -5518,29 +4864,18 @@
     "allowRepeat": true,
     "maxTiles": 3,
     "maxMoves": 18,
-    "target": [
-      9,
-      14,
-      19,
-      24
-    ],
+    "target": [9, 14, 19, 24],
     "optimum": 3,
     "solution": [
       {
         "repeat": 4,
-        "body": [
-          "down",
-          "paint"
-        ]
+        "body": ["down", "paint"]
       }
     ],
     "starter": [
       {
         "repeat": 2,
-        "body": [
-          "down",
-          "paint"
-        ]
+        "body": ["down", "paint"]
       }
     ],
     "family": "repair-repeat",
@@ -5563,29 +4898,18 @@
     "allowRepeat": true,
     "maxTiles": 3,
     "maxMoves": 18,
-    "target": [
-      21,
-      22,
-      23,
-      24
-    ],
+    "target": [21, 22, 23, 24],
     "optimum": 3,
     "solution": [
       {
         "repeat": 4,
-        "body": [
-          "right",
-          "paint"
-        ]
+        "body": ["right", "paint"]
       }
     ],
     "starter": [
       {
         "repeat": 2,
-        "body": [
-          "right",
-          "paint"
-        ]
+        "body": ["right", "paint"]
       }
     ],
     "family": "repair-repeat",
@@ -5608,27 +4932,18 @@
     "allowRepeat": true,
     "maxTiles": 3,
     "maxMoves": 18,
-    "target": [
-      13,
-      18
-    ],
+    "target": [13, 18],
     "optimum": 3,
     "solution": [
       {
         "repeat": 2,
-        "body": [
-          "down",
-          "paint"
-        ]
+        "body": ["down", "paint"]
       }
     ],
     "starter": [
       {
         "repeat": 3,
-        "body": [
-          "down",
-          "paint"
-        ]
+        "body": ["down", "paint"]
       }
     ],
     "family": "repair-repeat",
@@ -5651,27 +4966,18 @@
     "allowRepeat": true,
     "maxTiles": 3,
     "maxMoves": 18,
-    "target": [
-      0,
-      5
-    ],
+    "target": [0, 5],
     "optimum": 3,
     "solution": [
       {
         "repeat": 2,
-        "body": [
-          "up",
-          "paint"
-        ]
+        "body": ["up", "paint"]
       }
     ],
     "starter": [
       {
         "repeat": 3,
-        "body": [
-          "up",
-          "paint"
-        ]
+        "body": ["up", "paint"]
       }
     ],
     "family": "repair-repeat",
@@ -5694,20 +5000,12 @@
     "allowRepeat": true,
     "maxTiles": 3,
     "maxMoves": 18,
-    "target": [
-      16,
-      17,
-      18,
-      19
-    ],
+    "target": [16, 17, 18, 19],
     "optimum": 3,
     "solution": [
       {
         "repeat": 4,
-        "body": [
-          "right",
-          "paint"
-        ]
+        "body": ["right", "paint"]
       }
     ],
     "starter": [],
@@ -5731,20 +5029,12 @@
     "allowRepeat": true,
     "maxTiles": 3,
     "maxMoves": 18,
-    "target": [
-      6,
-      7,
-      8,
-      9
-    ],
+    "target": [6, 7, 8, 9],
     "optimum": 3,
     "solution": [
       {
         "repeat": 4,
-        "body": [
-          "right",
-          "paint"
-        ]
+        "body": ["right", "paint"]
       }
     ],
     "starter": [],
@@ -5768,22 +5058,12 @@
     "allowRepeat": true,
     "maxTiles": 5,
     "maxMoves": 18,
-    "target": [
-      2,
-      3,
-      6,
-      7
-    ],
+    "target": [2, 3, 6, 7],
     "optimum": 5,
     "solution": [
       {
         "repeat": 2,
-        "body": [
-          "up",
-          "paint",
-          "right",
-          "paint"
-        ]
+        "body": ["up", "paint", "right", "paint"]
       }
     ],
     "starter": [],
@@ -5807,20 +5087,12 @@
     "allowRepeat": true,
     "maxTiles": 3,
     "maxMoves": 18,
-    "target": [
-      1,
-      2,
-      3,
-      4
-    ],
+    "target": [1, 2, 3, 4],
     "optimum": 3,
     "solution": [
       {
         "repeat": 4,
-        "body": [
-          "right",
-          "paint"
-        ]
+        "body": ["right", "paint"]
       }
     ],
     "starter": [],
@@ -5844,22 +5116,12 @@
     "allowRepeat": true,
     "maxTiles": 5,
     "maxMoves": 18,
-    "target": [
-      13,
-      14,
-      17,
-      18
-    ],
+    "target": [13, 14, 17, 18],
     "optimum": 5,
     "solution": [
       {
         "repeat": 2,
-        "body": [
-          "down",
-          "paint",
-          "left",
-          "paint"
-        ]
+        "body": ["down", "paint", "left", "paint"]
       }
     ],
     "starter": [],
@@ -5883,22 +5145,12 @@
     "allowRepeat": true,
     "maxTiles": 5,
     "maxMoves": 18,
-    "target": [
-      7,
-      12,
-      13,
-      18
-    ],
+    "target": [7, 12, 13, 18],
     "optimum": 5,
     "solution": [
       {
         "repeat": 2,
-        "body": [
-          "left",
-          "paint",
-          "up",
-          "paint"
-        ]
+        "body": ["left", "paint", "up", "paint"]
       }
     ],
     "starter": [],
@@ -5922,25 +5174,14 @@
     "allowRepeat": true,
     "maxTiles": 7,
     "maxMoves": 18,
-    "target": [
-      12,
-      13,
-      16,
-      17,
-      21
-    ],
+    "target": [12, 13, 16, 17, 21],
     "optimum": 7,
     "solution": [
       "right",
       "paint",
       {
         "repeat": 2,
-        "body": [
-          "left",
-          "paint",
-          "down",
-          "paint"
-        ]
+        "body": ["left", "paint", "down", "paint"]
       }
     ],
     "starter": [],
@@ -5964,23 +5205,13 @@
     "allowRepeat": true,
     "maxTiles": 5,
     "maxMoves": 18,
-    "target": [
-      2,
-      7,
-      12,
-      17,
-      22
-    ],
+    "target": [2, 7, 12, 17, 22],
     "optimum": 5,
     "solution": [
       "up",
       {
         "repeat": 4,
-        "body": [
-          "paint",
-          "down",
-          "paint"
-        ]
+        "body": ["paint", "down", "paint"]
       }
     ],
     "starter": [],
@@ -6004,25 +5235,14 @@
     "allowRepeat": true,
     "maxTiles": 7,
     "maxMoves": 18,
-    "target": [
-      1,
-      2,
-      7,
-      8,
-      13
-    ],
+    "target": [1, 2, 7, 8, 13],
     "optimum": 7,
     "solution": [
       "down",
       "paint",
       {
         "repeat": 2,
-        "body": [
-          "up",
-          "paint",
-          "left",
-          "paint"
-        ]
+        "body": ["up", "paint", "left", "paint"]
       }
     ],
     "starter": [],
@@ -6046,23 +5266,13 @@
     "allowRepeat": true,
     "maxTiles": 5,
     "maxMoves": 18,
-    "target": [
-      10,
-      11,
-      12,
-      13,
-      14
-    ],
+    "target": [10, 11, 12, 13, 14],
     "optimum": 5,
     "solution": [
       "right",
       {
         "repeat": 4,
-        "body": [
-          "paint",
-          "left",
-          "paint"
-        ]
+        "body": ["paint", "left", "paint"]
       }
     ],
     "starter": [],
@@ -6086,25 +5296,14 @@
     "allowRepeat": true,
     "maxTiles": 7,
     "maxMoves": 18,
-    "target": [
-      7,
-      11,
-      12,
-      15,
-      16
-    ],
+    "target": [7, 11, 12, 15, 16],
     "optimum": 7,
     "solution": [
       "left",
       "paint",
       {
         "repeat": 2,
-        "body": [
-          "down",
-          "paint",
-          "left",
-          "paint"
-        ]
+        "body": ["down", "paint", "left", "paint"]
       }
     ],
     "starter": [],
@@ -6128,27 +5327,14 @@
     "allowRepeat": true,
     "maxTiles": 7,
     "maxMoves": 18,
-    "target": [
-      6,
-      11,
-      12,
-      17,
-      18,
-      23,
-      24
-    ],
+    "target": [6, 11, 12, 17, 18, 23, 24],
     "optimum": 7,
     "solution": [
       "right",
       "paint",
       {
         "repeat": 3,
-        "body": [
-          "down",
-          "paint",
-          "right",
-          "paint"
-        ]
+        "body": ["down", "paint", "right", "paint"]
       }
     ],
     "starter": [],
@@ -6268,10 +5454,7 @@
     "prompt": "Add b to a, then set b to one more than the updated a. Find the faulty statement.",
     "answer": "2",
     "choices": null,
-    "editableLines": [
-      2,
-      3
-    ],
+    "editableLines": [2, 3],
     "correctedLine": "a = a + b",
     "explanation": "Subtracting b instead of adding it before the second update.",
     "reasoning": {
@@ -6380,10 +5563,7 @@
     "prompt": "Add the current item to total, then increase item by one. Find the faulty statement.",
     "answer": "2",
     "choices": null,
-    "editableLines": [
-      2,
-      3
-    ],
+    "editableLines": [2, 3],
     "correctedLine": "total = total + item",
     "explanation": "Replacing an accumulated value.",
     "reasoning": {
@@ -6405,11 +5585,7 @@
       {
         "type": "set",
         "name": "items",
-        "value": [
-          2,
-          3,
-          1
-        ],
+        "value": [2, 3, 1],
         "id": "s1"
       },
       {
@@ -6456,11 +5632,7 @@
       {
         "type": "set",
         "name": "items",
-        "value": [
-          2,
-          3,
-          1
-        ],
+        "value": [2, 3, 1],
         "id": "s1"
       },
       {
@@ -6500,10 +5672,7 @@
     "prompt": "Advance one position from index zero, then read that list item. Find the faulty statement.",
     "answer": "2",
     "choices": null,
-    "editableLines": [
-      2,
-      3
-    ],
+    "editableLines": [2, 3],
     "correctedLine": "index = index + 1",
     "explanation": "Reading before advancing the position.",
     "reasoning": {
@@ -6626,10 +5795,7 @@
     "prompt": "Move one item from left to right, then print left minus right. Find the faulty statement.",
     "answer": "2",
     "choices": null,
-    "editableLines": [
-      2,
-      3
-    ],
+    "editableLines": [2, 3],
     "correctedLine": "left = left - 1",
     "explanation": "Updating both quantities in the same direction.",
     "reasoning": {
@@ -6752,11 +5918,7 @@
     "prompt": "Swap a and b using saved, then print a minus b. Find the faulty statement.",
     "answer": "4",
     "choices": null,
-    "editableLines": [
-      2,
-      3,
-      4
-    ],
+    "editableLines": [2, 3, 4],
     "correctedLine": "b = saved",
     "explanation": "Overwriting a value before preserving it.",
     "reasoning": {
@@ -6873,10 +6035,7 @@
     "prompt": "Save the original a; increase a by b; print how much a changed. Find the faulty statement.",
     "answer": "2",
     "choices": null,
-    "editableLines": [
-      2,
-      3
-    ],
+    "editableLines": [2, 3],
     "correctedLine": "saved = a",
     "explanation": "Confusing a snapshot with the updated value.",
     "reasoning": {
@@ -7009,12 +6168,7 @@
     "prompt": "Scores of 5 or more receive two bonus points. Add that bonus to score. Find the faulty statement.",
     "answer": "1",
     "choices": null,
-    "editableLines": [
-      1,
-      2,
-      4,
-      5
-    ],
+    "editableLines": [1, 2, 4, 5],
     "correctedLine": "if score >= 5:",
     "explanation": "Excluding the boundary value.",
     "reasoning": {
@@ -7141,11 +6295,7 @@
     "prompt": "Use one remaining place; set open to zero when no places remain. Find the faulty statement.",
     "answer": "2",
     "choices": null,
-    "editableLines": [
-      2,
-      3,
-      4
-    ],
+    "editableLines": [2, 3, 4],
     "correctedLine": "remaining = remaining - 1",
     "explanation": "Checking availability without updating it correctly.",
     "reasoning": {
@@ -7290,12 +6440,7 @@
     "prompt": "Start result at 1 when the inputs match, otherwise 0; then add one. Find the faulty statement.",
     "answer": "2",
     "choices": null,
-    "editableLines": [
-      2,
-      3,
-      5,
-      6
-    ],
+    "editableLines": [2, 3, 5, 6],
     "correctedLine": "if a == b:",
     "explanation": "Applying the final update to the wrong branch result.",
     "reasoning": {
@@ -7424,11 +6569,7 @@
     "prompt": "Store and print the smaller input. Find the faulty statement.",
     "answer": "2",
     "choices": null,
-    "editableLines": [
-      2,
-      3,
-      5
-    ],
+    "editableLines": [2, 3, 5],
     "correctedLine": "if a < b:",
     "explanation": "Reversing a comparison.",
     "reasoning": {
@@ -7557,12 +6698,7 @@
     "prompt": "Increase a by one, then set b to 2 if a reaches 4, otherwise 1. Find the faulty statement.",
     "answer": "1",
     "choices": null,
-    "editableLines": [
-      1,
-      2,
-      3,
-      5
-    ],
+    "editableLines": [1, 2, 3, 5],
     "correctedLine": "a = a + 1",
     "explanation": "Choosing a branch using the previous state.",
     "reasoning": {
@@ -7705,11 +6841,7 @@
     "prompt": "Decrease b, then increase a by two only if the values match. Find the faulty statement.",
     "answer": "2",
     "choices": null,
-    "editableLines": [
-      2,
-      3,
-      4
-    ],
+    "editableLines": [2, 3, 4],
     "correctedLine": "b = b - 1",
     "explanation": "Ignoring how the first change affects the condition.",
     "reasoning": {
@@ -7737,13 +6869,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          4,
-          4,
-          2,
-          3,
-          1
-        ],
+        "values": [4, 4, 2, 3, 1],
         "body": [
           {
             "type": "set",
@@ -7780,13 +6906,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          4,
-          4,
-          2,
-          3,
-          1
-        ],
+        "values": [4, 4, 2, 3, 1],
         "body": [
           {
             "type": "set",
@@ -7810,10 +6930,7 @@
     "prompt": "Accumulate all items in total. Find the faulty statement.",
     "answer": "2",
     "choices": null,
-    "editableLines": [
-      1,
-      2
-    ],
+    "editableLines": [1, 2],
     "correctedLine": "    total = total + item",
     "explanation": "Keeping only the last item.",
     "reasoning": {
@@ -7841,11 +6958,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          1,
-          2,
-          4
-        ],
+        "values": [1, 2, 4],
         "body": [
           {
             "type": "if",
@@ -7892,11 +7005,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          1,
-          2,
-          4
-        ],
+        "values": [1, 2, 4],
         "body": [
           {
             "type": "if",
@@ -7942,11 +7051,7 @@
     "prompt": "Keep the largest item seen so far. Find the faulty statement.",
     "answer": "3",
     "choices": null,
-    "editableLines": [
-      1,
-      2,
-      3
-    ],
+    "editableLines": [1, 2, 3],
     "correctedLine": "        best = item",
     "explanation": "Accumulating instead of replacing the current maximum.",
     "reasoning": {
@@ -7974,11 +7079,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          3,
-          1,
-          1
-        ],
+        "values": [3, 1, 1],
         "body": [
           {
             "type": "set",
@@ -8021,11 +7122,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          3,
-          1,
-          1
-        ],
+        "values": [3, 1, 1],
         "body": [
           {
             "type": "set",
@@ -8061,11 +7158,7 @@
     "prompt": "Remove one from total for each item and remember the updated total. Find the faulty statement.",
     "answer": "2",
     "choices": null,
-    "editableLines": [
-      1,
-      2,
-      3
-    ],
+    "editableLines": [1, 2, 3],
     "correctedLine": "    total = total - 1",
     "explanation": "Tracing the update in the wrong direction.",
     "reasoning": {
@@ -8099,12 +7192,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          2,
-          5,
-          4,
-          1
-        ],
+        "values": [2, 5, 4, 1],
         "body": [
           {
             "type": "set",
@@ -8159,12 +7247,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          2,
-          5,
-          4,
-          1
-        ],
+        "values": [2, 5, 4, 1],
         "body": [
           {
             "type": "set",
@@ -8206,11 +7289,7 @@
     "prompt": "For each item, increase count and then add the new count to total. Find the faulty statement.",
     "answer": "4",
     "choices": null,
-    "editableLines": [
-      2,
-      3,
-      4
-    ],
+    "editableLines": [2, 3, 4],
     "correctedLine": "    total = total + count",
     "explanation": "Confusing the item value with the iteration count.",
     "reasoning": {
@@ -8238,12 +7317,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          1,
-          3,
-          5,
-          2
-        ],
+        "values": [1, 3, 5, 2],
         "body": [
           {
             "type": "if",
@@ -8292,12 +7366,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          1,
-          3,
-          5,
-          2
-        ],
+        "values": [1, 3, 5, 2],
         "body": [
           {
             "type": "if",
@@ -8335,11 +7404,7 @@
     "prompt": "Count how many items are at least two. Find the faulty statement.",
     "answer": "3",
     "choices": null,
-    "editableLines": [
-      1,
-      2,
-      3
-    ],
+    "editableLines": [1, 2, 3],
     "correctedLine": "        count = count + 1",
     "explanation": "Replacing the count with an item instead of increasing it.",
     "reasoning": {
@@ -8373,11 +7438,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          1,
-          2,
-          3
-        ],
+        "values": [1, 2, 3],
         "body": [
           {
             "type": "set",
@@ -8430,11 +7491,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          1,
-          2,
-          3
-        ],
+        "values": [1, 2, 3],
         "body": [
           {
             "type": "set",
@@ -8474,12 +7531,7 @@
     "prompt": "Swap a and b once per iteration using saved. Find the faulty statement.",
     "answer": "4",
     "choices": null,
-    "editableLines": [
-      2,
-      3,
-      4,
-      5
-    ],
+    "editableLines": [2, 3, 4, 5],
     "correctedLine": "    a = b",
     "explanation": "Assuming repeated swaps always restore the starting state.",
     "reasoning": {
@@ -8513,13 +7565,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          4,
-          4,
-          2,
-          3,
-          1
-        ],
+        "values": [4, 4, 2, 3, 1],
         "body": [
           {
             "type": "if",
@@ -8594,13 +7640,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          4,
-          4,
-          2,
-          3,
-          1
-        ],
+        "values": [4, 4, 2, 3, 1],
         "body": [
           {
             "type": "if",
@@ -8660,12 +7700,7 @@
     "prompt": "For values above one, accumulate their sum and count; print sum minus count. Find the faulty statement.",
     "answer": "4",
     "choices": null,
-    "editableLines": [
-      2,
-      3,
-      4,
-      5
-    ],
+    "editableLines": [2, 3, 4, 5],
     "correctedLine": "        total = total + item",
     "explanation": "Treating two accumulators as interchangeable.",
     "reasoning": {
@@ -8699,12 +7734,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          1,
-          0,
-          1,
-          1
-        ],
+        "values": [1, 0, 1, 1],
         "body": [
           {
             "type": "if",
@@ -8790,12 +7820,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          1,
-          0,
-          1,
-          1
-        ],
+        "values": [1, 0, 1, 1],
         "body": [
           {
             "type": "if",
@@ -8870,14 +7895,7 @@
     "prompt": "Track the longest uninterrupted run of ones. Find the faulty statement.",
     "answer": "6",
     "choices": null,
-    "editableLines": [
-      2,
-      3,
-      4,
-      6,
-      7,
-      8
-    ],
+    "editableLines": [2, 3, 4, 6, 7, 8],
     "correctedLine": "        count = 0",
     "explanation": "Failing to reset state between groups.",
     "reasoning": {
@@ -8911,13 +7929,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          2,
-          1,
-          2,
-          3,
-          1
-        ],
+        "values": [2, 1, 2, 3, 1],
         "body": [
           {
             "type": "if",
@@ -8992,13 +8004,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          2,
-          1,
-          2,
-          3,
-          1
-        ],
+        "values": [2, 1, 2, 3, 1],
         "body": [
           {
             "type": "if",
@@ -9054,12 +8060,7 @@
     "prompt": "Accept an item only when the running total stays at most five; count accepted items. Find the faulty statement.",
     "answer": "4",
     "choices": null,
-    "editableLines": [
-      2,
-      3,
-      4,
-      5
-    ],
+    "editableLines": [2, 3, 4, 5],
     "correctedLine": "        used = used + item",
     "explanation": "Forgetting the capacity already used.",
     "reasoning": {
@@ -9093,12 +8094,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          2,
-          5,
-          4,
-          1
-        ],
+        "values": [2, 5, 4, 1],
         "body": [
           {
             "type": "if",
@@ -9167,12 +8163,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          2,
-          5,
-          4,
-          1
-        ],
+        "values": [2, 5, 4, 1],
         "body": [
           {
             "type": "if",
@@ -9222,12 +8213,7 @@
     "prompt": "Add alternating items, starting with the first. Toggle enabled after each item. Find the faulty statement.",
     "answer": "4",
     "choices": null,
-    "editableLines": [
-      2,
-      3,
-      4,
-      5
-    ],
+    "editableLines": [2, 3, 4, 5],
     "correctedLine": "        total = total + item",
     "explanation": "Losing earlier selected values when the flag becomes true again.",
     "reasoning": {
@@ -9261,12 +8247,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          1,
-          3,
-          5,
-          2
-        ],
+        "values": [1, 3, 5, 2],
         "body": [
           {
             "type": "if",
@@ -9331,12 +8312,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          1,
-          3,
-          5,
-          2
-        ],
+        "values": [1, 3, 5, 2],
         "body": [
           {
             "type": "if",
@@ -9386,12 +8362,7 @@
     "prompt": "Count increases compared with the previous item, starting from zero. Find the faulty statement.",
     "answer": "5",
     "choices": null,
-    "editableLines": [
-      2,
-      3,
-      4,
-      5
-    ],
+    "editableLines": [2, 3, 4, 5],
     "correctedLine": "    previous = item",
     "explanation": "Comparing every item to the initial value.",
     "reasoning": {
@@ -9425,12 +8396,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          3,
-          4,
-          5,
-          1
-        ],
+        "values": [3, 4, 5, 1],
         "body": [
           {
             "type": "if",
@@ -9504,12 +8470,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          3,
-          4,
-          5,
-          1
-        ],
+        "values": [3, 4, 5, 1],
         "body": [
           {
             "type": "if",
@@ -9566,12 +8527,7 @@
     "prompt": "Count items above two in a and the others in b; print a minus b. Find the faulty statement.",
     "answer": "4",
     "choices": null,
-    "editableLines": [
-      2,
-      3,
-      4,
-      6
-    ],
+    "editableLines": [2, 3, 4, 6],
     "correctedLine": "        a = a + 1",
     "explanation": "Storing an item where a count belongs.",
     "reasoning": {
@@ -9605,13 +8561,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          4,
-          4,
-          2,
-          3,
-          1
-        ],
+        "values": [4, 4, 2, 3, 1],
         "body": [
           {
             "type": "if",
@@ -9684,13 +8634,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          4,
-          4,
-          2,
-          3,
-          1
-        ],
+        "values": [4, 4, 2, 3, 1],
         "body": [
           {
             "type": "if",
@@ -9748,12 +8692,7 @@
     "prompt": "Sum only upward changes between neighbouring values, starting from zero. Find the faulty statement.",
     "answer": "5",
     "choices": null,
-    "editableLines": [
-      2,
-      3,
-      4,
-      5
-    ],
+    "editableLines": [2, 3, 4, 5],
     "correctedLine": "    previous = item",
     "explanation": "Comparing to the initial state instead of the preceding state.",
     "reasoning": {
@@ -9787,11 +8726,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          1,
-          2,
-          3
-        ],
+        "values": [1, 2, 3],
         "body": [
           {
             "type": "set",
@@ -9850,11 +8785,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          1,
-          2,
-          3
-        ],
+        "values": [1, 2, 3],
         "body": [
           {
             "type": "set",
@@ -9900,12 +8831,7 @@
     "prompt": "On each iteration, replace a with old b and b with the sum of both old values. Find the faulty statement.",
     "answer": "4",
     "choices": null,
-    "editableLines": [
-      2,
-      3,
-      4,
-      5
-    ],
+    "editableLines": [2, 3, 4, 5],
     "correctedLine": "    a = b",
     "explanation": "Using a value after it has been overwritten.",
     "reasoning": {
@@ -9939,12 +8865,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          1,
-          0,
-          1,
-          1
-        ],
+        "values": [1, 0, 1, 1],
         "body": [
           {
             "type": "if",
@@ -10020,12 +8941,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          1,
-          0,
-          1,
-          1
-        ],
+        "values": [1, 0, 1, 1],
         "body": [
           {
             "type": "if",
@@ -10090,13 +9006,7 @@
     "prompt": "Reset count on zero; otherwise increase it. Add the resulting count to total each time. Find the faulty statement.",
     "answer": "4",
     "choices": null,
-    "editableLines": [
-      2,
-      3,
-      4,
-      6,
-      7
-    ],
+    "editableLines": [2, 3, 4, 6, 7],
     "correctedLine": "        count = 0",
     "explanation": "Carrying state across a reset boundary.",
     "reasoning": {
@@ -10130,12 +9040,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          2,
-          5,
-          4,
-          1
-        ],
+        "values": [2, 5, 4, 1],
         "body": [
           {
             "type": "if",
@@ -10204,12 +9109,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          2,
-          5,
-          4,
-          1
-        ],
+        "values": [2, 5, 4, 1],
         "body": [
           {
             "type": "if",
@@ -10259,12 +9159,7 @@
     "prompt": "After each item, add the number of qualifying items seen so far to total. Qualifying means at least two. Find the faulty statement.",
     "answer": "5",
     "choices": null,
-    "editableLines": [
-      2,
-      3,
-      4,
-      5
-    ],
+    "editableLines": [2, 3, 4, 5],
     "correctedLine": "    total = total + count",
     "explanation": "Keeping the final count instead of the sum of intermediate counts.",
     "reasoning": {
@@ -10298,13 +9193,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          0,
-          1,
-          0,
-          1,
-          1
-        ],
+        "values": [0, 1, 0, 1, 1],
         "body": [
           {
             "type": "if",
@@ -10371,13 +9260,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          0,
-          1,
-          0,
-          1,
-          1
-        ],
+        "values": [0, 1, 0, 1, 1],
         "body": [
           {
             "type": "if",
@@ -10425,12 +9308,7 @@
     "prompt": "Count each item whose previous item was one; the first item has no predecessor. Find the faulty statement.",
     "answer": "4",
     "choices": null,
-    "editableLines": [
-      2,
-      3,
-      4,
-      5
-    ],
+    "editableLines": [2, 3, 4, 5],
     "correctedLine": "        count = count + 1",
     "explanation": "Replacing a running count or using the current item too early.",
     "reasoning": {
@@ -10464,12 +9342,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          1,
-          1,
-          2,
-          2
-        ],
+        "values": [1, 1, 2, 2],
         "body": [
           {
             "type": "if",
@@ -10540,12 +9413,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          1,
-          1,
-          2,
-          2
-        ],
+        "values": [1, 1, 2, 2],
         "body": [
           {
             "type": "if",
@@ -10595,12 +9463,7 @@
     "prompt": "Accept each item that fits, subtract its size, and count accepted items. Find the faulty statement.",
     "answer": "4",
     "choices": null,
-    "editableLines": [
-      2,
-      3,
-      4,
-      5
-    ],
+    "editableLines": [2, 3, 4, 5],
     "correctedLine": "        remaining = remaining - item",
     "explanation": "Testing later items against the original capacity.",
     "reasoning": {
@@ -10714,16 +9577,8 @@
     ],
     "prompt": "What is printed?",
     "answer": "6",
-    "choices": [
-      "5",
-      "1",
-      "4",
-      "6"
-    ],
-    "editableLines": [
-      2,
-      3
-    ],
+    "choices": ["5", "1", "4", "6"],
+    "editableLines": [2, 3],
     "correctedLine": "a = a + b",
     "explanation": "b becomes 1; a becomes 5; b becomes 6. The output is 6.",
     "reasoning": {
@@ -10831,16 +9686,8 @@
     ],
     "prompt": "What is printed?",
     "answer": "8",
-    "choices": [
-      "8",
-      "7",
-      "6",
-      "2"
-    ],
-    "editableLines": [
-      2,
-      3
-    ],
+    "choices": ["8", "7", "6", "2"],
+    "editableLines": [2, 3],
     "correctedLine": "total = total + item",
     "explanation": "item becomes 6; total becomes 8; item becomes 7. The output is 8.",
     "reasoning": {
@@ -10862,11 +9709,7 @@
       {
         "type": "set",
         "name": "items",
-        "value": [
-          2,
-          3,
-          1
-        ],
+        "value": [2, 3, 1],
         "id": "s1"
       },
       {
@@ -10913,11 +9756,7 @@
       {
         "type": "set",
         "name": "items",
-        "value": [
-          2,
-          3,
-          1
-        ],
+        "value": [2, 3, 1],
         "id": "s1"
       },
       {
@@ -10956,16 +9795,8 @@
     ],
     "prompt": "What is printed?",
     "answer": "3",
-    "choices": [
-      "0",
-      "2",
-      "1",
-      "3"
-    ],
-    "editableLines": [
-      2,
-      3
-    ],
+    "choices": ["0", "2", "1", "3"],
+    "editableLines": [2, 3],
     "correctedLine": "index = index + 1",
     "explanation": "index becomes 0; index becomes 1; chosen becomes 3. The output is 3.",
     "reasoning": {
@@ -11087,16 +9918,8 @@
     ],
     "prompt": "What is printed?",
     "answer": "-2",
-    "choices": [
-      "0",
-      "5",
-      "-2",
-      "3"
-    ],
-    "editableLines": [
-      2,
-      3
-    ],
+    "choices": ["0", "5", "-2", "3"],
+    "editableLines": [2, 3],
     "correctedLine": "left = left - 1",
     "explanation": "right becomes 4; left becomes 3; right becomes 5. The output is -2.",
     "reasoning": {
@@ -11218,17 +10041,8 @@
     ],
     "prompt": "What is printed?",
     "answer": "2",
-    "choices": [
-      "0",
-      "3",
-      "2",
-      "5"
-    ],
-    "editableLines": [
-      2,
-      3,
-      4
-    ],
+    "choices": ["0", "3", "2", "5"],
+    "editableLines": [2, 3, 4],
     "correctedLine": "b = saved",
     "explanation": "saved becomes 3; a becomes 5; b becomes 3. The output is 2.",
     "reasoning": {
@@ -11344,16 +10158,8 @@
     ],
     "prompt": "What is printed?",
     "answer": "1",
-    "choices": [
-      "6",
-      "5",
-      "1",
-      "0"
-    ],
-    "editableLines": [
-      2,
-      3
-    ],
+    "choices": ["6", "5", "1", "0"],
+    "editableLines": [2, 3],
     "correctedLine": "saved = a",
     "explanation": "b becomes 1; saved becomes 5; a becomes 6. The output is 1.",
     "reasoning": {
@@ -11485,18 +10291,8 @@
     ],
     "prompt": "What is printed?",
     "answer": "7",
-    "choices": [
-      "2",
-      "0",
-      "5",
-      "7"
-    ],
-    "editableLines": [
-      1,
-      2,
-      4,
-      5
-    ],
+    "choices": ["2", "0", "5", "7"],
+    "editableLines": [1, 2, 4, 5],
     "correctedLine": "if score >= 5:",
     "explanation": "score becomes 5; bonus becomes 2; score becomes 7. The output is 7.",
     "reasoning": {
@@ -11622,17 +10418,8 @@
     ],
     "prompt": "What is printed?",
     "answer": "0",
-    "choices": [
-      "0",
-      "1",
-      "2",
-      "3"
-    ],
-    "editableLines": [
-      2,
-      3,
-      4
-    ],
+    "choices": ["0", "1", "2", "3"],
+    "editableLines": [2, 3, 4],
     "correctedLine": "remaining = remaining - 1",
     "explanation": "open becomes 2; remaining becomes 0; open becomes 0. The output is 0.",
     "reasoning": {
@@ -11776,18 +10563,8 @@
     ],
     "prompt": "What is printed?",
     "answer": "2",
-    "choices": [
-      "0",
-      "1",
-      "3",
-      "2"
-    ],
-    "editableLines": [
-      2,
-      3,
-      5,
-      6
-    ],
+    "choices": ["0", "1", "3", "2"],
+    "editableLines": [2, 3, 5, 6],
     "correctedLine": "if a == b:",
     "explanation": "b becomes 3; result becomes 1; result becomes 2. The output is 2.",
     "reasoning": {
@@ -11915,17 +10692,8 @@
     ],
     "prompt": "What is printed?",
     "answer": "2",
-    "choices": [
-      "4",
-      "0",
-      "2",
-      "1"
-    ],
-    "editableLines": [
-      2,
-      3,
-      5
-    ],
+    "choices": ["4", "0", "2", "1"],
+    "editableLines": [2, 3, 5],
     "correctedLine": "if a < b:",
     "explanation": "a becomes 2; b becomes 4; chosen becomes 2. The output is 2.",
     "reasoning": {
@@ -12053,18 +10821,8 @@
     ],
     "prompt": "What is printed?",
     "answer": "2",
-    "choices": [
-      "1",
-      "4",
-      "2",
-      "3"
-    ],
-    "editableLines": [
-      1,
-      2,
-      3,
-      5
-    ],
+    "choices": ["1", "4", "2", "3"],
+    "editableLines": [1, 2, 3, 5],
     "correctedLine": "a = a + 1",
     "explanation": "a becomes 3; a becomes 4; b becomes 2. The output is 2.",
     "reasoning": {
@@ -12206,17 +10964,8 @@
     ],
     "prompt": "What is printed?",
     "answer": "7",
-    "choices": [
-      "5",
-      "6",
-      "7",
-      "0"
-    ],
-    "editableLines": [
-      2,
-      3,
-      4
-    ],
+    "choices": ["5", "6", "7", "0"],
+    "editableLines": [2, 3, 4],
     "correctedLine": "b = b - 1",
     "explanation": "b becomes 6; b becomes 5; a becomes 7. The output is 7.",
     "reasoning": {
@@ -12244,13 +10993,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          4,
-          4,
-          2,
-          3,
-          1
-        ],
+        "values": [4, 4, 2, 3, 1],
         "body": [
           {
             "type": "set",
@@ -12287,13 +11030,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          4,
-          4,
-          2,
-          3,
-          1
-        ],
+        "values": [4, 4, 2, 3, 1],
         "body": [
           {
             "type": "set",
@@ -12316,16 +11053,8 @@
     ],
     "prompt": "What is printed?",
     "answer": "14",
-    "choices": [
-      "10",
-      "1",
-      "14",
-      "13"
-    ],
-    "editableLines": [
-      1,
-      2
-    ],
+    "choices": ["10", "1", "14", "13"],
+    "editableLines": [1, 2],
     "correctedLine": "    total = total + item",
     "explanation": "total becomes 10; total becomes 13; total becomes 14. The output is 14.",
     "reasoning": {
@@ -12353,11 +11082,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          1,
-          2,
-          4
-        ],
+        "values": [1, 2, 4],
         "body": [
           {
             "type": "if",
@@ -12404,11 +11129,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          1,
-          2,
-          4
-        ],
+        "values": [1, 2, 4],
         "body": [
           {
             "type": "if",
@@ -12453,17 +11174,8 @@
     ],
     "prompt": "What is printed?",
     "answer": "4",
-    "choices": [
-      "4",
-      "2",
-      "7",
-      "1"
-    ],
-    "editableLines": [
-      1,
-      2,
-      3
-    ],
+    "choices": ["4", "2", "7", "1"],
+    "editableLines": [1, 2, 3],
     "correctedLine": "        best = item",
     "explanation": "best becomes 1; best becomes 2; best becomes 4. The output is 4.",
     "reasoning": {
@@ -12491,11 +11203,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          3,
-          1,
-          1
-        ],
+        "values": [3, 1, 1],
         "body": [
           {
             "type": "set",
@@ -12538,11 +11246,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          3,
-          1,
-          1
-        ],
+        "values": [3, 1, 1],
         "body": [
           {
             "type": "set",
@@ -12577,17 +11281,8 @@
     ],
     "prompt": "What is printed?",
     "answer": "4",
-    "choices": [
-      "4",
-      "10",
-      "5",
-      "6"
-    ],
-    "editableLines": [
-      1,
-      2,
-      3
-    ],
+    "choices": ["4", "10", "5", "6"],
+    "editableLines": [1, 2, 3],
     "correctedLine": "    total = total - 1",
     "explanation": "last becomes 5; total becomes 4; last becomes 4. The output is 4.",
     "reasoning": {
@@ -12621,12 +11316,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          2,
-          5,
-          4,
-          1
-        ],
+        "values": [2, 5, 4, 1],
         "body": [
           {
             "type": "set",
@@ -12681,12 +11371,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          2,
-          5,
-          4,
-          1
-        ],
+        "values": [2, 5, 4, 1],
         "body": [
           {
             "type": "set",
@@ -12727,17 +11412,8 @@
     ],
     "prompt": "What is printed?",
     "answer": "10",
-    "choices": [
-      "6",
-      "4",
-      "12",
-      "10"
-    ],
-    "editableLines": [
-      2,
-      3,
-      4
-    ],
+    "choices": ["6", "4", "12", "10"],
+    "editableLines": [2, 3, 4],
     "correctedLine": "    total = total + count",
     "explanation": "total becomes 6; count becomes 4; total becomes 10. The output is 10.",
     "reasoning": {
@@ -12765,12 +11441,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          1,
-          3,
-          5,
-          2
-        ],
+        "values": [1, 3, 5, 2],
         "body": [
           {
             "type": "if",
@@ -12819,12 +11490,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          1,
-          3,
-          5,
-          2
-        ],
+        "values": [1, 3, 5, 2],
         "body": [
           {
             "type": "if",
@@ -12861,17 +11527,8 @@
     ],
     "prompt": "What is printed?",
     "answer": "3",
-    "choices": [
-      "0",
-      "2",
-      "1",
-      "3"
-    ],
-    "editableLines": [
-      1,
-      2,
-      3
-    ],
+    "choices": ["0", "2", "1", "3"],
+    "editableLines": [1, 2, 3],
     "correctedLine": "        count = count + 1",
     "explanation": "count becomes 1; count becomes 2; count becomes 3. The output is 3.",
     "reasoning": {
@@ -12905,11 +11562,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          1,
-          2,
-          3
-        ],
+        "values": [1, 2, 3],
         "body": [
           {
             "type": "set",
@@ -12962,11 +11615,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          1,
-          2,
-          3
-        ],
+        "values": [1, 2, 3],
         "body": [
           {
             "type": "set",
@@ -13005,18 +11654,8 @@
     ],
     "prompt": "What is printed?",
     "answer": "3",
-    "choices": [
-      "3",
-      "1",
-      "0",
-      "2"
-    ],
-    "editableLines": [
-      2,
-      3,
-      4,
-      5
-    ],
+    "choices": ["3", "1", "0", "2"],
+    "editableLines": [2, 3, 4, 5],
     "correctedLine": "    a = b",
     "explanation": "saved becomes 2; a becomes 3; b becomes 2. The output is 3.",
     "reasoning": {
@@ -13050,13 +11689,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          4,
-          4,
-          2,
-          3,
-          1
-        ],
+        "values": [4, 4, 2, 3, 1],
         "body": [
           {
             "type": "if",
@@ -13131,13 +11764,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          4,
-          4,
-          2,
-          3,
-          1
-        ],
+        "values": [4, 4, 2, 3, 1],
         "body": [
           {
             "type": "if",
@@ -13196,18 +11823,8 @@
     ],
     "prompt": "What is printed?",
     "answer": "9",
-    "choices": [
-      "13",
-      "0",
-      "9",
-      "4"
-    ],
-    "editableLines": [
-      2,
-      3,
-      4,
-      5
-    ],
+    "choices": ["13", "0", "9", "4"],
+    "editableLines": [2, 3, 4, 5],
     "correctedLine": "        total = total + item",
     "explanation": "count becomes 3; total becomes 13; count becomes 4. The output is 9.",
     "reasoning": {
@@ -13241,12 +11858,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          1,
-          0,
-          1,
-          1
-        ],
+        "values": [1, 0, 1, 1],
         "body": [
           {
             "type": "if",
@@ -13332,12 +11944,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          1,
-          0,
-          1,
-          1
-        ],
+        "values": [1, 0, 1, 1],
         "body": [
           {
             "type": "if",
@@ -13411,20 +12018,8 @@
     ],
     "prompt": "What is printed?",
     "answer": "2",
-    "choices": [
-      "3",
-      "1",
-      "0",
-      "2"
-    ],
-    "editableLines": [
-      2,
-      3,
-      4,
-      6,
-      7,
-      8
-    ],
+    "choices": ["3", "1", "0", "2"],
+    "editableLines": [2, 3, 4, 6, 7, 8],
     "correctedLine": "        count = 0",
     "explanation": "count becomes 1; count becomes 2; best becomes 2. The output is 2.",
     "reasoning": {
@@ -13458,13 +12053,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          2,
-          1,
-          2,
-          3,
-          1
-        ],
+        "values": [2, 1, 2, 3, 1],
         "body": [
           {
             "type": "if",
@@ -13539,13 +12128,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          2,
-          1,
-          2,
-          3,
-          1
-        ],
+        "values": [2, 1, 2, 3, 1],
         "body": [
           {
             "type": "if",
@@ -13600,18 +12183,8 @@
     ],
     "prompt": "What is printed?",
     "answer": "3",
-    "choices": [
-      "2",
-      "3",
-      "1",
-      "5"
-    ],
-    "editableLines": [
-      2,
-      3,
-      4,
-      5
-    ],
+    "choices": ["2", "3", "1", "5"],
+    "editableLines": [2, 3, 4, 5],
     "correctedLine": "        used = used + item",
     "explanation": "count becomes 2; used becomes 5; count becomes 3. The output is 3.",
     "reasoning": {
@@ -13645,12 +12218,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          2,
-          5,
-          4,
-          1
-        ],
+        "values": [2, 5, 4, 1],
         "body": [
           {
             "type": "if",
@@ -13719,12 +12287,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          2,
-          5,
-          4,
-          1
-        ],
+        "values": [2, 5, 4, 1],
         "body": [
           {
             "type": "if",
@@ -13773,18 +12336,8 @@
     ],
     "prompt": "What is printed?",
     "answer": "6",
-    "choices": [
-      "1",
-      "0",
-      "4",
-      "6"
-    ],
-    "editableLines": [
-      2,
-      3,
-      4,
-      5
-    ],
+    "choices": ["1", "0", "4", "6"],
+    "editableLines": [2, 3, 4, 5],
     "correctedLine": "        total = total + item",
     "explanation": "total becomes 6; enabled becomes False; enabled becomes True. The output is 6.",
     "reasoning": {
@@ -13818,12 +12371,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          1,
-          3,
-          5,
-          2
-        ],
+        "values": [1, 3, 5, 2],
         "body": [
           {
             "type": "if",
@@ -13888,12 +12436,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          1,
-          3,
-          5,
-          2
-        ],
+        "values": [1, 3, 5, 2],
         "body": [
           {
             "type": "if",
@@ -13942,18 +12485,8 @@
     ],
     "prompt": "What is printed?",
     "answer": "3",
-    "choices": [
-      "5",
-      "4",
-      "2",
-      "3"
-    ],
-    "editableLines": [
-      2,
-      3,
-      4,
-      5
-    ],
+    "choices": ["5", "4", "2", "3"],
+    "editableLines": [2, 3, 4, 5],
     "correctedLine": "    previous = item",
     "explanation": "count becomes 3; previous becomes 5; previous becomes 2. The output is 3.",
     "reasoning": {
@@ -13987,12 +12520,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          3,
-          4,
-          5,
-          1
-        ],
+        "values": [3, 4, 5, 1],
         "body": [
           {
             "type": "if",
@@ -14066,12 +12594,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          3,
-          4,
-          5,
-          1
-        ],
+        "values": [3, 4, 5, 1],
         "body": [
           {
             "type": "if",
@@ -14127,18 +12650,8 @@
     ],
     "prompt": "What is printed?",
     "answer": "2",
-    "choices": [
-      "4",
-      "1",
-      "3",
-      "2"
-    ],
-    "editableLines": [
-      2,
-      3,
-      4,
-      6
-    ],
+    "choices": ["4", "1", "3", "2"],
+    "editableLines": [2, 3, 4, 6],
     "correctedLine": "        a = a + 1",
     "explanation": "a becomes 2; a becomes 3; b becomes 1. The output is 2.",
     "reasoning": {
@@ -14172,13 +12685,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          4,
-          4,
-          2,
-          3,
-          1
-        ],
+        "values": [4, 4, 2, 3, 1],
         "body": [
           {
             "type": "if",
@@ -14251,13 +12758,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          4,
-          4,
-          2,
-          3,
-          1
-        ],
+        "values": [4, 4, 2, 3, 1],
         "body": [
           {
             "type": "if",
@@ -14314,18 +12815,8 @@
     ],
     "prompt": "What is printed?",
     "answer": "5",
-    "choices": [
-      "3",
-      "14",
-      "5",
-      "1"
-    ],
-    "editableLines": [
-      2,
-      3,
-      4,
-      5
-    ],
+    "choices": ["3", "14", "5", "1"],
+    "editableLines": [2, 3, 4, 5],
     "correctedLine": "    previous = item",
     "explanation": "total becomes 5; previous becomes 3; previous becomes 1. The output is 5.",
     "reasoning": {
@@ -14359,11 +12850,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          1,
-          2,
-          3
-        ],
+        "values": [1, 2, 3],
         "body": [
           {
             "type": "set",
@@ -14422,11 +12909,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          1,
-          2,
-          3
-        ],
+        "values": [1, 2, 3],
         "body": [
           {
             "type": "set",
@@ -14471,18 +12954,8 @@
     ],
     "prompt": "What is printed?",
     "answer": "13",
-    "choices": [
-      "9",
-      "8",
-      "13",
-      "5"
-    ],
-    "editableLines": [
-      2,
-      3,
-      4,
-      5
-    ],
+    "choices": ["9", "8", "13", "5"],
+    "editableLines": [2, 3, 4, 5],
     "correctedLine": "    a = b",
     "explanation": "saved becomes 5; a becomes 8; b becomes 13. The output is 13.",
     "reasoning": {
@@ -14516,12 +12989,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          1,
-          0,
-          1,
-          1
-        ],
+        "values": [1, 0, 1, 1],
         "body": [
           {
             "type": "if",
@@ -14597,12 +13065,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          1,
-          0,
-          1,
-          1
-        ],
+        "values": [1, 0, 1, 1],
         "body": [
           {
             "type": "if",
@@ -14666,19 +13129,8 @@
     ],
     "prompt": "What is printed?",
     "answer": "4",
-    "choices": [
-      "7",
-      "1",
-      "2",
-      "4"
-    ],
-    "editableLines": [
-      2,
-      3,
-      4,
-      6,
-      7
-    ],
+    "choices": ["7", "1", "2", "4"],
+    "editableLines": [2, 3, 4, 6, 7],
     "correctedLine": "        count = 0",
     "explanation": "total becomes 2; count becomes 2; total becomes 4. The output is 4.",
     "reasoning": {
@@ -14712,12 +13164,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          2,
-          5,
-          4,
-          1
-        ],
+        "values": [2, 5, 4, 1],
         "body": [
           {
             "type": "if",
@@ -14786,12 +13233,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          2,
-          5,
-          4,
-          1
-        ],
+        "values": [2, 5, 4, 1],
         "body": [
           {
             "type": "if",
@@ -14840,18 +13282,8 @@
     ],
     "prompt": "What is printed?",
     "answer": "9",
-    "choices": [
-      "2",
-      "6",
-      "3",
-      "9"
-    ],
-    "editableLines": [
-      2,
-      3,
-      4,
-      5
-    ],
+    "choices": ["2", "6", "3", "9"],
+    "editableLines": [2, 3, 4, 5],
     "correctedLine": "    total = total + count",
     "explanation": "count becomes 3; total becomes 6; total becomes 9. The output is 9.",
     "reasoning": {
@@ -14885,13 +13317,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          0,
-          1,
-          0,
-          1,
-          1
-        ],
+        "values": [0, 1, 0, 1, 1],
         "body": [
           {
             "type": "if",
@@ -14958,13 +13384,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          0,
-          1,
-          0,
-          1,
-          1
-        ],
+        "values": [0, 1, 0, 1, 1],
         "body": [
           {
             "type": "if",
@@ -15011,18 +13431,8 @@
     ],
     "prompt": "What is printed?",
     "answer": "2",
-    "choices": [
-      "3",
-      "2",
-      "0",
-      "1"
-    ],
-    "editableLines": [
-      2,
-      3,
-      4,
-      5
-    ],
+    "choices": ["3", "2", "0", "1"],
+    "editableLines": [2, 3, 4, 5],
     "correctedLine": "        count = count + 1",
     "explanation": "ready becomes True; count becomes 2; ready becomes True. The output is 2.",
     "reasoning": {
@@ -15056,12 +13466,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          1,
-          1,
-          2,
-          2
-        ],
+        "values": [1, 1, 2, 2],
         "body": [
           {
             "type": "if",
@@ -15132,12 +13537,7 @@
       {
         "type": "for",
         "name": "item",
-        "values": [
-          1,
-          1,
-          2,
-          2
-        ],
+        "values": [1, 1, 2, 2],
         "body": [
           {
             "type": "if",
@@ -15186,18 +13586,8 @@
     ],
     "prompt": "What is printed?",
     "answer": "3",
-    "choices": [
-      "3",
-      "2",
-      "4",
-      "1"
-    ],
-    "editableLines": [
-      2,
-      3,
-      4,
-      5
-    ],
+    "choices": ["3", "2", "4", "1"],
+    "editableLines": [2, 3, 4, 5],
     "correctedLine": "        remaining = remaining - item",
     "explanation": "count becomes 2; remaining becomes 1; count becomes 3. The output is 3.",
     "reasoning": {

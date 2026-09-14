@@ -3,256 +3,12 @@ import { useDetails } from '../useDetails';
 import { useConfirmation } from '../components/useConfirmation';
 import { Tutorial, GameHelp } from '../games/Tutorial';
 import { useEffect, useState, useRef } from 'react';
-import { useArcade, useClock } from '../state';
+import { useArcade } from '../state';
 import { Wordmark, Notice, Button, Field, Select, Timer, Score, cx } from '../components/ui';
 import { Wheel } from '../components/Wheel';
 import { Game, Question } from '../games/Game';
 import { PuzzleEditor, PuzzleReveal, PuzzleExecution, markerClass } from '../games/Puzzles';
 import { gameById, availableGames, scoreText, grade } from '../../shared/catalog';
-function PrizeDialog({ children, onClose }) {
-  const ref = useRef(null);
-  useEffect(() => {
-    const previous = document.activeElement;
-    ref.current.showModal();
-    return () => previous?.focus();
-  }, []);
-  return (
-    <dialog
-      ref={ref}
-      aria-labelledby="award-title"
-      onCancel={(e) => {
-        e.preventDefault();
-        onClose();
-      }}
-      className="fixed inset-0 z-50 m-0 h-dvh max-h-none w-screen max-w-none bg-[#F7F7F2] p-8 text-[#252525] backdrop:bg-[#F7F7F2]"
-    >
-      <div className="grid min-h-full place-items-center">{children}</div>
-    </dialog>
-  );
-}
-function Password({ label = 'Password', name = 'password', fresh = false }) {
-  const [show, setShow] = useState(false);
-  return (
-    <div>
-      <Field
-        label={label}
-        name={name}
-        type={show ? 'text' : 'password'}
-        autoComplete={fresh ? 'new-password' : 'current-password'}
-        minLength={fresh ? 15 : undefined}
-        maxLength={256}
-        required
-      />
-      <button type="button" className="min-h-11 text-xs underline" onClick={() => setShow(!show)}>
-        {show ? 'Hide' : 'Show'} password
-      </button>
-      {fresh && (
-        <p className="text-xs text-[#62625C]">At least 15 characters. A few words work well.</p>
-      )}
-    </div>
-  );
-}
-function Auth() {
-  const { command, busy, connected } = useArcade(),
-    [mode, setMode] = useState('register'),
-    [message, setMessage] = useState('');
-  return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-medium">
-        {mode === 'register'
-          ? 'Join the arcade'
-          : mode === 'login'
-            ? 'Welcome back'
-            : 'Reset your password'}
-      </h1>
-      <form
-        className="space-y-4"
-        onSubmit={async (e) => {
-          e.preventDefault();
-          const r = await command(
-            mode === 'forgot' ? 'forgotPassword' : mode,
-            Object.fromEntries(new FormData(e.currentTarget)),
-          );
-          if (r?.message) setMessage(r.message);
-        }}
-      >
-        {mode === 'register' && (
-          <Field label="Full name" name="fullName" autoComplete="name" required />
-        )}
-        <Field label="BCU email" name="email" type="email" autoComplete="username" required />
-        {mode !== 'forgot' && <Password fresh={mode === 'register'} />}
-        {mode === 'register' && (
-          <>
-            <Field label="Course" name="course" required />
-            <Select label="Academic year" name="level" defaultValue="" required>
-              <option value="" disabled>
-                Select academic year
-              </option>
-              {[
-                'Foundation',
-                'Year 1',
-                'Year 2',
-                'Placement',
-                'Final year',
-                'Postgraduate',
-                'Staff',
-              ].map((v) => (
-                <option key={v}>{v}</option>
-              ))}
-            </Select>
-            <p className="text-xs text-[#62625C]">
-              Only your generated alias is public.{' '}
-              <a href="/legal" className="underline">
-                Privacy & game rules
-              </a>
-              .
-            </p>
-            <label className="flex gap-3 text-xs">
-              <input type="checkbox" name="consent" value="true" />
-              Send me one BCUSCA membership email (optional).
-            </label>
-          </>
-        )}
-        <Button className="w-full" disabled={busy || !connected}>
-          {mode === 'register'
-            ? 'Create account'
-            : mode === 'login'
-              ? 'Sign in'
-              : 'Send reset link'}
-        </Button>
-      </form>
-      {message && (
-        <p role="status" className="text-sm">
-          {message}
-        </p>
-      )}
-      <div className="flex flex-wrap gap-4 text-sm">
-        {mode !== 'register' && (
-          <button className="min-h-11 underline" onClick={() => setMode('register')}>
-            Create account
-          </button>
-        )}
-        {mode !== 'login' && (
-          <button className="min-h-11 underline" onClick={() => setMode('login')}>
-            Sign in
-          </button>
-        )}
-        {mode === 'login' && (
-          <button className="min-h-11 underline" onClick={() => setMode('forgot')}>
-            Forgot password?
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-function Verify() {
-  const now = useClock();
-  const { state, command, busy } = useArcade(),
-    [message, setMessage] = useState('');
-  return (
-    <div className="space-y-5">
-      <h1 className="text-2xl font-medium">Verify your BCU email</h1>
-      <p className="text-sm text-[#62625C]">
-        Enter the code for {state.me.email}. After verification, you can join the queue.
-      </p>
-      <p role="status" className="text-xs text-[#62625C]">
-        Email: {state.me.verification?.status}
-      </p>
-      <form
-        className="space-y-4"
-        onSubmit={async (e) => {
-          e.preventDefault();
-          await command('verify', { code: new FormData(e.currentTarget).get('code') });
-        }}
-      >
-        <Field
-          label="Email code"
-          name="code"
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          pattern="[0-9]{6}"
-          maxLength={6}
-          required
-        />
-        <Button disabled={busy}>Verify</Button>
-      </form>
-      <Button
-        secondary
-        disabled={busy || now < state.me.verification?.resendAt}
-        onClick={async () => {
-          const r = await command('sendVerification');
-          if (r) setMessage(r.message);
-        }}
-      >
-        {now < state.me.verification?.resendAt
-          ? `Resend in ${Math.ceil((state.me.verification.resendAt - now) / 1000)}s`
-          : 'Resend email'}
-      </Button>
-      {message && (
-        <p role="status" className="text-sm">
-          {message}
-        </p>
-      )}
-      {state.development && (
-        <button
-          className="block text-xs underline"
-          onClick={async () => {
-            const r = await (await fetch('/api/development-mail')).json();
-            setMessage(r.code ? `Development code: ${r.code}` : 'Email is still queued.');
-          }}
-        >
-          Development email preview
-        </button>
-      )}
-    </div>
-  );
-}
-function EmailAction() {
-  const { command, state, busy } = useArcade(),
-    [token] = useState(() => new URLSearchParams(location.hash.slice(1)).get('token') || ''),
-    [message, setMessage] = useState('');
-  const reset = location.pathname === '/reset-password';
-  useEffect(() => {
-    history.replaceState(null, '', location.pathname);
-  }, []);
-  return (
-    <div className="space-y-5">
-      <h1 className="text-2xl font-medium">
-        {reset ? 'Set a new password' : 'Confirm your email'}
-      </h1>
-      {message ? (
-        <>
-          <p role="status">{message}</p>
-          <a href="/" className="underline">
-            Return to Arcade
-          </a>
-        </>
-      ) : (
-        <form
-          className="space-y-5"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            const r = await command(reset ? 'resetPassword' : 'verify', {
-              linkToken: token,
-              ...Object.fromEntries(new FormData(e.currentTarget)),
-            });
-            if (r) setMessage(r.message);
-          }}
-        >
-          {!reset && (
-            <p className="text-sm">
-              Use the password you chose when registering. Verifying here does not sign this browser
-              in automatically.
-            </p>
-          )}
-          {(reset || !state?.me) && <Password fresh={reset} />}
-          <Button disabled={busy || !token}>{reset ? 'Set password' : 'Confirm email'}</Button>
-        </form>
-      )}
-    </div>
-  );
-}
 function ScoreRows({ rows }) {
   return (
     <div className="divide-y divide-[#DDDDD5]">
@@ -320,16 +76,15 @@ function Scores() {
   const standings = useDetails('leaderboard', { offset });
   const me = state.me,
     rank = me.rank;
-  const practice = scores.data?.practice || [];
+  const best = scores.data?.best || [];
   return (
     <div className="space-y-8">
       <section>
-        <h1 className="text-2xl font-medium">Ranked standings</h1>
+        <h1 className="text-2xl font-medium">Leaderboard</h1>
         <p className="my-3 text-sm text-[#62625C]">
           {rank
             ? `Your position: ${rank.rank} · Best: ${scoreText(rank.score)}`
-            : 'Play Ranked to set a score.'}{' '}
-          · {Math.max(0, 3 - me.used)} attempts left
+            : 'Play any game to set a score.'}
         </p>
         {standings.error && <p role="alert">{standings.error}</p>}
         <ScoreRows rows={standings.data?.rows || state.leaderboard} />
@@ -347,7 +102,7 @@ function Scores() {
         </div>
       </section>
       <section>
-        <h2 className="mb-4 text-xl font-medium">Your Practice top ten</h2>
+        <h2 className="mb-4 text-xl font-medium">Your top ten</h2>
         <Select label="Game" value={filter} onChange={(e) => setFilter(e.target.value)}>
           <option value="all">All games</option>
           {availableGames(state.config).map((g) => (
@@ -357,29 +112,21 @@ function Scores() {
           ))}
         </Select>
         {scores.error && <p role="alert">{scores.error}</p>}
-        {practice.length ? (
-          <ScoreRows rows={practice} />
+        {best.length ? (
+          <ScoreRows rows={best} />
         ) : (
-          <p className="mt-4 text-sm text-[#62625C]">No Practice scores yet.</p>
+          <p className="mt-4 text-sm text-[#62625C]">No scores yet.</p>
         )}
       </section>
       <section>
         <h2 className="mb-3 text-xl font-medium">Review your recent sessions</h2>
-        {(scores.data?.recent || []).map((a) => (
-          <SessionReview key={a.id} attempt={a} />
-        ))}
-      </section>
-      <section>
-        <h2 className="text-xl font-medium">Recent Live games</h2>
-        {me.liveResults.map((r) => (
-          <p key={r.id} className="flex justify-between py-3 text-sm">
-            <span>
-              {gameById(r.gameId)?.name}
-              {r.won ? ' · Winner' : ''}
-            </span>
-            <span>{(r.score / 1000000).toFixed(1)} points</span>
-          </p>
-        ))}
+        {(scores.data?.recent || []).map((a) =>
+          a.hasReview ? (
+            <SessionReview key={a.id} attempt={a} />
+          ) : (
+            <ScoreRows key={a.id} rows={[a]} />
+          ),
+        )}
       </section>
     </div>
   );
@@ -413,15 +160,17 @@ function LivePlay() {
     return (
       <div className="space-y-5">
         <h1 className="text-3xl font-medium">
-          {live.winners?.includes(state.me.id) ? 'You won!' : 'Well played.'}
+          {own?.personalBest
+            ? 'New personal best'
+            : live.winners?.includes(state.me.id)
+              ? 'You won!'
+              : 'Well played.'}
         </h1>
         <p className="text-4xl font-medium">
-          {((own?.score || 0) / 1000000).toFixed(1)} <span className="text-base">points</span>
+          {scoreText(own?.score)} <span className="text-base">/ 9</span>
         </p>
         <p className="text-sm">
-          {live.prizeRecipients?.includes(state.me.id)
-            ? 'Speak to the host for your small prize.'
-            : 'Solo play resumes shortly.'}
+          Your score counts towards the leaderboard. Solo play resumes shortly.
         </p>
       </div>
     );
@@ -488,17 +237,10 @@ function LivePlay() {
   );
 }
 function Play() {
-  const { state, command, busy } = useArcade(),
-    [mode, setMode] = useState('practice');
+  const { state, command, busy } = useArcade();
   const [confirm, confirmation] = useConfirmation();
   const a = state.active,
     me = state.me;
-  if (
-    !me.eligible &&
-    !(a?.accountId === me.id && ['playing', 'result'].includes(a.phase)) &&
-    !(me.liveEntry && state.live?.phase !== 'lobby')
-  )
-    return <Verify />;
   if (me.liveEntry && state.live) return <LivePlay />;
   if (a?.accountId === me.id) {
     if (a.phase === 'called')
@@ -542,9 +284,7 @@ function Play() {
             onClick={async () => {
               if (
                 await confirm(
-                  a.mode === 'ranked'
-                    ? 'End this session? Your Ranked start remains used. The clock continues while this message is open.'
-                    : 'End this Practice session? The clock continues while this message is open.',
+                  'End this session? Your earned points will be saved. The clock continues while this message is open.',
                 )
               )
                 command('quit', { attemptId: a.attemptId });
@@ -600,15 +340,11 @@ function Play() {
           <p className="text-xs text-[#62625C]">
             {state.config.paused
               ? 'Queue paused by the host.'
-              : me.queue.waitingForVerification
-                ? 'Verify your email to keep moving.'
-                : me.queue.estimateMinutes
-                  ? `About ${me.queue.estimateMinutes} minutes including Live games.`
-                  : 'You are next when the current activity finishes.'}
+              : me.queue.estimateMinutes
+                ? `About ${me.queue.estimateMinutes} minutes including Live games.`
+                : 'You are next when the current activity finishes.'}
           </p>
-          <p className="text-sm text-[#62625C]">
-            {me.alias} · {me.queue.mode}
-          </p>
+          <p className="text-sm text-[#62625C]">{me.alias}</p>
           <Button secondary onClick={() => command('leave')}>
             Leave queue
           </Button>
@@ -623,57 +359,37 @@ function Play() {
             </p>
           )}
           <GameHelp />
-          <div className="grid grid-cols-2 gap-3">
-            {['practice', 'ranked'].map((v) => (
-              <button
-                key={v}
-                className={cx(
-                  'min-h-20 rounded-lg border p-4 text-left capitalize',
-                  mode === v ? 'border-[#365E53] bg-[#E9EDE6]' : 'border-[#DDDDD5] bg-white',
-                )}
-                onClick={() => setMode(v)}
-              >
-                {v}
-                <span className="mt-2 block text-xs normal-case text-[#62625C]">
-                  {v === 'practice'
-                    ? 'Unlimited · unranked'
-                    : `${Math.max(0, 3 - me.used)} attempts left`}
-                </span>
-              </button>
-            ))}
-          </div>
           <Button
             className="w-full"
-            disabled={
-              busy ||
-              !!state.admissionsReason ||
-              (mode === 'ranked' && (!state.config.rankedEnabled || me.used >= 3))
-            }
-            onClick={() => command('enqueue', { mode })}
+            disabled={busy || !!state.admissionsReason}
+            onClick={() => command('enqueue')}
           >
             Join queue
           </Button>
-          <p className="text-sm text-[#62625C]">
-            {state.admissionsReason ||
-              (mode === 'ranked' && !state.config.rankedEnabled ? 'Ranked is currently off.' : '')}
-          </p>
+          <p className="text-sm text-[#62625C]">{state.admissionsReason}</p>
         </>
       )}
     </div>
   );
 }
 export function Player() {
-  const { state, command, connectionId, busy } = useArcade(),
-    [tab, setTab] = useState('play'),
+  const { state, command, connectionId, busy, connected } = useArcade();
+  const [tab, setTab] = useState('play'),
     [message, setMessage] = useState('');
-  const claimed = useRef(null);
-  const focused =
-    (state?.active?.accountId === state?.me?.id &&
-      ['wheel', 'introduction', 'countdown', 'playing'].includes(state?.active?.phase)) ||
-    (!!state?.me?.liveEntry &&
-      !!state?.live &&
-      !['winner', 'cancelled'].includes(state.live.phase));
+  const claimed = useRef(null),
+    guestRequested = useRef(false);
   const me = state?.me;
+  const focused =
+    (me &&
+      state.active?.accountId === me.id &&
+      ['wheel', 'introduction', 'countdown', 'playing'].includes(state.active.phase)) ||
+    (!!me?.liveEntry && !!state?.live && !['winner', 'cancelled'].includes(state.live.phase));
+  useEffect(() => {
+    if (state && connected && !me && !guestRequested.current && !busy) {
+      guestRequested.current = true;
+      command('guest');
+    }
+  }, [state, connected, me?.id, busy]);
   useEffect(() => {
     setTab('play');
     claimed.current = null;
@@ -684,8 +400,6 @@ export function Player() {
       command('claimPlayerControl');
     }
   }, [me?.id, connectionId, busy]);
-  const award = me?.awards.find((a) => a.type === 'grand' && !a.acknowledged && !a.forfeited);
-  const actionPage = ['/verify', '/reset-password'].includes(location.pathname);
   return (
     <div className="mx-auto min-h-svh max-w-lg px-5 py-7">
       <header className="mb-8 flex items-center justify-between">
@@ -700,29 +414,17 @@ export function Player() {
         )}
       </header>
       <Notice />
-      {!focused &&
-        me?.notifications?.map((n) => (
-          <div
-            key={n.id}
-            role="status"
-            className="mb-4 rounded-lg border border-[#365E53] p-4 text-sm"
-          >
-            <strong>{n.title}</strong>
-            <p>{n.body}</p>
-            <button
-              className="min-h-11 underline"
-              onClick={() => command('ackNotification', { id: n.id })}
-            >
-              Dismiss
-            </button>
-          </div>
-        ))}
-      {actionPage ? (
-        <EmailAction />
-      ) : !state ? (
+      {!state ? (
         <p>Connecting…</p>
       ) : !me ? (
-        <Auth />
+        <div className="space-y-4">
+          <p>{busy ? 'Getting ready…' : 'Ready when you are.'}</p>
+          {!busy && (
+            <Button disabled={!connected} onClick={() => command('guest')}>
+              Start playing
+            </Button>
+          )}
+        </div>
       ) : (
         <>
           {!focused && (
@@ -750,7 +452,7 @@ export function Player() {
               ))}
             </nav>
           )}
-          {focused && !me.inputOwned ? (
+          {!me.inputOwned && (focused || tab === 'play') ? (
             <div className="space-y-4">
               <p>This account is open on another controller.</p>
               <Button
@@ -765,56 +467,54 @@ export function Player() {
           ) : tab === 'account' ? (
             <div className="space-y-5">
               <h1 className="text-2xl font-medium">Your account</h1>
-              {me.profileEditable ? (
-                <form
-                  className="space-y-3"
-                  onSubmit={async (e) => {
-                    e.preventDefault();
-                    const r = await command(
-                      'updateProfile',
-                      Object.fromEntries(new FormData(e.currentTarget)),
-                    );
-                    if (r) setMessage(r.message);
-                  }}
-                >
-                  <Field label="Full name" name="fullName" defaultValue={me.fullName} required />
-                  <Field label="Course" name="course" defaultValue={me.course} required />
-                  <Field label="Academic year" name="level" defaultValue={me.level} required />
-                  <Button secondary>Save details</Button>
-                </form>
-              ) : (
-                <p>{me.fullName}</p>
-              )}
-              <p className="text-sm">
-                {me.email}
-                <br />
-                {me.course} · {me.level}
-              </p>
               <form
-                className="space-y-3"
+                className="space-y-4"
                 onSubmit={async (e) => {
                   e.preventDefault();
-                  const r = await command(
-                    'changePassword',
+                  const result = await command(
+                    'updateProfile',
                     Object.fromEntries(new FormData(e.currentTarget)),
                   );
-                  if (r) setMessage(r.message);
+                  if (result) setMessage(result.message);
                 }}
               >
-                <Password label="Current password" name="currentPassword" />
-                <Password label="New password" fresh />
-                <Button>Change password</Button>
+                <Field
+                  label="Username"
+                  name="alias"
+                  defaultValue={me.alias}
+                  minLength={3}
+                  maxLength={24}
+                  pattern="[a-zA-Z0-9_-]{3,24}"
+                  required
+                />
+                <p className="text-xs text-[#62625C]">
+                  3–24 letters, numbers, underscores or hyphens. Shown publicly.
+                </p>
+                <Field
+                  label="Your name (optional)"
+                  name="fullName"
+                  maxLength={120}
+                  defaultValue={me.fullName}
+                />
+                <p className="text-xs text-[#62625C]">Your name is only visible to the host.</p>
+                <Button disabled={busy}>Save</Button>
+                {message && (
+                  <p role="status" className="text-sm">
+                    {message}
+                  </p>
+                )}
               </form>
-              {message && <p>{message}</p>}
-              <Button secondary onClick={() => command('logout')}>
-                Sign out
-              </Button>
+              <p className="text-sm text-[#62625C]">
+                This account stays on this browser for up to seven days. Clearing cookies or
+                changing devices creates a new account. Usernames cannot recover accounts.
+              </p>
             </div>
           ) : tab === 'scores' ? (
             <Scores />
           ) : tab === 'updates' ? (
             <div className="space-y-6">
               <h1 className="text-2xl font-medium">Updates</h1>
+              {!state.updates.length && <p className="text-sm text-[#62625C]">No updates yet.</p>}
               {state.updates.map((u) => (
                 <article key={u.id}>
                   <h2 className="font-medium">{u.title}</h2>
@@ -822,48 +522,10 @@ export function Player() {
                 </article>
               ))}
             </div>
-          ) : !me.inputOwned && me.eligible ? (
-            <div className="space-y-4">
-              <p>This account is open on another controller.</p>
-              <Button onClick={() => command('claimPlayerControl', { confirm: true })}>
-                Take control here
-              </Button>
-            </div>
           ) : (
             <Play />
           )}
         </>
-      )}
-      {award && !actionPage && !focused && (
-        <PrizeDialog onClose={() => command('ackAward', { id: award.id })}>
-          <div className="max-w-sm space-y-6">
-            <p className="text-sm text-[#365E53]">BCUSCA Arcade</p>
-            <h1 id="award-title" className="text-4xl font-medium">
-              You won a grand prize!
-            </h1>
-            <p className="text-sm">{award.instructions}</p>
-            <p className="text-sm text-[#62625C]">
-              {award.mailStatus === 'sent'
-                ? `Instructions sent to ${me.email}. Keep an eye on your inbox.`
-                : award.mailStatus === 'failed'
-                  ? 'Email needs attention. Please speak to the host.'
-                  : 'Your instructions email is queued.'}
-            </p>
-            <Button onClick={() => command('ackAward', { id: award.id })}>Got it</Button>
-          </div>
-        </PrizeDialog>
-      )}
-      {me?.awards.some((a) => a.type === 'grand' && a.acknowledged) && tab === 'scores' && (
-        <section className="mt-6 rounded-lg border border-[#365E53] p-4">
-          <h2 className="font-medium">Your grand prize</h2>
-          {me.awards
-            .filter((a) => a.type === 'grand')
-            .map((a) => (
-              <p key={a.id} className="mt-2 text-sm">
-                {a.collected ? 'Collected' : a.instructions}
-              </p>
-            ))}
-        </section>
       )}
       {!focused && <InformationLinks />}
     </div>

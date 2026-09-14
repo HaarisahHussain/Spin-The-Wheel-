@@ -20,10 +20,7 @@ export function robotMinimum(q) {
       if (next < 0 || q.blocks.includes(next)) continue;
       const gate = q.gates.find((g) => g.cell === next);
       if (gate && !(m & (2 ** q.items.findIndex((v) => v.id === gate.key)))) continue;
-      const mask = q.items.reduce(
-        (bits, v, k) => (v.cell === next ? bits | (2 ** k) : bits),
-        m,
-      );
+      const mask = q.items.reduce((bits, v, k) => (v.cell === next ? bits | (2 ** k) : bits), m);
       todo.push([next, mask, n + 1]);
     }
   }
@@ -31,9 +28,7 @@ export function robotMinimum(q) {
 }
 export function orders(values) {
   return values.length
-    ? values.flatMap((v, i) =>
-        orders(values.filter((_, j) => i !== j)).map((rest) => [v, ...rest]),
-      )
+    ? values.flatMap((v, i) => orders(values.filter((_, j) => i !== j)).map((rest) => [v, ...rest]))
     : [[]];
 }
 export function parcelDestinations(q, order) {

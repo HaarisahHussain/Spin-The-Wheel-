@@ -5,12 +5,7 @@ import { adapterFor } from '../server/games/registry.js';
 import { question } from '../server/games/quiz.js';
 import bank from '../server/games/content-bank.json' with { type: 'json' };
 import fixtures from './fixtures/game-design.json' with { type: 'json' };
-import {
-  robotMinimum,
-  painterMinimum,
-  orders,
-  parcelDestinations,
-} from './reference-solvers.js';
+import { robotMinimum, painterMinimum, orders, parcelDestinations } from './reference-solvers.js';
 for (const id of ['output', 'debug', 'robot', 'parcel', 'painter'])
   test(`${id}: 10,000 seeded selections have legal solutions and bounded content`, () => {
     const fingerprints = new Set(),
@@ -42,8 +37,7 @@ for (const id of ['output', 'debug', 'robot', 'parcel', 'painter'])
 test('independent Python executes 1,200 questions and validates single-statement Debug repairs', () => {
   const samples = [];
   for (let i = 0; i < 600; i++)
-    for (const game of ['debug', 'output'])
-      samples.push(question(game, i % 5, `python060-${i}`));
+    for (const game of ['debug', 'output']) samples.push(question(game, i % 5, `python060-${i}`));
   const result = execFileSync(
     'python3',
     [

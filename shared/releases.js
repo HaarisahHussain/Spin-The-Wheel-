@@ -1,6 +1,12 @@
 // Public summaries; CHANGELOG.md holds the detailed engineering history.
 export const releases = [
   {
+    version: '1.1.0',
+    name: 'Just Play',
+    summary:
+      'Instant browser accounts with editable usernames and optional names. Unlimited play, one solo/Live leaderboard and no emails, player passwords or physical prizes.',
+  },
+  {
     version: '1.0.0',
     name: 'Welcome Week',
     summary:

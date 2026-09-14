@@ -6,9 +6,7 @@ export function useSensitiveAction() {
     [pending, setPending] = useState(null),
     [password, setPassword] = useState('');
   const command = async (action, payload = {}) => {
-    const protectedAction = ['host.export', 'host.purge', 'host.reopen', 'host.finalise'].includes(
-      action,
-    );
+    const protectedAction = ['host.export', 'host.purge'].includes(action);
     const requestPassword = () =>
       new Promise((resolve) => setPending({ action, payload, resolve, epoch: state.staff.epoch }));
     if (protectedAction && state.now - state.staff.reauthenticated >= 900000)

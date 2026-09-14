@@ -30,7 +30,7 @@ export function Live({ onOpenSettings }) {
           {live
             ? `Live · ${{ lobby: 'Joining', wheel: 'Selecting game', introduction: 'How to play', countdown: 'Starting', question: 'Playing', execution: 'Running', reveal: 'Showing result', winner: 'Winners' }[live.phase] || live.phase} · ${live.roster.length} joined`
             : a
-              ? `${a.mode} · ${{ called: 'Waiting for player', wheel: 'Selecting game', introduction: 'How to play', countdown: 'Starting', playing: 'Playing', result: 'Showing result' }[a.phase] || a.phase}`
+              ? `Solo · ${{ called: 'Waiting for player', wheel: 'Selecting game', introduction: 'How to play', countdown: 'Starting', playing: 'Playing', result: 'Showing result' }[a.phase] || a.phase}`
               : 'Confirm the next player is present.'}
         </p>
         {!a && !live && (
@@ -104,10 +104,6 @@ export function Live({ onOpenSettings }) {
           </div>
         </div>
         <div className="mt-8 space-y-3 text-sm">
-          <p className="text-[#62625C]">
-            Email verification{' '}
-            <strong className="text-[#252525]">{c.requireVerification ? 'ON' : 'OFF'}</strong>
-          </p>
           {a && (
             <button
               className="block min-h-11 text-[#A33030] underline"
@@ -142,10 +138,7 @@ export function Live({ onOpenSettings }) {
                 <div>
                   <span className="mr-3 text-[#62625C]">{i + 1}</span>
                   <span className="font-medium">{q.alias}</span>
-                  <p className="mt-1 text-sm capitalize text-[#62625C]">
-                    {q.mode}
-                    {q.heldUntil ? ' · verification hold' : ''}
-                  </p>
+                  <p className="mt-1 text-sm capitalize text-[#62625C]">Solo</p>
                 </div>
                 <button
                   className="min-h-11 text-sm underline"

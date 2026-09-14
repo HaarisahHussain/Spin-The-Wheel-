@@ -1,3 +1,5 @@
+import { createReceiptCodec } from './receipts.js';
+import { secret } from './security.js';
 import { transitionDue } from './runtime.js';
 import { hostControl } from './host-control.js';
 import { details } from './details.js';
@@ -27,10 +29,9 @@ const tokenFrom = (request) => {
 
 export function createApp({
   storage,
-  mail,
+  receipts = createReceiptCodec(secret()),
   origin,
   production = false,
-  preview = false,
   hostPasswordHash,
 }) {
   const app = express(),
@@ -128,7 +129,6 @@ export function createApp({
     instanceId,
     dataVersion: storage.versions.data,
     serviceHealthy: healthy && storage.healthy(),
-    development: preview,
   });
   function sendState(socket, initial = false) {
     const value = view(socket.data.token, socket.data.publicOnly, socket.id);
@@ -215,20 +215,11 @@ export function createApp({
   app.get('/api/health', (_req, res) =>
     res
       .status(healthy && storage.healthy() ? 200 : 503)
-      .json({ ready: healthy && storage.healthy(), mailConfigured: mail.available }),
+      .json({ ready: healthy && storage.healthy() }),
   );
 
   const preparedInFlight = new Map();
-  const publicCommands = new Set([
-    'register',
-    'login',
-    'staffLogin',
-    'hostTakeover',
-    'forgotPassword',
-    'resetPassword',
-    'verify',
-    'logout',
-  ]);
+  const publicCommands = new Set(['guest', 'staffLogin', 'hostTakeover']);
 
   const validatedConnection = (req) => {
     const socket = io.sockets.sockets.get(req.headers['x-arcade-connection']);
@@ -287,18 +278,7 @@ export function createApp({
         );
         return res.json(result);
       }
-      if (
-        [
-          'register',
-          'login',
-          'staffLogin',
-          'hostReauthenticate',
-          'verify',
-          'changePassword',
-          'resetPassword',
-        ].includes(action) &&
-        !cachedCommand
-      ) {
+      if (['staffLogin', 'hostReauthenticate'].includes(action) && !cachedCommand) {
         storage.read((s) => authPreflight(s, action, payload, token, now));
         const identity =
           action === 'staffLogin' || action === 'hostReauthenticate'
@@ -342,7 +322,7 @@ export function createApp({
             epoch: payload.controlEpoch,
             connections: new Set(io.sockets.sockets.keys()),
           },
-          { mail, hostPasswordHash, preparedAuth },
+          { receipts, hostPasswordHash, preparedAuth },
         ),
       );
       if (result.token)
@@ -371,19 +351,6 @@ export function createApp({
       });
     }
   });
-
-  if (preview)
-    app.get('/api/development-mail', (req, res) => {
-      const state = storage.read((s) => s),
-        flow = hash(tokenFrom(req));
-      const challenge = Object.values(state.challenges)
-        .filter((c) => c.flow === flow)
-        .at(-1);
-      const message = challenge ? mail.previewMessages.get(challenge.id) : null;
-      res
-        .set('Cache-Control', 'no-store')
-        .json(message ? { code: message.code, link: message.link } : { pending: true });
-    });
 
   app.use((error, _req, res, _next) =>
     res.status(error.status || 400).json({ error: 'The request could not be read.' }),
@@ -422,62 +389,6 @@ export function createApp({
       running = false;
     }
   }
-  const mailing = new Set();
-  async function deliver(job) {
-    mailing.add(job.id);
-    try {
-      const usable = storage.read(
-        (s) =>
-          !job.challengeId ||
-          (s.challenges[job.challengeId] &&
-            !s.challenges[job.challengeId].used &&
-            s.challenges[job.challengeId].expires > Date.now()),
-      );
-      let error = null;
-      if (usable)
-        try {
-          await mail.send(job);
-        } catch {
-          error = true;
-        }
-      await storage.transact((s) => {
-        const current = s.outbox.find((m) => m.id === job.id);
-        if (!current || current.cancelled) return;
-        current.tries++;
-        current.sent = usable && !error;
-        current.cancelled = !usable;
-        current.error = error ? 'Delivery failed; check SMTP configuration.' : null;
-        current.next = Date.now() + Math.min(60000, current.tries * 10000);
-        if (!error) {
-          delete current.payload;
-          current.completedAt = Date.now();
-        }
-      });
-      update();
-    } catch (error) {
-      console.error('mail worker unavailable', error.message);
-    } finally {
-      mailing.delete(job.id);
-    }
-  }
-  const mailWork = new Set();
-  function sendMail() {
-    if (stopping) return;
-    const jobs = storage.read((s) =>
-      s.outbox
-        .filter(
-          (m) =>
-            !m.sent && !m.cancelled && m.next <= Date.now() && m.tries < 5 && !mailing.has(m.id),
-        )
-        .slice(0, Math.max(0, 2 - mailing.size)),
-    );
-    for (const job of jobs) {
-      const work = deliver(structuredClone(job));
-      mailWork.add(work);
-      work.finally(() => mailWork.delete(work));
-    }
-  }
-
   const timers = [];
 
   return {
@@ -486,13 +397,11 @@ export function createApp({
     io,
     view,
     startTimers() {
-      timers.push(setInterval(pulse, 250), setInterval(sendMail, 1000));
+      timers.push(setInterval(pulse, 250));
     },
     async close() {
       stopping = true;
       timers.forEach(clearInterval);
-      await Promise.allSettled(mailWork);
-      mail.close?.();
       if (broadcastTimer) clearTimeout(broadcastTimer);
       io.disconnectSockets();
       await new Promise((resolve) => io.close(resolve));

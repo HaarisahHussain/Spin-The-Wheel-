@@ -180,7 +180,7 @@ export function Leaderboard({ rows, ownId, display = false, limit }) {
         <span>Score</span>
       </div>
       {!rows.length ? (
-        <p className="py-8 text-[#62625C]">No ranked scores yet.</p>
+        <p className="py-8 text-[#62625C]">No scores yet.</p>
       ) : (
         shown.map((row) => (
           <div

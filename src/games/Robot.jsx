@@ -19,15 +19,7 @@ export function ItemSymbol({ item }) {
   );
 }
 export function Board({ board, display = false }) {
-  const {
-    size,
-    position = board.start,
-    goal,
-    start,
-    blocks = [],
-    robotPoint,
-    failedCell,
-  } = board;
+  const { size, position = board.start, goal, start, blocks = [], robotPoint, failedCell } = board;
   if (![4, 5, 7].includes(size))
     return <p role="alert">Board unavailable. Please speak to the host.</p>;
   const point = robotPoint || { x: position % size, y: Math.floor(position / size) };
@@ -70,8 +62,7 @@ export function Board({ board, display = false }) {
           {(board.gates || [])
             .filter((g) => g.cell === cell)
             .map((g) => {
-              const open =
-                (board.mask || 0) & (1 << board.items.findIndex((i) => i.id === g.key));
+              const open = (board.mask || 0) & (1 << board.items.findIndex((i) => i.id === g.key));
               return (
                 <g
                   key={g.key}

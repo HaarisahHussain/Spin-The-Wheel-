@@ -2,91 +2,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fixture, host, player, command, start, NOW, PASSWORD } from './helpers.js';
 import { sessionFor } from '../server/security.js';
-import { usedAttempts, leaderboard } from '../server/state.js';
+import { leaderboard } from '../server/state.js';
 import { tick, publicLive } from '../server/engine.js';
-import { project } from '../server/projection.js';
 import { newGame, answerGame, tickGame, publicGame } from '../server/games.js';
 import { scoreChallenge, LEVEL_MAXIMA } from '../shared/scoring.js';
-import { allowedEmail, grade, scoreText } from '../shared/catalog.js';
+import { grade, scoreText } from '../shared/catalog.js';
 import { liveDuration } from '../shared/timing.js';
 import { selectGame } from '../server/selection.js';
 import { recoverServiceDelay } from '../server/recovery.js';
 
-test('BCU domains, normalisation and unique account identity', async () => {
-  const f = fixture();
-  await player(f, 'A.B@bcu.ac.uk');
-  assert(allowedEmail('a@mail.bcu.ac.uk'));
-  for (const email of ['a@bcu.ac.uk.evil', 'a@gmail.com', 'a..b@bcu.ac.uk'])
-    assert(!allowedEmail(email));
-  const r = await command(f, 'register', {
-    email: 'a.b@bcu.ac.uk',
-    password: PASSWORD,
-    fullName: 'Different',
-    course: 'X',
-    level: 'Y',
-  });
-  assert(r.error);
-  assert.equal(Object.keys(f.s.accounts).length, 1);
-});
-test('player password login works and invalid password does not', async () => {
-  const f = fixture();
-  await player(f);
-  assert((await command(f, 'login', { email: 'student@bcu.ac.uk', password: PASSWORD })).token);
-  assert.equal(
-    (await command(f, 'login', { email: 'student@bcu.ac.uk', password: 'wrong' })).status,
-    401,
-  );
-});
-test('verification blocks every game mode and toggle does not mark verified', async () => {
-  const f = fixture();
-  await host(f);
-  const p = await player(f);
-  f.s.config.requireVerification = true;
-  assert((await command(f, 'enqueue', { mode: 'practice' }, p.token)).error);
-  f.s.config.requireVerification = false;
-  assert(!(await command(f, 'enqueue', { mode: 'practice' }, p.token)).error);
-  assert.equal(f.s.accounts[p.id].verified, false);
-});
-test('verification codes expire, rate limit guesses and replacement invalidates prior challenge', async () => {
-  const f = fixture();
-  const p = await player(f);
-  await command(f, 'sendVerification', {}, p.token);
-  const old = Object.values(f.s.challenges)[0];
-  for (let i = 0; i < 5; i++)
-    assert((await command(f, 'verify', { code: '000000' }, p.token)).error);
-  assert.equal(f.s.challenges[old.id].guesses, 5);
-  assert((await command(f, 'verify', { code: '000000' }, p.token)).error);
-  assert(!(await command(f, 'sendVerification', {}, p.token, NOW + 61000)).error);
-  assert(f.s.challenges[old.id].used);
-});
-test('cross-browser verification requires registration password and never grants a session', async () => {
-  const f = fixture();
-  const p = await player(f);
-  await command(f, 'sendVerification', {}, p.token);
-  const payload = f.services.mail.open(f.s.outbox[0].payload);
-  assert((await command(f, 'verify', { linkToken: payload.token })).error);
-  const r = await command(f, 'verify', { linkToken: payload.token, password: PASSWORD });
-  assert(!r.error);
-  assert.equal(r.token, undefined);
-  assert(f.s.accounts[p.id].verified);
-});
-test('reset token is single-use, revokes sessions and retains attempts', async () => {
-  const f = fixture();
-  const p = await player(f);
-  f.s.attempts.push({ accountId: p.id, mode: 'ranked', status: 'completed' });
-  await command(f, 'forgotPassword', { email: 'student@bcu.ac.uk' });
-  const payload = f.services.mail.open(f.s.outbox[0].payload);
-  const r = await command(f, 'resetPassword', {
-    linkToken: payload.token,
-    password: 'a new secure passphrase',
-  });
-  assert(!r.error);
-  assert.equal(sessionFor(f.s, p.token, NOW), null);
-  assert.equal(usedAttempts(f.s, p.id), 1);
-  assert(
-    (await command(f, 'resetPassword', { linkToken: payload.token, password: PASSWORD })).error,
-  );
-});
 test('host takeover is explicit, atomic, and old session commands and cache replay are rejected', async () => {
   const f = fixture();
   await host(f);
@@ -193,20 +117,6 @@ test('heartbeats extend lease but do not extend host human inactivity', async ()
     assert(!(await command(f, 'hostControl', { heartbeat: true }, f.host, NOW + i * 5000)).error);
   assert.equal(sessionFor(f.s, f.host, NOW + 1800000), null);
 });
-test('three ranked starts, one queue place and start idempotency', async () => {
-  const f = fixture();
-  await host(f);
-  const p = await player(f);
-  const a = await start(f, p);
-  assert.equal(usedAttempts(f.s, p.id), 1);
-  assert.equal(a.phase, 'playing');
-  assert((await command(f, 'ready', {}, p.token, NOW + 6001)).error);
-  assert((await command(f, 'enqueue', { mode: 'practice' }, p.token, NOW + 6001)).error);
-  for (let i = 0; i < 2; i++)
-    f.s.attempts.push({ accountId: p.id, mode: 'ranked', status: 'abandoned' });
-  f.s.active = null;
-  assert((await command(f, 'enqueue', { mode: 'ranked' }, p.token)).error);
-});
 test('unstarted selected game is retained and no attempt is consumed during wheel', async () => {
   const f = fixture();
   await host(f);
@@ -214,7 +124,7 @@ test('unstarted selected game is retained and no attempt is consumed during whee
   await command(f, 'enqueue', { mode: 'ranked' }, p.token);
   await command(f, 'host.call', {}, f.host);
   await command(f, 'ready', {}, p.token);
-  assert.equal(usedAttempts(f.s, p.id), 0);
+  assert.equal(f.s.attempts.filter((a) => a.accountId === p.id).length, 0);
   assert.equal(f.s.accounts[p.id].pendingGame, f.s.active.selection.gameId);
 });
 test('exact score formula boundaries and displayed grade agree', () => {
@@ -380,25 +290,6 @@ test('liveAnswer evaluates only on server and locks one submitted program', asyn
       .error,
   );
 });
-test('finalisation creates one prize notification record and email per winner', async () => {
-  const f = fixture();
-  await host(f);
-  const p = await player(f);
-  const a = await start(f, p);
-  await command(f, 'quit', { attemptId: a.attemptId }, p.token, NOW + 6100);
-  f.s.attempts[0].score = 1234567;
-  f.s.active = null;
-  f.s.config.prizeInstructions = 'Speak to the welcome-week host with your signed-in phone.';
-  assert(!(await command(f, 'host.finalise', {}, f.host, NOW + 7000)).error);
-  assert.equal(f.s.awards.length, 1);
-  assert.equal(f.s.outbox.filter((j) => j.awardId).length, 1);
-  await command(f, 'host.finalise', {}, f.host, NOW + 7001);
-  assert.equal(f.s.awards.length, 1);
-  const view = project(f.s, p.token, NOW + 7001, 'https://example.test');
-  assert.equal(view.me.awards[0].mailStatus, 'queued');
-  await command(f, 'ackAward', { id: f.s.awards[0].id }, p.token, NOW + 7002);
-  assert(f.s.awards[0].acknowledged);
-});
 test('settings revision, overlapping windows and scoring edits reject without partial mutation', async () => {
   const f = fixture();
   await host(f);
@@ -432,7 +323,7 @@ test('stalled game is interrupted and admissions paused without discarding prior
   assert.equal(f.s.attempts[0].score, 123);
   assert.equal(f.s.attempts[0].status, 'interrupted');
   assert(f.s.config.paused);
-  assert.equal(usedAttempts(f.s, p.id), 1);
+  assert.equal(f.s.attempts.filter((a) => a.accountId === p.id).length, 1);
 });
 test('exact standings use best attempt, not sums or rounded values', () => {
   const f = fixture();
@@ -449,6 +340,8 @@ test('exact standings use best attempt, not sums or rounded values', () => {
       score,
       ended: NOW,
     });
+  f.s.accounts.a = { id: 'a', alias: 'Player-A' };
+  f.s.accounts.b = { id: 'b', alias: 'Player-B' };
   const rows = leaderboard(f.s);
   assert.equal(rows[0].accountId, 'b');
   assert.equal(rows[1].score, 8001000);
@@ -479,44 +372,13 @@ test('private results export requires recent host authentication and escapes spr
   });
   const result = await command(f, 'host.export', {}, f.host);
   assert(result.csv.includes("'=HYPERLINK"));
-  assert(result.csv.includes('student@bcu.ac.uk'));
+  assert(result.csv.includes(f.s.accounts[p.id].alias));
   assert(result.csv.includes('1.23'));
   assert(!(await command(f, 'host.export', {}, p.token)).csv);
   for (const session of Object.values(f.s.sessions))
     if (session.staffId) session.reauthenticated = NOW - 900001;
   assert.equal((await command(f, 'host.export', {}, f.host)).status, 401);
 });
-test('profile editing ends at participation and update acknowledgements remain private', async () => {
-  const f = fixture(),
-    p = await player(f);
-  f.s.updates.push({ id: 'news', title: 'News', body: 'Hello', at: NOW });
-  assert(project(f.s, p.token, NOW, 'test').me.unreadUpdates);
-  assert(!(await command(f, 'readUpdates', {}, p.token)).error);
-  assert(!project(f.s, p.token, NOW, 'test').me.unreadUpdates);
-  assert(
-    !(
-      await command(
-        f,
-        'updateProfile',
-        { fullName: 'Updated', course: 'CS', level: 'Year 2' },
-        p.token,
-      )
-    ).error,
-  );
-  f.s.accounts[p.id].attendedAt = NOW;
-  assert(
-    (
-      await command(
-        f,
-        'updateProfile',
-        { fullName: 'Again', course: 'CS', level: 'Year 2' },
-        p.token,
-      )
-    ).error,
-  );
-  assert.equal(project(f.s, '', NOW, 'test').me, null);
-});
-
 test('first introduction requires readiness, times out without charging and retains the selected game', async () => {
   const f = fixture();
   await host(f);
@@ -527,10 +389,10 @@ test('first introduction requires readiness, times out without charging and reta
   const selected = f.s.active.gameId;
   tick(f.s, NOW + 3000);
   assert.equal(f.s.active.phase, 'introduction');
-  assert.equal(usedAttempts(f.s, p.id), 0);
+  assert.equal(f.s.attempts.filter((a) => a.accountId === p.id).length, 0);
   tick(f.s, NOW + 23000);
   assert.equal(f.s.active, null);
-  assert.equal(usedAttempts(f.s, p.id), 0);
+  assert.equal(f.s.attempts.filter((a) => a.accountId === p.id).length, 0);
   assert.equal(f.s.accounts[p.id].pendingGame, selected);
   assert.match(f.s.accounts[p.id].turnNotice, /timed out/);
 });
@@ -543,10 +405,10 @@ test('tutorial confirmation starts one countdown and cannot be replayed', async 
   await command(f, 'ready', {}, p.token);
   tick(f.s, NOW + 3000);
   assert(!(await command(f, 'tutorialReady', {}, p.token, NOW + 4000)).error);
-  assert.equal(usedAttempts(f.s, p.id), 0);
+  assert.equal(f.s.attempts.filter((a) => a.accountId === p.id).length, 0);
   assert((await command(f, 'tutorialReady', {}, p.token, NOW + 4001)).error);
   tick(f.s, NOW + 7000);
-  assert.equal(usedAttempts(f.s, p.id), 1);
+  assert.equal(f.s.attempts.filter((a) => a.accountId === p.id).length, 1);
 });
 test('exact deadline never awards points and each next challenge gets its own 30 seconds', () => {
   const g = newGame('output', NOW);

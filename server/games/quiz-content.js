@@ -239,10 +239,7 @@ export function buildChallenge(tier, family, r) {
         [
           S('previous', 0),
           S('count', 0),
-          F('item', values, [
-            I(E('>', item, V('previous')), [S('count', E('+', count, 1))]),
-            t,
-          ]),
+          F('item', values, [I(E('>', item, V('previous')), [S('count', E('+', count, 1))]), t]),
           P(count),
         ],
         t,

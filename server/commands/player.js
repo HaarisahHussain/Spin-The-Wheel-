@@ -1,10 +1,10 @@
 import { TIMING } from '../../shared/timing.js';
-import { scoreChallenge } from '../../shared/scoring.js';
+import { scoreChallenge, liveMaximum } from '../../shared/scoring.js';
 import { selectGame } from '../selection.js';
 import { queueFits } from '../runtime.js';
 import { availableGames, SCORING_VERSION } from '../../shared/catalog.js';
 import { requireValue as assert, hash } from '../security.js';
-import { usedAttempts, openWindow } from '../state.js';
+import { openWindow } from '../state.js';
 import { answerGame } from '../games.js';
 import { adapterFor } from '../games/registry.js';
 import { accountFor, requireEligible, requireOpen, finish } from '../runtime.js';
@@ -21,21 +21,24 @@ export function playerCommand(s, action, p, ctx, now) {
     return {};
   }
   if (action === 'updateProfile') {
-    assert(!account.attendedAt, 'Details are fixed after participation. Speak to the host.');
-    for (const key of ['fullName', 'course', 'level']) {
-      assert(
-        typeof p[key] === 'string' && p[key].trim().length > 0 && p[key].length <= 120,
-        'Complete all profile fields.',
-      );
-      account[key] = p[key].trim();
-    }
-    return { message: 'Details updated.' };
-  }
-  if (action === 'ackAward') {
-    const award = s.awards.find((a) => a.id === p.id && a.accountId === account.id);
-    assert(award, 'Award not found.');
-    award.acknowledged = true;
-    return {};
+    const alias = typeof p.alias === 'string' ? p.alias.trim() : '';
+    assert(
+      /^[a-zA-Z0-9_-]{3,24}$/.test(alias),
+      'Use 3–24 letters, numbers, underscores or hyphens.',
+    );
+    assert(
+      !Object.values(s.accounts).some(
+        (a) => a.id !== account.id && a.alias.toLowerCase() === alias.toLowerCase(),
+      ),
+      'That username is taken.',
+    );
+    assert(
+      typeof p.fullName === 'string' && p.fullName.length <= 120,
+      'Name must be 120 characters or fewer.',
+    );
+    account.alias = alias;
+    account.fullName = p.fullName.trim();
+    return { message: 'Saved.' };
   }
   if (action === 'claimPlayerControl') {
     assert(ctx.connectionId, 'Connect before taking control.');
@@ -60,18 +63,12 @@ export function playerCommand(s, action, p, ctx, now) {
       409,
     );
   }
-  if (action === 'enqueue' || action === 'mode') {
+  if (action === 'enqueue') {
     requireEligible(s, account);
-    assert(['practice', 'ranked'].includes(p.mode), 'Choose Practice or Ranked.');
-    requireOpen(s, now, p.mode);
+    requireOpen(s, now);
     assert(!s.active || s.active.accountId !== account.id, 'Finish your current turn first.');
-    assert(
-      p.mode !== 'ranked' || usedAttempts(s, account.id) < 3,
-      'All three ranked attempts are used.',
-    );
     const existing = s.queue.find((q) => q.accountId === account.id);
     if (existing) {
-      existing.mode = p.mode;
       return {};
     }
     assert(s.queue.length < s.config.capacity, 'The queue is full. Please try again shortly.');
@@ -79,7 +76,7 @@ export function playerCommand(s, action, p, ctx, now) {
     assert(queueFits(s, now, window), 'There is not enough time for another turn in this window.');
     s.queue.push({
       accountId: account.id,
-      mode: p.mode,
+      mode: 'solo',
       sequence: s.nextSequence++,
       admitted: now,
     });
@@ -107,12 +104,8 @@ export function playerCommand(s, action, p, ctx, now) {
       active?.accountId === account.id && active.phase === 'called',
       'Your turn is not ready.',
     );
-    const selection = selectGame(
-      availableGames(s.config).filter((g) => active.mode !== 'ranked' || g.ranked),
-      now,
-      active.mode === 'ranked' ? account.pendingGame : null,
-    );
-    if (active.mode === 'ranked') account.pendingGame = selection.gameId;
+    const selection = selectGame(availableGames(s.config), now, account.pendingGame);
+    account.pendingGame = selection.gameId;
     Object.assign(active, {
       gameId: selection.gameId,
       selection,
@@ -194,7 +187,7 @@ export function playerCommand(s, action, p, ctx, now) {
       ...entry.result,
       elapsed: Math.max(0, receivedAt - live.questionAt),
       allowance: live.until - live.questionAt,
-      maximum: Math.floor(1000000000 / (adapter.kind === 'puzzle' ? 3 : 5)),
+      maximum: liveMaximum(live.level, adapter.kind === 'puzzle'),
       puzzle: adapter.kind === 'puzzle',
     });
     entry.score += entry.points;

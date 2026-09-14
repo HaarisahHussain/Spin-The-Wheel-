@@ -35,17 +35,14 @@ export function JoinDisplay() {
         <section className="self-center">
           <div className="mb-6 flex items-baseline justify-between">
             <h2 className="text-[clamp(24px,2.6vw,40px)] font-medium tracking-tight">
-              {state.config.finalised ? 'Final standings' : 'Ranked leaderboard'}
+              Leaderboard
             </h2>
             <span className="text-base text-[#62625C]">Top 5</span>
           </div>
           {state.leaderboard.length ? (
             <Leaderboard rows={state.leaderboard} limit={5} display />
           ) : (
-            <p className="text-lg text-[#62625C]">Play Ranked to set the first score.</p>
-          )}
-          {!state.config.rankedEnabled && !state.leaderboard.length && (
-            <p className="text-base text-[#62625C]">Ranked is currently off.</p>
+            <p className="text-lg text-[#62625C]">Play any game to set the first score.</p>
           )}
         </section>
       </main>
@@ -132,7 +129,7 @@ function LiveDisplay({ live }) {
     const winners = live.roster.filter((e) => live.winners?.includes(e.accountId));
     return (
       <div className="mx-auto max-w-4xl text-center">
-        <p className="mb-8 text-xl text-[#62625C]">Live result · unranked</p>
+        <p className="mb-8 text-xl text-[#62625C]">Live result</p>
         <h1 className="text-6xl font-medium">
           {winners.length ? 'Well played.' : 'Thanks for playing.'}
         </h1>
@@ -229,9 +226,7 @@ export function PlayDisplay() {
           <Game active={a} display />
         ) : (
           <div className="space-y-8 text-center">
-            <p className="text-2xl text-[#62625C]">
-              {a.mode === 'ranked' ? 'Ranked result' : 'Practice result'}
-            </p>
+            <p className="text-2xl text-[#62625C]">Your result</p>
             <Score value={a.game.score} large />
             <p className="text-2xl">{a.alias}</p>
           </div>

@@ -4,7 +4,7 @@ import { io } from 'socket.io-client';
 import { initialState } from '../server/state.js';
 import { createStorage } from '../server/storage.js';
 import { createApp } from '../server/app.js';
-import { createMail } from '../server/mail.js';
+import { createReceiptCodec } from '../server/receipts.js';
 import { issueSession, hash, passwordHash, secret } from '../server/security.js';
 import { generate, publicQuestion } from '../server/games.js';
 import { tick } from '../server/runtime.js';
@@ -56,7 +56,7 @@ test(
         storage: store,
         origin,
         hostPasswordHash: encoded,
-        mail: createMail({ key: secret(), origin, preview: true }),
+        receipts: createReceiptCodec(secret()),
       });
     const sockets = [],
       latency = [];
@@ -143,7 +143,7 @@ test(
           gameId === 'output'
             ? Promise.all(
                 Array.from({ length: 8 }, (_, i) =>
-                  send(100, 'register', {
+                  send(100, 'guest', {
                     email: `new${i}@bcu.ac.uk`,
                     password,
                     fullName: 'New Student',

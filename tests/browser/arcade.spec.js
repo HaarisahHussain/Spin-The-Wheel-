@@ -17,11 +17,6 @@ test('host password sign-in, settings, refresh and explicit second-browser takeo
   await page.reload();
   await expect(page.getByRole('button', { name: 'Call next player' })).toBeVisible();
   await page.getByRole('button', { name: 'event', exact: true }).click();
-  await page.getByRole('switch', { name: 'Ranked play', exact: true }).check();
-  await page.getByRole('button', { name: 'Save settings' }).click();
-  await expect
-    .poll(async () => (await (await page.request.get('/api/state')).json()).config.rankedEnabled)
-    .toBe(true);
   const other = await browser.newPage();
   await loginHost(other);
   await expect(other.getByRole('button', { name: 'Take over', exact: true })).toBeVisible();
@@ -44,29 +39,6 @@ test('second host tab does not auto-claim control; user can move control explici
   await expect(tab.getByRole('button', { name: 'Call next player' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Take control here', exact: true })).toBeVisible();
   await tab.close();
-});
-test('player registration, returning password login and shared-browser host isolation', async ({
-  page,
-}) => {
-  await page.goto('/');
-  await page.getByLabel('Full name').fill('New Student');
-  await page.getByLabel('BCU email').fill('new@bcu.ac.uk');
-  await page.getByLabel('Password', { exact: true }).fill(password);
-  await page.getByLabel('Course', { exact: true }).fill('Computer Science');
-  await page.getByLabel('Academic year').selectOption('Year 1');
-  await page.getByRole('button', { name: 'Create account', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Join queue', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Account', exact: true }).click();
-  await page.getByRole('button', { name: 'Sign out', exact: true }).click();
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await page.getByLabel('BCU email').fill('new@bcu.ac.uk');
-  await page.getByLabel('Password', { exact: true }).fill(password);
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Join queue', exact: true })).toBeVisible();
-  await loginHost(page);
-  await expect(page.getByRole('button', { name: 'Call next player' })).toBeVisible();
-  await page.goto('/');
-  await expect(page.getByRole('button', { name: 'Join queue', exact: true })).toBeVisible();
 });
 test('all five solo controllers render and submit at phone size; monitors fit 720p', async ({
   page,
@@ -176,56 +148,6 @@ test('idle wheel rotates continuously, selection hides result and reduced motion
     timeout: 5000,
   });
   await page.request.post('/__test/clear');
-});
-test('final prize celebration dismisses once and remains available in Scores', async ({ page }) => {
-  await page.request.post('/__test/scene', { data: { gameId: 'debug', award: true } });
-  await page.goto('/');
-  await expect(page.getByRole('dialog')).toBeVisible();
-  await page.getByRole('button', { name: 'Got it', exact: true }).click();
-  await page.reload();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-  await page.getByRole('button', { name: 'scores', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Your grand prize' })).toBeVisible();
-});
-
-test('password reset link opens in another browser without consumption until submission', async ({
-  page,
-  browser,
-}) => {
-  await page.goto('/');
-  await page.getByLabel('Full name').fill('Reset Student');
-  await page.getByLabel('BCU email').fill('reset@bcu.ac.uk');
-  await page.getByLabel('Password', { exact: true }).fill(password);
-  await page.getByLabel('Course', { exact: true }).fill('Computing');
-  await page.getByLabel('Academic year').selectOption('Year 1');
-  await page.getByRole('button', { name: 'Create account', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Join queue', exact: true })).toBeVisible();
-  const other = await browser.newPage();
-  await other.goto('/');
-  await other.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await other.getByRole('button', { name: 'Forgot password?', exact: true }).click();
-  await other.getByLabel('BCU email').fill('reset@bcu.ac.uk');
-  await other.getByRole('button', { name: 'Send reset link', exact: true }).click();
-  await expect(
-    other.getByText('If this address is registered, a reset email will arrive shortly.'),
-  ).toBeVisible();
-  const message = await (await other.request.get('/__test/mail')).json();
-  const link = `/reset-password#token=${message.token}`;
-  await other.goto(link);
-  await expect(other.getByRole('heading', { name: 'Set a new password' })).toBeVisible();
-  await page.reload();
-  await expect(page.getByRole('button', { name: 'Join queue', exact: true })).toBeVisible();
-  await other.getByLabel('Password', { exact: true }).fill('replacement test passphrase');
-  await other.getByRole('button', { name: 'Set password', exact: true }).click();
-  await expect(other.getByRole('link', { name: 'Return to Arcade' })).toBeVisible();
-  await page.reload();
-  await expect(page.getByRole('button', { name: 'Create account', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await page.getByLabel('BCU email').fill('reset@bcu.ac.uk');
-  await page.getByLabel('Password', { exact: true }).fill('replacement test passphrase');
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Join queue', exact: true })).toBeVisible();
-  await other.close();
 });
 test('later puzzle boards fit narrow phones without horizontal overflow', async ({ page }) => {
   for (const width of [320, 360, 390])
@@ -388,11 +310,11 @@ test('host participants are fetched in pages and individual score reviews load o
   await loginHost(page);
   await page.getByRole('button', { name: 'Players & Results', exact: true }).click();
   await page.getByRole('button', { name: 'Players', exact: true }).click();
-  await expect(page.getByText('history0@bcu.ac.uk', { exact: true })).toBeVisible();
+  await expect(page.getByText('History-0', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Next participants', exact: true }).click();
-  await expect(page.getByText('history40@bcu.ac.uk', { exact: true })).toBeVisible();
-  await page.getByLabel('Find participant').fill('history75@bcu.ac.uk');
-  await expect(page.getByText('history75@bcu.ac.uk', { exact: true })).toBeVisible();
+  await expect(page.getByText('History-40', { exact: true })).toBeVisible();
+  await page.getByLabel('Find player').fill('History-75');
+  await expect(page.getByText('History-75', { exact: true })).toBeVisible();
   const snapshot = await (await page.request.get('/api/state?audience=host')).json();
   expect(snapshot.host.accounts).toHaveLength(0);
   expect(snapshot.host.attempts).toHaveLength(0);
@@ -418,34 +340,39 @@ test('public information is readable without a game connection and fits a narrow
   }
 });
 
-test('host sees separated sessions and provisional prizes become collectable only on finalisation', async ({
-  page,
-}) => {
-  await page.request.post('/__test/scene', { data: { gameId: 'output' } });
-  await page.request.post('/__test/history');
-  await page.request.post('/__test/results');
-  await loginHost(page);
-  await page.getByRole('button', { name: 'Players & Results', exact: true }).click();
-  await expect(page.getByText('history0@bcu.ac.uk', { exact: true })).toBeVisible();
-  await expect(page.getByText('history1@bcu.ac.uk', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Void', exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: 'Practice · unranked', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Void', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Live · unranked', exact: true }).click();
-  await expect(page.getByRole('cell', { name: 'Parcel Sorter', exact: false })).toBeVisible();
-  await page.getByRole('button', { name: 'Prizes', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Provisional Ranked leaders' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Confirm collection', exact: true })).toHaveCount(
-    0,
-  );
-  await page.screenshot({ path: '../v100-host-prizes.png', fullPage: true });
-  await page.getByRole('button', { name: 'Finalise winners', exact: true }).click();
-  await page.getByRole('button', { name: 'Confirm', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Confirm collection', exact: true })).toHaveCount(
-    3,
-  );
-  await page.getByRole('button', { name: 'Confirm collection', exact: true }).first().click();
-  await page.getByRole('button', { name: 'Confirm', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Collected', exact: true })).toHaveCount(1);
-  await expect(page.getByText('2 awaiting collection · 1 collected')).toBeVisible();
+test('scan creates a guest, keeps the browser account and allows a private optional name', async ({page,browser})=>{
+ await page.goto('/');
+ await expect(page.getByRole('heading',{name:'Ready to play?',exact:true})).toBeVisible();
+ await expect(page.getByLabel('BCU email')).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Ranked',exact:true})).toHaveCount(0);
+ const before=await (await page.request.get('/api/state')).json();
+ await page.getByRole('button',{name:'Account',exact:true}).click();
+ await page.getByLabel('Username',{exact:true}).fill('First_Player');
+ await page.getByLabel('Your name (optional)',{exact:true}).fill('Private Test Name');
+ await page.getByRole('button',{name:'Save',exact:true}).click();
+ await expect(page.getByText('Saved.',{exact:true})).toBeVisible();
+ await page.reload();
+ await expect(page.getByText('First_Player',{exact:true})).toBeVisible();
+ const after=await (await page.request.get('/api/state')).json();expect(after.me.id).toBe(before.me.id);
+ const other=await browser.newPage();await other.goto('/');await expect(other.getByRole('heading',{name:'Ready to play?',exact:true})).toBeVisible();
+ const second=await (await other.request.get('/api/state')).json();expect(second.me.id).not.toBe(before.me.id);
+ await other.getByRole('button',{name:'Account',exact:true}).click();await other.getByLabel('Username',{exact:true}).fill('first_player');
+ await other.getByRole('button',{name:'Save',exact:true}).click();await expect(other.getByText('That username is taken.',{exact:true})).toBeVisible();
+ const publicState=await(await other.request.get('/api/state?audience=display')).text();expect(publicState).not.toContain('Private Test Name');
+ await other.close();
+});
+
+test('solo queue has no mode choice and host settings have no email or prizes',async({page})=>{
+ await page.goto('/');await page.getByRole('button',{name:'Join queue',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'You’re in the queue'})).toBeVisible();
+ await page.getByRole('button',{name:'Leave queue',exact:true}).click();
+ await expect(page.getByRole('button',{name:'Join queue',exact:true})).toBeVisible();
+ await loginHost(page);await page.getByRole('button',{name:'event',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Event settings'})).toBeVisible();
+ await expect(page.getByText('Require email verification',{exact:true})).toHaveCount(0);
+ await expect(page.getByText('Prize collection',{exact:true})).toHaveCount(0);
+ await page.getByRole('button',{name:'Players & Results',exact:true}).click();
+ await expect(page.getByRole('button',{name:'All sessions',exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Prizes',exact:true})).toHaveCount(0);
+ await page.screenshot({path:'../v110-host.png',fullPage:true});
 });

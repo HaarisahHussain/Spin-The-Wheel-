@@ -2,7 +2,7 @@ import { SCORING_VERSION } from '../shared/catalog.js';
 import assert from 'node:assert/strict';
 import { initialState } from '../server/state.js';
 import { execute } from '../server/engine.js';
-import { createMail } from '../server/mail.js';
+import { createReceiptCodec } from '../server/receipts.js';
 import { secret, passwordHash, hash } from '../server/security.js';
 export const NOW = 1800000000000,
   PASSWORD = 'this is a test password';
@@ -10,12 +10,10 @@ const hostPasswordHash = passwordHash(PASSWORD);
 export function fixture() {
   const s = initialState(NOW);
   s.config.windows = [{ start: NOW - 1000, cutoff: NOW + 18000000, end: NOW + 21600000 }];
-  s.config.requireVerification = false;
-  s.config.rankedEnabled = true;
   return {
     s,
     services: {
-      mail: createMail({ key: secret(), origin: 'http://localhost:3001', preview: true }),
+      receipts: createReceiptCodec(secret()),
       hostPasswordHash,
     },
     connections: new Map(),
@@ -58,21 +56,15 @@ export async function host(f) {
   f.connections.set(r.token, 'host-a');
   return r.token;
 }
-export async function player(f, email = 'student@bcu.ac.uk') {
-  const r = await command(f, 'register', {
-    email,
-    password: PASSWORD,
-    fullName: 'Test Student',
-    course: 'Computing',
-    level: 'Year 1',
-  });
+export async function player(f) {
+  const r = await command(f, 'guest');
   assert(!r.error, r.error);
   const id = f.s.sessions[hash(r.token)].accountId;
   f.connections.set(r.token, `player-${id}`);
   assert(!(await command(f, 'claimPlayerControl', {}, r.token)).error);
   return { id, token: r.token };
 }
-export async function start(f, p, gameId = 'debug', mode = 'ranked') {
+export async function start(f, p, gameId = 'debug', mode = 'solo') {
   const { tick } = await import('../server/engine.js');
   f.s.accounts[p.id].tutorials = { [gameId]: SCORING_VERSION };
   assert(!(await command(f, 'enqueue', { mode }, p.token)).error);

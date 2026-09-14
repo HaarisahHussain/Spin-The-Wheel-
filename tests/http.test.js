@@ -8,7 +8,7 @@ import { io } from 'socket.io-client';
 import { initialState } from '../server/state.js';
 import { createStorage } from '../server/storage.js';
 import { createApp } from '../server/app.js';
-import { createMail } from '../server/mail.js';
+import { createReceiptCodec } from '../server/receipts.js';
 import { secret, passwordHash, issueSession } from '../server/security.js';
 const PASSWORD = 'a local integration password';
 test('HTTP host takeover fences old sockets; cookies and player identity are isolated', async () => {
@@ -21,7 +21,7 @@ test('HTTP host takeover fences old sockets; cookies and player identity are iso
     storage,
     origin,
     hostPasswordHash: passwordHash(PASSWORD),
-    mail: createMail({ key: secret(), origin, preview: true }),
+    receipts: createReceiptCodec(secret()),
   });
   await new Promise((r) => server.http.listen(3199, '127.0.0.1', r));
   const sockets = [];
@@ -111,7 +111,7 @@ test('HTTP host takeover fences old sockets; cookies and player identity are iso
     const register = await cmd(
       null,
       '',
-      'register',
+      'guest',
       {
         email: 'x@bcu.ac.uk',
         password: PASSWORD,
@@ -151,7 +151,7 @@ test('50 authenticated real sockets submit complete Live coding and puzzle sessi
     server = createApp({
       storage,
       origin,
-      mail: createMail({ key: secret(), origin, preview: true }),
+      receipts: createReceiptCodec(secret()),
       hostPasswordHash: passwordHash(PASSWORD),
     });
   await new Promise((r) => server.http.listen(3198, '127.0.0.1', r));
@@ -241,7 +241,9 @@ test('50 authenticated real sockets submit complete Live coding and puzzle sessi
       }
     }
     assert.equal(storage.snapshot().liveResults.length, 250);
-    assert(storage.snapshot().liveResults.every((r) => Number.isFinite(r.started) && r.started <= r.at));
+    assert(
+      storage.snapshot().liveResults.every((r) => Number.isFinite(r.started) && r.started <= r.at),
+    );
     latency.sort((a, b) => a - b);
     console.log(
       `50-player local p95 acknowledgement: ${Math.round(latency[Math.floor(latency.length * 0.95)])} ms (${latency.length} accepted answers)`,
@@ -280,7 +282,7 @@ test('development LAN polling accepts same-origin Referer without Fetch Metadata
     storage,
     origin,
     hostPasswordHash: passwordHash(PASSWORD),
-    mail: createMail({ key: secret(), origin, preview: true }),
+    receipts: createReceiptCodec(secret()),
   });
   await new Promise((r) => server.http.listen(0, '127.0.0.1', r));
   const url = `http://127.0.0.1:${server.http.address().port}`;

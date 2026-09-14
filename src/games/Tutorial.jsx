@@ -44,8 +44,7 @@ const instructions = {
     'Reorder the rules. Each parcel follows only the first rule it matches. The letter beside a parcel is its required depot.',
   painter:
     'Move changes position; Paint marks it. Repeat runs its 2–4 instructions 2–4 times. One block is allowed. Match the target within the tile budget.',
-  debug:
-    'Tap the faulty statement, then Submit. Keep the given inputs and final print unchanged.',
+  debug: 'Tap the faulty statement, then Submit. Keep the given inputs and final print unchanged.',
   output: 'Read the code from top to bottom. Choose what it prints, then Submit.',
 };
 const sampleResults = {

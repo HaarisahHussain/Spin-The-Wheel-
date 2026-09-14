@@ -1,22 +1,16 @@
 import { requireHost } from './host-control.js';
 import { newGame, tickGame, generate, publicQuestion } from './games.js';
 import { adapterFor, liveGames } from './games/registry.js';
-import { randomInt } from 'node:crypto';
 import { selectGame } from './selection.js';
 import { TIMING, LIVE_ROUNDS, LIVE_PUZZLE_ROUNDS, liveDuration } from '../shared/timing.js';
 import { requireValue as assert, sessionFor } from './security.js';
-import { usedAttempts, openWindow } from './state.js';
+import { openWindow, sessionResults } from './state.js';
 const uuid = () => crypto.randomUUID();
-function eligible(s, account) {
-  return (
-    account &&
-    !account.disabled &&
-    allowedEmail(account.email) &&
-    (!s.config.requireVerification || account.verified)
-  );
+function eligible(_s, account) {
+  return !!account && !account.disabled;
 }
 function requireEligible(s, a) {
-  assert(eligible(s, a), 'Verify your BCU email before playing.', 403);
+  assert(eligible(s, a), 'This account is unavailable.', 403);
 }
 function accountFor(s, ctx, now) {
   const session = sessionFor(s, ctx.token, now);
@@ -27,30 +21,21 @@ function staffFor(s, ctx, now) {
   requireHost(s, ctx, now);
   return s.staff.host;
 }
-function requireOpen(s, now, mode) {
-  const window = openWindow(s, now);
+function requireOpen(s, now) {
+  const w = openWindow(s, now);
   assert(
-    window && now < window.cutoff && !s.config.paused && !s.config.finalised,
-    s.config.finalised
-      ? 'This event has finished.'
+    w && now < w.cutoff && !s.config.paused && !s.purgedAt,
+    s.purgedAt
+      ? 'This event has ended.'
       : s.config.paused
         ? 'The host has paused admissions.'
         : 'Outside opening hours.',
   );
-  if (mode === 'ranked')
-    assert(
-      s.config.rankedEnabled && s.config.scoringVersion === SCORING_VERSION,
-      'Ranked is not open yet.',
-    );
 }
 function createAttempt(s, now) {
   const active = s.active,
     a = s.accounts[active.accountId];
   requireEligible(s, a);
-  assert(
-    active.mode !== 'ranked' || usedAttempts(s, a.id) < 3,
-    'All three ranked attempts are used.',
-  );
   const game = newGame(active.gameId, now, (a.recent ||= [])),
     id = uuid();
   s.attempts.push({
@@ -63,12 +48,11 @@ function createAttempt(s, now) {
     started: now,
     ended: null,
     policy: s.config.policyVersion,
-    verified: a.verified,
     version: SCORING_VERSION,
     replacementOf: a.replacementOf || null,
   });
   a.replacementOf = null;
-  if (active.mode === 'ranked') a.pendingGame = null;
+  a.pendingGame = null;
   Object.assign(active, { phase: 'playing', game, attemptId: id, until: game.deadline });
 }
 function finish(s, status, now) {
@@ -81,18 +65,15 @@ function finish(s, status, now) {
         a.id !== attempt.id &&
         a.accountId === attempt.accountId &&
         a.gameId === attempt.gameId &&
-        a.mode === 'practice' &&
+        a.mode === 'solo' &&
         a.version === SCORING_VERSION &&
         ['completed', 'timed_out', 'abandoned'].includes(a.status),
     )
     .reduce((best, a) => Math.max(best, a.score), -1);
   Object.assign(attempt, {
-    personalBest: attempt.mode === 'practice' && active.game.score > previousBest,
-    firstScore: active.mode === 'practice' && previousBest < 0,
-    improvement:
-      attempt.mode === 'practice' && previousBest >= 0
-        ? Math.max(0, active.game.score - previousBest)
-        : null,
+    personalBest: active.game.score > previousBest,
+    firstScore: previousBest < 0,
+    improvement: previousBest >= 0 ? Math.max(0, active.game.score - previousBest) : null,
     status,
     score: active.game.score,
     ended: now,
@@ -133,7 +114,7 @@ export function canStartLive(s, now) {
     w &&
     now < w.cutoff &&
     !s.config.paused &&
-    !s.config.finalised &&
+    !s.purgedAt &&
     now + liveDuration(s.config) + 10000 < w.end
   );
 }
@@ -190,39 +171,11 @@ function liveStart(s, now) {
     },
   };
 }
-function holdUnverified(s, now) {
-  for (const q of s.queue) if (!eligible(s, s.accounts[q.accountId])) q.heldUntil ||= now + 300000;
-  if (
-    s.active &&
-    !['playing', 'result'].includes(s.active.phase) &&
-    !eligible(s, s.accounts[s.active.accountId])
-  ) {
-    s.queue.push({
-      accountId: s.active.accountId,
-      mode: s.active.mode,
-      sequence: s.active.sequence,
-      admitted: s.active.admitted,
-      heldUntil: now + 300000,
-    });
-    s.active = null;
-  }
-}
 export function tick(s, now, _connected = new Set()) {
   s.queue = s.queue.filter((q) =>
     s.config.windows.some((w) => now < w.end && q.admitted >= w.start),
   );
-  s.queue = s.queue.filter((q) => {
-    if (eligible(s, s.accounts[q.accountId])) {
-      q.heldUntil = null;
-      return true;
-    }
-    q.heldUntil ||= now + 300000;
-    if (q.heldUntil > now) return true;
-    if (s.accounts[q.accountId])
-      s.accounts[q.accountId].turnNotice =
-        'Your queue hold expired. Verify your email, then join again.';
-    return false;
-  });
+  s.queue = s.queue.filter((q) => eligible(s, s.accounts[q.accountId]));
   const a = s.active;
   if (a) {
     if (a.phase === 'playing') {
@@ -238,7 +191,7 @@ export function tick(s, now, _connected = new Set()) {
       if (a.phase === 'called' || a.phase === 'introduction' || a.phase === 'result') {
         if (a.phase === 'introduction')
           s.accounts[a.accountId].turnNotice =
-            'Your introduction timed out. Review How to play, then join again. No Ranked start was used.';
+            'Your introduction timed out. Review How to play, then join again. No game was started.';
         for (const [key, session] of Object.entries(s.sessions))
           if (session.controller && session.accountId === a.accountId) delete s.sessions[key];
         s.active = null;
@@ -251,7 +204,7 @@ export function tick(s, now, _connected = new Set()) {
         );
       else if (a.phase === 'countdown') {
         if (eligible(s, s.accounts[a.accountId])) createAttempt(s, now);
-        else holdUnverified(s, now);
+        else s.active = null;
       }
     }
   }
@@ -363,46 +316,25 @@ function finishLive(s, now) {
   live.winners = winners.map((e) => e.accountId);
   live.phase = 'winner';
   live.until = now + TIMING.winner;
-  for (const entry of entries)
+  const previousResults = sessionResults(s);
+  for (const entry of entries) {
+    const previousBest = previousResults
+      .filter((a) => a.accountId === entry.accountId && a.gameId === live.gameId)
+      .reduce((best, a) => Math.max(best, a.score), -1);
+    entry.personalBest = entry.score > previousBest;
     s.liveResults.push({
       id: uuid(),
       liveId: live.id,
       started: live.started ?? null,
+      scoreVersion: '1.1.0',
       accountId: entry.accountId,
       gameId: live.gameId,
       score: entry.score,
       at: now,
       won: live.winners.includes(entry.accountId),
+      personalBest: entry.personalBest,
     });
-  const reserved = s.awards.filter(
-    (a) => a.type === 'instant' && !a.collected && !a.forfeited,
-  ).length;
-  const stock = Math.max(0, s.config.instantPrizes - reserved);
-  const day = new Date(now).toLocaleDateString('en-CA', { timeZone: 'Europe/London' });
-  const recipients = winners.filter(
-    (e) =>
-      !s.awards.some(
-        (a) =>
-          a.type === 'instant' &&
-          a.accountId === e.accountId &&
-          (a.collectedDay === day || (!a.collected && !a.forfeited)),
-      ),
-  );
-  for (let i = recipients.length - 1; i > 0; i--) {
-    const j = randomInt(i + 1);
-    [recipients[i], recipients[j]] = [recipients[j], recipients[i]];
   }
-  live.prizeRecipients = recipients.slice(0, stock).map((e) => e.accountId);
-  for (const entry of recipients.slice(0, stock))
-    s.awards.push({
-      id: uuid(),
-      type: 'instant',
-      accountId: entry.accountId,
-      liveId: live.id,
-      at: now,
-      collected: false,
-    });
-  s.config.soloAfterLive = true;
 }
 function endLive(s, now, message) {
   if (s.live) Object.assign(s.live, { phase: 'cancelled', message, until: now + TIMING.cancelled });
@@ -410,18 +342,8 @@ function endLive(s, now, message) {
   s.config.soloAfterLive = true;
 }
 
-export {
-  eligible,
-  requireEligible,
-  requireOpen,
-  accountFor,
-  staffFor,
-  finish,
-  liveStart,
-  endLive,
-  holdUnverified,
-};
-import { allowedEmail, SCORING_VERSION } from '../shared/catalog.js';
+export { eligible, requireEligible, requireOpen, accountFor, staffFor, finish, liveStart, endLive };
+import { SCORING_VERSION } from '../shared/catalog.js';
 
 // Cheap scheduler predicates; maintenance does not need four full scans a second.
 export function transitionDue(s, now) {

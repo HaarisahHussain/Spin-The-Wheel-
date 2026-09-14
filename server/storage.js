@@ -97,9 +97,7 @@ export async function createStorage({
       await pool.query(
         'CREATE TABLE IF NOT EXISTS arcade_records (key text PRIMARY KEY, body jsonb NOT NULL)',
       );
-      await pool.query(
-        "CREATE UNIQUE INDEX IF NOT EXISTS arcade_records_email ON arcade_records ((body->>'email')) WHERE key LIKE 'accounts/%'",
-      );
+      await pool.query('DROP INDEX IF EXISTS arcade_records_email');
     } else {
       const { DatabaseSync } = await import('node:sqlite');
       mkdirSync(dirname(filename), { recursive: true });
@@ -108,9 +106,7 @@ export async function createStorage({
       db.exec(
         'PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; CREATE TABLE IF NOT EXISTS arcade_records (key TEXT PRIMARY KEY, body TEXT NOT NULL)',
       );
-      db.exec(
-        "CREATE UNIQUE INDEX IF NOT EXISTS arcade_records_email ON arcade_records (json_extract(body,'$.email')) WHERE key LIKE 'accounts/%'",
-      );
+      db.exec('DROP INDEX IF EXISTS arcade_records_email');
     }
     const loaded = pool
       ? (await pool.query('SELECT key,body FROM arcade_records')).rows

@@ -116,16 +116,8 @@ export function robotCandidate(level, source) {
   }
   if (level === 1 || level === 4)
     q.items.push({ id: 'chip', kind: 'chip', label: 'Chip', cell: r.int(0, 25) });
-  const occupied = [
-    q.start,
-    q.goal,
-    ...q.items.map((i) => i.cell),
-    ...q.gates.map((g) => g.cell),
-  ];
-  if (
-    new Set(occupied).size !== occupied.length ||
-    q.items.some((i) => q.blocks.includes(i.cell))
-  )
+  const occupied = [q.start, q.goal, ...q.items.map((i) => i.cell), ...q.gates.map((g) => g.cell)];
+  if (new Set(occupied).size !== occupied.length || q.items.some((i) => q.blocks.includes(i.cell)))
     return null;
   for (let i = 0; i < 25; i++)
     if (!occupied.includes(i) && !q.blocks.includes(i) && r.int(0, 100) < (level < 2 ? 23 : 8))

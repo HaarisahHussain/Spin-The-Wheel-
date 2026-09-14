@@ -7,17 +7,11 @@ import { playerCommand } from './commands/player.js';
 import { hostCommand } from './commands/host.js';
 export { tick, eligible } from './runtime.js';
 const authActions = new Set([
-  'register',
-  'login',
+  'guest',
   'staffLogin',
   'hostTakeover',
   'hostControl',
   'hostReauthenticate',
-  'forgotPassword',
-  'resetPassword',
-  'sendVerification',
-  'verify',
-  'changePassword',
   'logout',
 ]);
 export async function execute(s, action, p, ctx, services) {
@@ -34,7 +28,7 @@ export async function execute(s, action, p, ctx, services) {
       'This command ID was already used for a different action.',
     );
     const cached = previous.secretResult
-      ? services.mail.open(previous.secretResult)
+      ? services.receipts.open(previous.secretResult)
       : previous.result;
     assert(
       !cached.token || sessionFor(s, cached.token, now),
@@ -73,7 +67,7 @@ export async function execute(s, action, p, ctx, services) {
       at: now,
       fingerprint,
       ...(result.token || result.takeover
-        ? { secretResult: services.mail.seal(result) }
+        ? { secretResult: services.receipts.seal(result) }
         : { result }),
     };
   const keys = Object.keys(s.commands);
@@ -109,12 +103,12 @@ export function publicLive(live) {
 
     message: live.message,
     winners: live.winners,
-    prizeRecipients: live.prizeRecipients,
     roster: Object.values(live.roster).map((e, i) => ({
       accountId: e.accountId,
       mark: i + 1,
       score: reveal ? e.score : undefined,
       submitted: e.answer !== null,
+      personalBest: live.phase === 'winner' ? e.personalBest : undefined,
       ...(reveal ? { result: e.result, points: e.points, program: e.answer } : {}),
     })),
   };

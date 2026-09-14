@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.0 — 2026-09-14 · Just Play
+
+- Added automatic guest entry with a generated username, case-insensitive username editing and optional host-only names. Browser cookies retain ownership; usernames cannot recover or take over accounts.
+- Removed player email/password registration, sign-in, verification, recovery and SMTP. Kept exclusive password-protected host control and encrypted command receipts.
+- Replaced Ranked/Practice choices and three-start limits with one unlimited solo queue. Multiple browser accounts are allowed.
+- Unified solo and Live scores on a 0–9 best-session leaderboard. Weighted Live rounds by difficulty, including the three-round puzzle format, and combined personal top-ten results.
+- Removed physical prizes, collection records, winner email, finalisation and related host settings. Live winner announcements remain in-game celebrations.
+- Retained all five game mechanics, controls, thinking clocks and server-owned evaluation. Added Live personal-best feedback.
+- Added a preserving schema-7 upgrade: retain usernames, optional names, sessions and solo scores; convert legacy Live totals proportionally; remove obsolete identity/prize data and its email index. Active games must finish before upgrading.
+- Updated phone/monitor copy, host results, public information, configuration and maintained docs. Replaced retired-feature tests with guest ownership, unlimited queue, shared scoring and upgrade regressions.
+
 ## 1.0.0 — 2026-09-14 · Welcome Week
 
 - Promoted Parcel Sorter and Pattern Painter into the standard five-game Practice, Ranked and Live catalogue; removed the environment prototype gate. Kept existing content, scoring formula, timers and persisted scores.

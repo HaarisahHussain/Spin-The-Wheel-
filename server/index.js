@@ -2,7 +2,8 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import express from 'express';
 import { createStorage } from './storage.js';
-import { createMail } from './mail.js';
+import { createReceiptCodec } from './receipts.js';
+import { upgradeGuestEvent } from './upgrade.js';
 import { createApp } from './app.js';
 import { initialState } from './state.js';
 import { secret, passwordHash } from './security.js';
@@ -11,14 +12,10 @@ if (Number(process.versions.node.split('.')[0]) < 24)
 const production = process.argv.includes('--production') || process.env.NODE_ENV === 'production';
 if (process.argv.includes('--production') && process.env.NODE_ENV === 'development')
   throw Error('Production launch conflicts with NODE_ENV=development.');
-if (production && process.env.MAIL_MODE === 'preview')
-  throw Error('Email previews cannot run in production. Set MAIL_MODE=smtp.');
 if (!production && process.env.DATABASE_URL && process.env.ALLOW_REMOTE_DEV_DATABASE !== 'true')
   throw Error(
     'Development uses SQLite by default. To deliberately use a separate remote test database, set ALLOW_REMOTE_DEV_DATABASE=true.',
   );
-if (production && (!process.env.SMTP_HOST || !process.env.SMTP_FROM))
-  throw Error('Configure SMTP_HOST and SMTP_FROM before launching production.');
 if (
   !process.env.HOST_PASSWORD ||
   process.env.HOST_PASSWORD.length < 15 ||
@@ -28,16 +25,12 @@ if (
 const hostPasswordHash = passwordHash(process.env.HOST_PASSWORD);
 const port = Number(process.env.PORT || 3001),
   origin = process.env.PUBLIC_ORIGIN || `http://localhost:${port}`;
-if (
-  production &&
-  (!process.env.DATABASE_URL || !origin.startsWith('https://') || !process.env.MAIL_KEY)
-)
-  throw Error('Production requires DATABASE_URL, HTTPS PUBLIC_ORIGIN and MAIL_KEY.');
+if (production && (!process.env.DATABASE_URL || !origin.startsWith('https://')))
+  throw Error('Production requires DATABASE_URL, HTTPS PUBLIC_ORIGIN.');
 mkdirSync('data', { recursive: true });
-if (!process.env.MAIL_KEY && !existsSync('data/mail.key'))
-  writeFileSync('data/mail.key', secret(), { mode: 0o600 });
-const key = process.env.MAIL_KEY || readFileSync('data/mail.key', 'utf8').trim();
-const preview = !production && process.env.MAIL_MODE !== 'smtp';
+if (!process.env.RECEIPT_KEY && !existsSync('data/receipt.key'))
+  writeFileSync('data/receipt.key', secret(), { mode: 0o600 });
+const key = process.env.RECEIPT_KEY || readFileSync('data/receipt.key', 'utf8').trim();
 let storage, vite, server;
 try {
   storage = await createStorage({
@@ -52,7 +45,7 @@ try {
       );
     for (const [id, session] of Object.entries(s.sessions))
       if (session.staffId) delete s.sessions[id];
-    s.config.releaseVersion = '1.0.0';
+    upgradeGuestEvent(s);
     delete s.config.prototypeGames;
     s.hostLease = null;
     s.controlEpoch++;
@@ -84,20 +77,10 @@ try {
     }
     if (process.env.RECONCILIATION_REQUIRED === 'true') {
       s.config.paused = true;
-      s.config.rankedEnabled = false;
     }
   });
-  const mail = createMail({
-    key,
-    origin,
-    preview,
-    host: process.env.SMTP_HOST,
-    port: process.env.SMTP_PORT,
-    user: process.env.SMTP_USER,
-    password: process.env.SMTP_PASSWORD,
-    from: process.env.SMTP_FROM,
-  });
-  server = createApp({ storage, mail, origin, production, preview, hostPasswordHash });
+  const receipts = createReceiptCodec(key);
+  server = createApp({ storage, receipts, origin, production, hostPasswordHash });
   if (production) {
     server.app.use(express.static(resolve('dist')));
     server.app.get('/{*path}', (_req, res) => res.sendFile(resolve('dist/index.html')));

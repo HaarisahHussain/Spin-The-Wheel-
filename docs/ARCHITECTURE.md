@@ -1,78 +1,54 @@
-# Architecture and game extension · v1.0.0
+# Architecture · v1.1.0
 
 ## Boundaries
 
-| Module                       | Responsibility                                                                   |
-| ---------------------------- | -------------------------------------------------------------------------------- |
-| shared/catalog.js            | Public metadata, fixed release eligibility, BCU syntax and score presentation    |
-| shared/scoring.js, timing.js | Integer score formula, level weights and phase durations                         |
-| server/passwords.js          | Bounded asynchronous scrypt work outside database transactions                   |
-| server/commands/auth.js      | Registration, verification, password reset and host authentication               |
-| server/host-control.js       | Exclusive session/tab/connection lease, epochs and takeover challenges           |
-| server/commands/player.js    | Account actions, controller ownership, queue and submissions                     |
-| server/commands/host.js      | Settings, incidents, finalisation, exports and cleanup                           |
-| server/engine.js, runtime.js | Idempotent dispatch, server phases, deadlines and scheduling                     |
-| server/games/                | Server-only seeded generators, validators and evaluators                         |
-| server/projection.js         | Explicit public, participant and host views                                      |
-| server/storage.js            | Single-writer committed cache, changed-record persistence and unique email index |
-| server/mail.js               | Encrypted outbox and email transport                                             |
-| src/state.jsx                | Same-origin commands, separate audiences, reconnect and heartbeat                |
-| src/games/                   | Shared quiz/puzzle rendering and phone editors                                   |
+| Module | Responsibility |
+| --- | --- |
+| shared/catalog.js, scoring.js, timing.js | Game metadata, score units, weights and phase durations |
+| server/games/ | Server-only generators, validators, evaluators and prepared content |
+| server/commands/auth.js | Guest issuance and host authentication/control |
+| server/commands/player.js | Profile, queue, ownership and game submissions |
+| server/commands/host.js | Settings, queue, interruptions, Updates, exports and cleanup |
+| server/engine.js, runtime.js | Dispatch, idempotency, phases, deadlines and scheduling |
+| server/state.js, projection.js, details.js | Unified standings, safe screen views and paginated records |
+| server/storage.js, working-state.js | Single-writer cache, isolated drafts and changed-record persistence |
+| server/receipts.js | Authenticated encryption of cached credential responses |
+| server/upgrade.js | One-time guest-flow conversion of existing event records |
+| src/state.jsx, useDetails.js | Same-origin requests, reconnect, host lease and on-demand history |
+| src/screens/, src/games/ | Device screens and shared controllers/renderers |
 
-## Authority
+## Identity and authority
 
-Clients submit an intention with a command ID, challenge ID and connection identity, never scores or trusted timestamps. The HTTP server records arrival time for scoring; queued database work does not reduce a player’s speed score. Authentication and control ownership use execution time. Playback starts at execution time so congestion does not shorten the animation. Mutations run through a serialized transaction. Host commands are fenced by session, connection, epoch and lease before even returning a cached result. Acknowledgements follow persistence. Rejected domain commands restore business state while keeping abuse counters. Password comparisons prepared asynchronously are checked against the exact current hash in the transaction.
+A public username is a label, never a credential. `guest` creates a generated unique username and a random session token in an HttpOnly cookie. An existing valid guest session is reused. Renaming is validated case-insensitively inside the single serialized writer; optional names are excluded from public projections. No email or player password is collected. Guest sessions last seven days; multiple accounts are allowed.
 
-Public questions use allowlists. Seeds, reference Python, solutions and locked Live programs stay server-side until the appropriate reveal. Participant and host cookies are separate. Public monitor routes request a public projection even in an authenticated browser. Player input belongs to one connected device; transfers require explicit confirmation while another owner is present.
+The host retains environment-password sign-in, explicit takeover, session/tab/connection ownership, epochs and a renewable lease. Host and guest cookies are separate. Commands validate identity, connection ownership, phase and deadlines before mutation. Idempotent replies are stored after persistence; credential replies are encrypted. Source and command limits bound resource use without claiming to identify unique people.
+
+Clients submit answers/programs with a challenge ID and command ID. The server alone evaluates and scores. Receipt time determines answer timing; commit time starts playback so a queued request cannot shorten the animation. Private seeds, solutions and locked Live submissions are excluded until reveal. A socket requests its screen audience; display views never expose optional names or private host data.
+
+## Scoring and session lifecycle
+
+Solo sessions retain five challenges and the existing 30-second thinking allowances, feedback and execution phases. Puzzle runs share the thinking clock; successful retries receive 100%/90%/80% multipliers. Execution does not spend thinking time. Codes and puzzle mechanics are unchanged.
+
+One displayed point equals 1,000,000 integer units. Solo maxima are 0.80, 1.20, 1.80, 2.30 and 2.90, totalling 9.00. Correct coding answers receive 80% correctness and up to 20% speed. Puzzles receive 80% completion, up to 15% efficiency and 5% speed, followed by the retry multiplier. Exact-deadline answers score zero.
+
+Live coding uses the same five difficulty weights. Live puzzles use tiers 0, 2 and 4; those tier weights are proportionally expanded to an exact 9,000,000-unit total. Live remains one locked submission per round, with shared reveal. This normalises the scale and round weighting; it does not prove identical human difficulty across formats.
+
+`sessionResults` combines completed/timed-out/abandoned solo sessions with finished Live sessions. Each account’s highest exact score determines its leaderboard position. Exact ties share rank; end time and account ID give stable ordering within a tie without changing rank. Display rounding does not decide ties. Scores do not accumulate with play volume. Interrupted solo sessions enter standings only after a host records resolution, preserving points and end time.
 
 ## Persistence and recovery
 
-SQLite WAL is local only. PostgreSQL uses `arcade_records(key, body)` with separately keyed accounts, attempts, sessions, receipts, outbox entries and other collections. Core configuration and the active game remain small aggregates. One dedicated PostgreSQL advisory lock or SQLite process lock fences other writers. PostgreSQL needs a direct or session-pooler connection, not transaction pooling.
+SQLite WAL supports development. PostgreSQL stores individual `arcade_records` with one dedicated advisory-lock connection. A committed memory cache loads once on startup. Serialized drafts persist only changed records atomically, then publish lean state patches. Immutable completed reviews are shared safely between drafts; on-demand review and paginated results avoid repeated history broadcasts.
 
-Startup reads the records once. Serialized commands create isolated working state, persist only changed records in one transaction, then publish the committed cache. Completed reviews/breakdowns are frozen and shared between drafts; editing them requires replacing the value. State selectors are internal read-only APIs. No-op transactions issue no SQL. Database connection/query deadlines are bounded; an ambiguous PostgreSQL failure disables further writes until restart reloads authoritative state. Pending transactions are capped at 128 with a five-second queue deadline.
+The scheduler checks deadlines every 250 ms, with periodic maintenance. Slow clients receive coalesced updates. Transaction queues and password work are bounded; host passwords use asynchronous scrypt. Rates and control leases are transient. An ambiguous PostgreSQL failure stops writes until restart reloads committed state. Preserve the stable receipt key for cached responses across restarts.
 
-The 250 ms scheduler checks in-memory deadlines; maintenance runs at most every 30 seconds except when a game transition also runs cleanup. Rates, takeover challenges and host leases are transient. Successful command receipts last ten minutes and are capped at 4,000; rejected commands, exports and lease heartbeats are not stored as receipts. A retry must reuse its command ID. Significant results are saved before acknowledgement; there is no periodic deferred save window.
+v1.1 upgrades schema-7 records once after active games have finished. It retains account/session ownership and solo scores, converts old Live totals proportionally from their 1,000-point scale, and removes obsolete email/password/prize data. Historical per-round Live weights cannot be reconstructed. Unknown schemas are never silently erased.
 
-Socket.IO sends an initial lean view followed by changed top-level fields, coalesced over 100 ms. Slow transports keep a dirty flag for resynchronisation rather than a growing application update queue. Private views remain audience/session scoped. Expired authentication explicitly clears host fields. The full leaderboard is paginated; monitors retain their top-five display. `server/details.js` serves paginated host data, player top-ten/recent summaries, and individually authorised reviews. `src/useDetails.js` fetches those resources only for mounted screens. Shared standings/counts are computed once per committed snapshot.
+## Extend a game
 
-Restart revokes host sessions and control ownership. Interrupted solo sessions preserve earned points for review and never refund Ranked allowance. Unfinished Live sessions are cancelled; saved results and prize records remain. Scheduler stalls pause admissions and require intervention. An interrupted challenge is never silently replayed for free. Schema-7 aggregate data is imported once and its redundant legacy tables retired after successful commit. Unknown schemas are rejected. Keep a matching backup for rollback.
+1. Add server generation, input validation, evaluation and public projection to a game adapter under `server/games/`.
+2. Register metadata and implement phone/display rendering under `src/games/`; both solo and Live use the shared adapter contract.
+3. Keep evaluation bounded. Build expensive puzzle banks offline with `npm run content:build` and commit the verified bank.
+4. Add independent reference checks for solvability, malformed input, secret-field exclusion, score boundaries and playback.
+5. Rehearse controls and difficulty with unfamiliar players before changing the event pool. Update the scoring version when changing the solo formula/content compatibility.
 
-## Add or change a game
-
-1. Add metadata to `shared/catalog.js`; initially keep `ranked: false`. Public clients must never import server generators.
-2. Register an adapter with `kind`, `create(level, seed)`, `valid(question, answer)` and `evaluate(question, answer)` in `server/games/registry.js`. Evaluation is pure and bounded; it returns correctness and meaningful efficiency, not a client-provided score.
-3. Provide public fields through `publicQuestion`; preserve answer/solution secrecy before reveal. Add editor and monitor representations to the shared game components, not a new queue or session engine.
-4. Generate a valid reference answer/solution for every seed and bounded retry/fallback behavior. Extend 10,000-seed tests, independent correctness checks and real browser controls. Include Live closure/execution/reveal behavior.
-5. Benchmark difficulty with intended students before enabling Ranked. Freeze content, eligibility, timing and scoring for the actual event; change `SCORING_VERSION` for a new release/event.
-
-Game modules are independent: `robot.js`, `parcel.js`, `painter.js`; `quiz-content.js` contains authored Python AST families and `program.js` renders/interprets only that bounded grammar. `registry.js` wires validators/evaluators to session creation. The interpreter never evaluates arbitrary source or player code.
-
-`content-bank.json` is a checked-in, server-only source artifact. `content.js` selects and copies a prepared challenge in bounded time. `scripts/build-game-content.js` performs expensive shortest-route, exhaustive-order and exact-grammar searches offline. It rejects unproved candidates and writes the bank plus 150 annotated fixtures. Rebuild deliberately with `npm run content:build`; never add these solvers to a request/transaction path. Generation is deterministic for its versioned seed set.
-
-Robot search includes collected-item state, not just location. Parcel evaluation uses first-match rules and accepts every correct permutation; opaque rule IDs and storage order do not reveal a solution. Painter search uses the exact one-Repeat grammar, visible tile cost and expanded-action cap. Its optimum is private; the tile budget is public because it is part of the puzzle.
-
-`src/games/Parcel.jsx` owns rule controls and matching feedback; `Painter.jsx` owns canvas and Repeat editing; `Robot.jsx` owns the board and collected state. `Puzzles.jsx` shares sequence editing, execution/reveal and Live presentation. Server events identify source instruction, repeat-body index and iteration. Render frames using persisted server timestamps; reconnect must not restart evaluation. Live recent fingerprints are stored separately from account histories.
-
-All five catalogue games are available in Practice, Ranked and Live. `availableGames()` is the shared entry point; eligibility is defined by each game’s `ranked` and `live` metadata. Selection draws uniformly from eligible game IDs, then selects a matching wheel sector. No prototype environment flag remains.
-
-## Game phases and clocks
-
-Solo: called → wheel → first-encounter introduction (or countdown) → question → execution for puzzles → feedback → next question/result. Tutorial acknowledgement is per game and scoring version. Introduction expiry frees the turn and preserves the unstarted selection. A completed introduction starts a separate three-second countdown; only actual gameplay consumes a Ranked start.
-
-Each of five questions has its own 30-second active allowance. A puzzle submission stores a unique run ID, copied program, evaluated path/frames, accumulated thinking time and execution deadline atomically. Robot/paint playback targets 220 ms per action, bounded to 600–4,000 ms; parcels use 4,000 ms. A failed run returns the remaining allowance and draft, or closes at zero after three runs. Score is committed at execution completion once. Client motion is presentation only, using server start/end timestamps and a reduced-motion path.
-
-Live: lobby → wheel → ten-second sample → countdown → question → shared execution for puzzles → reveal → next round/winner. Coding uses five 30-second rounds; puzzles use three rounds at 30/35/40 seconds. Only shared closure publishes other players’ programs/results. Live playback reserves four seconds. A player cannot pause or privately test a Live puzzle.
-
-The conservative solo slot is 282 seconds. Admission and phone wait calculations share `estimatedWaitMs`, including current/pending Live and future automatic sessions. Admission retains a ten-minute closing margin. These estimates are bounds, not appointment times.
-
-## Scoring
-
-Solo stores one million integer units per displayed point. Level maxima sum to 9.00. Correct quizzes receive 80% correctness plus up to 20% speed. Puzzles receive 80% completion, up to 15% efficiency and 5% speed. Solo puzzle success is then multiplied by 1.0/0.9/0.8 for the first/second/third accepted run, rounding only after multiplication. Live has one lock and no retry multiplier. Exact-deadline answers score zero. Execution and feedback never spend thinking allowance. Live normalises the same factors separately to 1,000 points. Display rounds to two decimals; true exact ties share ranks and prize-boundary ties require an audited decision.
-
-Changing numbers creates numerical variety but does not establish equal difficulty. The seed benchmark is a duplicate check, not evidence of fair cross-game scores or immunity to memorisation.
-
-## Host results and information pages
-
-`server/details.js` supplies authenticated, paginated history, including Live results. Player/account IDs are the identity keys; names are presentation only. Prizes are persisted only on finalisation or completion of eligible Live events. Provisional leaderboard entries never authorise collection. Grand-prize collection requires finalised results. `host.resolveInterruption` changes an interrupted session to an audited abandoned result, preserving its score, end time and used allowance; Ranked cannot be voided.
-
-`src/screens/Information.jsx` serves three static public routes outside ArcadeProvider so information does not depend on Socket.IO. `shared/releases.js` holds short public release summaries; CHANGELOG.md holds detailed engineering history. Legal copy describes app behaviour; organisers must confirm their controller contact, lawful basis, providers and retention arrangements before opening registration.
+Public information pages run outside the live provider so they work without Socket.IO. `shared/releases.js` contains short version summaries; CHANGELOG.md holds detailed history.

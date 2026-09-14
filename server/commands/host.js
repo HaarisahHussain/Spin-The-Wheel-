@@ -1,7 +1,5 @@
-import { SCORING_VERSION } from '../../shared/catalog.js';
-import { attendanceSummary } from '../attendance.js';
 import { sessionFor, requireValue as assert, textValue } from '../security.js';
-import { usedAttempts, leaderboard, openWindow, log } from '../state.js';
+import { sessionResults, openWindow, log } from '../state.js';
 import {
   eligible,
   requireEligible,
@@ -9,31 +7,15 @@ import {
   staffFor,
   liveStart,
   endLive,
-  holdUnverified,
   canStartLive,
   liveDue,
   queueFits,
 } from '../runtime.js';
 const uuid = () => crypto.randomUUID();
-export function hostCommand(s, action, p, ctx, now, services) {
-  const privileged = [
-    'void',
-    'finalise',
-    'reopen',
-    'resolveIdentity',
-    'collect',
-    'forfeitAward',
-    'purge',
-    'adjudicateTie',
-  ];
-  const staff = staffFor(
-    s,
-    ctx,
-    now,
-    privileged.includes(action) ? ['adjudicator', 'admin'] : undefined,
-  );
+export function hostCommand(s, action, p, ctx, now) {
+  const staff = staffFor(s, ctx, now);
   if (
-    ['purge', 'reopen', 'export', 'finalise'].includes(action) &&
+    ['purge', 'export'].includes(action) &&
     now - sessionFor(s, ctx.token, now).reauthenticated >= 900000
   )
     throw Object.assign(Error('Re-enter the host password before this action.'), {
@@ -49,29 +31,23 @@ export function hostCommand(s, action, p, ctx, now, services) {
     };
     const rows = [
       [
-        'Full name',
-        'Email',
-        'Course',
-        'Academic year',
-        'Public alias',
+        'Username',
+        'Optional name',
         'Game',
-        'Mode',
+        'Format',
         'Score',
         'Status',
-        'Attempt ID',
+        'Session ID',
         'Account ID',
         'Started (UTC)',
         'Ended (UTC)',
       ],
     ];
-    for (const attempt of s.attempts.filter((a) => a.mode === 'ranked')) {
+    for (const attempt of sessionResults(s)) {
       const a = s.accounts[attempt.accountId] || {};
       rows.push([
-        a.fullName,
-        a.email,
-        a.course,
-        a.level,
         a.alias,
+        a.fullName,
         attempt.gameId,
         attempt.mode,
         (attempt.score / 1000000).toFixed(2),
@@ -90,20 +66,18 @@ export function hostCommand(s, action, p, ctx, now, services) {
     const account = s.accounts[p.accountId];
     requireEligible(s, account);
     assert(p.identityConfirmed === true, 'Confirm participant identity.');
-    assert(['practice', 'ranked'].includes(p.mode), 'Choose a mode.');
-    requireOpen(s, now, p.mode);
+    requireOpen(s, now);
     assert(
       !s.queue.some((q) => q.accountId === account.id) && s.active?.accountId !== account.id,
       'Participant is already queued or playing.',
     );
-    assert(p.mode !== 'ranked' || usedAttempts(s, account.id) < 3, 'No ranked attempts remain.');
     assert(
       s.queue.length < s.config.capacity && queueFits(s, now, openWindow(s, now)),
       'There is no queue capacity for another turn.',
     );
     s.queue.push({
       accountId: account.id,
-      mode: p.mode,
+      mode: 'solo',
       admitted: now,
       sequence: s.nextSequence++,
     });
@@ -146,26 +120,16 @@ export function hostCommand(s, action, p, ctx, now, services) {
       'Settings changed in another tab. Refresh and try again.',
       409,
     );
-    if ('rankedEnabled' in p) {
-      assert(typeof p.rankedEnabled === 'boolean', 'Choose Ranked on or off.');
-      assert(!p.rankedEnabled || !s.config.finalised, 'Reopen results before enabling Ranked.');
-      assert(
-        !p.rankedEnabled || s.config.scoringVersion === SCORING_VERSION,
-        'Update the server before enabling Ranked.',
-      );
-      s.config.rankedEnabled = p.rankedEnabled;
-    }
     for (const [key, min, max] of [
       ['interval', 180, 900],
       ['lobbySeconds', 15, 45],
       ['capacity', 1, 100],
-      ['instantPrizes', 0, 500],
     ])
       if (key in p) {
         assert(Number.isInteger(p[key]) && p[key] >= min && p[key] <= max, `Invalid ${key}.`);
         s.config[key] = p[key];
       }
-    for (const key of ['paused', 'autoLive', 'requireVerification', 'animateIdleWheel'])
+    for (const key of ['paused', 'autoLive', 'animateIdleWheel'])
       if (key in p) {
         assert(typeof p[key] === 'boolean', `Invalid ${key}.`);
         s.config[key] = p[key];
@@ -200,31 +164,10 @@ export function hostCommand(s, action, p, ctx, now, services) {
       );
       s.config.windows = sorted;
     }
-    for (const key of [
-      'playoffAt',
-      'playoffLocation',
-      'replyDeadline',
-      'prizeInstructions',
-      'cleanupAt',
-    ])
-      if (key in p) s.config[key] = textValue(p[key], key === 'prizeInstructions' ? 1500 : 160);
+    if ('cleanupAt' in p) s.config.cleanupAt = textValue(p.cleanupAt, 160);
     if (s.config.interval !== oldInterval || s.config.autoLive !== oldAuto)
       s.config.nextLobbyAt = now + s.config.interval * 1000;
     s.config.policyVersion++;
-    if (s.config.requireVerification) holdUnverified(s, now);
-    s.updates.push({
-      id: uuid(),
-      title: 'Event settings updated',
-      body: 'Check Play for current admission and live-game availability.',
-      at: now,
-      system: true,
-    });
-  } else if (action === 'retryMail') {
-    const job = s.outbox.find((j) => j.id === p.id);
-    assert(job && !job.sent && !job.cancelled, 'Choose a failed or pending message.');
-    job.tries = 0;
-    job.next = now;
-    job.error = null;
   } else if (action === 'openLive') {
     assert(!s.live, 'A live event is already active.');
     assert(
@@ -253,29 +196,11 @@ export function hostCommand(s, action, p, ctx, now, services) {
     s.incidents.push({ id: uuid(), attemptId: attempt.id, reason, at: now, resolved: false });
     s.active = null;
     s.config.paused = true;
-  } else if (action === 'void') {
-    assert(
-      reason.length >= 20,
-      'Record the technical fault and evidence (at least 20 characters).',
-    );
-    assert(!s.config.finalised, 'Reopen finalisation first.');
-    const attempt = s.attempts.find((a) => a.id === p.attemptId);
-    assert(attempt && attempt.status !== 'started', 'Choose a finished or interrupted attempt.');
-    assert(attempt.mode !== 'ranked', 'Ranked attempts cannot be voided.');
-    if (attempt.status === 'voided') return {};
-    attempt.status = 'voided';
-    attempt.voidReason = reason;
-    attempt.voidBy = staff.id;
-    s.accounts[attempt.accountId].pendingGame = attempt.gameId;
-    s.accounts[attempt.accountId].replacementOf = attempt.id;
-    for (const incident of s.incidents)
-      if (incident.attemptId === attempt.id) incident.resolved = true;
   } else if (action === 'resolveInterruption') {
-    assert(!s.config.finalised, 'Results are finalised.');
     const attempt = s.attempts.find((a) => a.id === p.attemptId);
     assert(attempt?.status === 'interrupted', 'Choose an interrupted session.');
     assert(reason.length >= 20, 'Record what happened (at least 20 characters).');
-    // Preserve points, end time and consumed Ranked allowance; never grant a replacement.
+    // Preserve points, end time; no points are invented.
     attempt.status = 'abandoned';
     attempt.resolution = { reason, at: now, by: staff.id };
     for (const incident of s.incidents)
@@ -294,169 +219,35 @@ export function hostCommand(s, action, p, ctx, now, services) {
     const update = s.updates.find((u) => u.id === p.id);
     assert(update, 'Message not found.');
     update.archived = true;
-  } else if (action === 'finalise') {
-    if (s.config.finalised) return {};
-    assert(
-      s.config.prizeInstructions,
-      'Set prize collection instructions in Event settings first.',
-    );
-    assert(
-      !s.active &&
-        !s.live &&
-        !s.queue.length &&
-        !s.attempts.some((a) => a.status === 'interrupted'),
-      'Finish the queue and resolve interrupted attempts first.',
-    );
-    const rows = leaderboard(s);
-    assert(rows.length > 0, 'There are no ranked results.');
-    const boundary = rows[2]?.score;
-    const tied = boundary === undefined ? [] : rows.filter((r) => r.score === boundary);
-    const above = boundary === undefined ? [] : rows.filter((r) => r.score > boundary);
-    let chosen = rows.slice(0, 3);
-    if (above.length + tied.length > 3) {
-      assert(
-        Array.isArray(p.winnerIds) &&
-          p.winnerIds.length === 3 - above.length &&
-          new Set(p.winnerIds).size === p.winnerIds.length &&
-          p.winnerIds.every((id) => tied.some((r) => r.accountId === id)) &&
-          reason.length >= 20,
-        'Record the published playoff/draw outcome and select only the tied prize recipients.',
-      );
-      chosen = [...above, ...tied.filter((r) => p.winnerIds.includes(r.accountId))];
-    }
-    assert(
-      !s.awards.some(
-        (a) =>
-          a.type === 'grand' && a.collected && !chosen.some((r) => r.accountId === a.accountId),
-      ),
-      'A collected prize is affected. Resolve the physical prize with the event lead before changing recipients.',
-    );
-    const removed = s.awards.filter(
-      (a) => a.type === 'grand' && !chosen.some((r) => r.accountId === a.accountId),
-    );
-    if (removed.length) {
-      assert(
-        now - sessionFor(s, ctx.token, now).reauthenticated < 900000 && reason.length >= 20,
-        'Re-enter the host password and record the correction reason.',
-      );
-      for (const award of removed) {
-        const message =
-          'The final prize decision was corrected. Please speak to the host about your result.';
-        s.notifications.push({
-          id: uuid(),
-          accountId: award.accountId,
-          title: 'Prize decision updated',
-          body: message,
-          at: now,
-        });
-        for (const job of s.outbox) if (job.awardId === award.id && !job.sent) job.cancelled = true;
-        s.outbox.push({
-          id: uuid(),
-          payload: services.mail.seal({
-            email: s.accounts[award.accountId].email,
-            subject: 'Arcade prize decision updated',
-            text: message,
-          }),
-          sent: false,
-          next: now,
-          tries: 0,
-        });
-      }
-    }
-    s.awards = s.awards.filter((a) => !removed.includes(a));
-    for (const row of chosen)
-      if (!s.awards.some((a) => a.type === 'grand' && a.accountId === row.accountId)) {
-        s.awards.push({
-          id: uuid(),
-          type: 'grand',
-          accountId: row.accountId,
-          at: now,
-          collected: false,
-        });
-        s.outbox.push({
-          id: uuid(),
-          awardId: s.awards.at(-1).id,
-          payload: services.mail.seal({
-            email: s.accounts[row.accountId].email,
-            subject: 'BCUSCA Arcade prize',
-            text: s.config.prizeInstructions,
-          }),
-          sent: false,
-          next: now,
-          tries: 0,
-        });
-      }
-    s.finalStandings = structuredClone(rows);
-    s.config.finalised = true;
-  } else if (action === 'reopen') {
-    assert(reason, 'Record the correction reason.');
-    s.config.finalised = false;
-  } else if (action === 'collect') {
-    assert(p.identityConfirmed === true, 'Confirm the claimant and account identity.');
-    const award = s.awards.find((a) => a.id === p.id);
-    assert(award, 'Award not found.');
-    assert(award.type !== 'grand' || s.config.finalised, 'Finalise winners before collection.');
-    if (award.collected) return {};
-    assert(!award.forfeited, 'This award has been closed without collection.');
-    if (award.type === 'instant') {
-      const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(now);
-      assert(s.config.instantPrizes > 0, 'No instant prizes remain.');
-      assert(
-        !s.awards.some(
-          (a) => a.accountId === award.accountId && a.type === 'instant' && a.collectedDay === day,
-        ),
-        'This account already collected today.',
-      );
-      award.collectedDay = day;
-      s.config.instantPrizes--;
-    }
-    award.collected = true;
-    award.collectedAt = now;
-    award.collectedBy = staff.id;
-  } else if (action === 'forfeitAward') {
-    const award = s.awards.find((a) => a.id === p.id);
-    assert(
-      award && !award.collected && reason.length >= 20,
-      'Select an uncollected award and record the reason.',
-    );
-    award.forfeited = true;
-    award.forfeitReason = reason;
-    award.closedAt = now;
   } else if (action === 'purge') {
-    if (s.purgedAt) return {};
     assert(
-      staff.id === 'host' &&
-        s.config.finalised &&
-        p.confirmation === 'DELETE PERSONAL DATA' &&
-        reason,
-      'Finalise and explicitly confirm retention cleanup.',
+      !s.active && !s.live && !s.queue.length,
+      'Finish active games and clear the queue first.',
     );
     assert(
-      !s.awards.some((a) => !a.collected && !a.forfeited),
-      'Complete prize distribution before cleanup.',
+      p.confirmation === 'DELETE EVENT DATA' && reason.length >= 20,
+      'Confirm deletion and give a reason.',
     );
     assert(
       s.config.cleanupAt && Date.parse(s.config.cleanupAt) <= now,
-      'Set a reached cleanup date in Event settings.',
+      'Set and reach the cleanup date first.',
     );
-    s.attendanceSummary = attendanceSummary(s.accounts);
-    s.purgedAt = now;
     s.accounts = {};
+    s.sessions = {};
     s.attempts = [];
     s.liveResults = [];
-    s.finalStandings = [];
+    s.commands = {};
+    s.rates = {};
     s.notifications = [];
     s.awards = [];
-    s.incidents = [];
-    s.audit = [];
-    s.controllerGrants = {};
-    s.sessions = {};
-    s.hostLease = null;
-    s.controlEpoch++;
     s.challenges = {};
     s.outbox = [];
-    s.rates = {};
-    s.commands = {};
+    s.incidents = [];
+    s.audit = [];
+    s.hostLease = null;
+    s.controlEpoch++;
+    s.purgedAt = now;
+    s.config.paused = true;
   } else assert(false, 'Unknown host action.');
   const actingSession = sessionFor(s, ctx.token, now);
   if (actingSession) actingSession.lastActivity = now;

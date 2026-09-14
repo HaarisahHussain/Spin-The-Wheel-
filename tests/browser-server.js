@@ -3,7 +3,7 @@ import express from 'express';
 import { resolve } from 'node:path';
 import { initialState } from '../server/state.js';
 import { createStorage } from '../server/storage.js';
-import { createMail } from '../server/mail.js';
+import { createReceiptCodec } from '../server/receipts.js';
 import { createApp } from '../server/app.js';
 import { secret, passwordHash, issueSession } from '../server/security.js';
 import { newGame, answerGame, tickGame, publicQuestion } from '../server/games.js';
@@ -21,13 +21,13 @@ const fresh = () => {
   return s;
 };
 const storage = await createStorage({ filename: ':memory:', initial: fresh() });
-const testMail = createMail({ key: secret(), origin, preview: true });
+const testMail = createReceiptCodec(secret());
 const app = createApp({
   storage,
   origin,
   preview: true,
   hostPasswordHash: passwordHash(password),
-  mail: testMail,
+  receipts: testMail,
 });
 app.app.post('/__test/reset', async (_req, res) => {
   await storage.transact((s) => {
@@ -35,19 +35,6 @@ app.app.post('/__test/reset', async (_req, res) => {
     Object.assign(s, fresh());
   });
   res.json({ ok: true });
-});
-app.app.get('/__test/mail', (_req, res) => {
-  const job = storage
-    .snapshot()
-    .outbox.filter((j) => j.challengeId)
-    .at(-1);
-  res.json(
-    job
-      ? job.payload
-        ? testMail.open(job.payload)
-        : testMail.previewMessages.get(job.challengeId) || {}
-      : {},
-  );
 });
 app.app.post('/__test/scene', async (req, res) => {
   const token = await storage.transact((s) => {
@@ -96,7 +83,7 @@ app.app.post('/__test/scene', async (req, res) => {
       id: attemptId,
       accountId: id,
       gameId,
-      mode: 'practice',
+      mode: 'solo',
       status: 'started',
       score: 0,
       started: now,
@@ -106,7 +93,7 @@ app.app.post('/__test/scene', async (req, res) => {
       accountId: id,
       gameId,
       phase: 'playing',
-      mode: 'practice',
+      mode: 'solo',
       attemptId,
       until: g.deadline,
       game: g,
@@ -139,18 +126,6 @@ app.app.post('/__test/scene', async (req, res) => {
         verified: true,
       };
     }
-    if (req.body.award) {
-      s.active = null;
-      s.config.prizeInstructions =
-        'Keep an eye on your email. Speak to the host to collect your prize.';
-      s.awards.push({
-        id: 'award-test',
-        type: 'grand',
-        accountId: id,
-        at: now,
-        collected: false,
-      });
-    }
     return issueSession(s, { accountId: id }, now);
   });
   res.cookie('arcade_session', token, { httpOnly: true, sameSite: 'lax' }).json({ ok: true });
@@ -174,7 +149,7 @@ app.app.post('/__test/history', async (_req, res) => {
       id: 'history-attempt',
       accountId: 'scene-player',
       gameId: 'output',
-      mode: 'practice',
+      mode: 'solo',
       status: 'completed',
       version: SCORING_VERSION,
       score: 4500000,
@@ -190,14 +165,14 @@ app.app.post('/__test/results', async (_req, res) => {
     s.active = null;
     s.live = null;
     s.queue = [];
-    s.config.prizeInstructions = 'Show your signed-in account to the host to collect.';
+
     for (let i = 0; i < 3; i++) {
       s.accounts[`history-${i}`].fullName = 'Sam Student';
       s.attempts.push({
         id: `ranked-${i}`,
         accountId: `history-${i}`,
         gameId: 'robot',
-        mode: 'ranked',
+        mode: 'solo',
         status: 'completed',
         version: SCORING_VERSION,
         score: (3 - i) * 1000000,

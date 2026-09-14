@@ -1,4 +1,4 @@
-// A stalled service must not charge a ranked player for unseen question time.
+// A stalled service must not charge a player for unseen question time.
 export function recoverServiceDelay(s, now) {
   s.hostLease = null;
   s.controlEpoch++;

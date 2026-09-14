@@ -59,9 +59,7 @@ export function question(game, level, source = seed(), previousFamily = null) {
     answer: game === 'debug' ? String(line) : correct.output,
     choices: game === 'output' ? choices : null,
     editableLines: code.lineIds.flatMap((id, i) =>
-      id !== null &&
-      !fixedInputs.has(id) &&
-      !code.code.split('\n')[i].trim().startsWith('print(')
+      id !== null && !fixedInputs.has(id) && !code.code.split('\n')[i].trim().startsWith('print(')
         ? [i]
         : [],
     ),

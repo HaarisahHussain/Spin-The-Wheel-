@@ -18,7 +18,7 @@ export function InformationLinks() {
           className="inline-flex min-h-11 items-center underline underline-offset-4"
           href="/versions"
         >
-          v1.0.0 · Version history
+          v1.1.0 · Version history
         </a>
       </nav>
     </footer>
@@ -89,86 +89,63 @@ export function Information() {
         ) : (
           <>
             <h1 className="text-3xl font-medium">Legal & accessibility</h1>
-            <p className="text-xs text-[#62625C]">Arcade v1.0.0 · Updated 14 September 2026</p>
-            <Section title="Playing fairly">
+            <p className="text-xs text-[#62625C]">Arcade v1.1.0 · Updated 14 September 2026</p>
+            <Section title="Playing">
               <p>
-                The Arcade is free to play. Use your own BCU email ending in @mail.bcu.ac.uk or
-                @bcu.ac.uk. Email verification may be required by the host. Do not share accounts,
-                automate answers or create extra accounts to gain more Ranked attempts.
+                Scan the QR to get a browser account. Choose a public username under Account; your
+                real name is optional and visible only to the host. No email or password is
+                required.
               </p>
               <p>
-                One queue place gives one session. Practice is unlimited; Ranked allows three game
-                starts and keeps your best score. A started Ranked attempt cannot be voided or
-                refunded. If interrupted, the host can close it with the points already earned. Live
-                games are unranked.
+                One queue place gives one solo session. Join again at the back to keep playing, or
+                join a Live lobby. There are no attempt limits, Ranked modes or physical prizes.
+                Multiple accounts are allowed.
+              </p>
+              <p>
+                Your best solo or Live session appears on one leaderboard, on a 0–9 scale. Live
+                scores account for the number and difficulty of rounds. Equal scores share a rank.
+                Play yourself, avoid automated requests and keep usernames respectful.
               </p>
             </Section>
-            <Section title="Prizes">
+            <Section title="Your browser account">
               <p>
-                The leaderboard is provisional until the host finalises it. Up to three Ranked
-                winners receive grand prizes. An exact tie across the prize boundary is resolved by
-                a witnessed draw recorded by the host. Live prizes depend on available stock, with
-                at most one collection per account per UK calendar day.
-              </p>
-              <p>
-                Confirmed winners see collection instructions in their account and are emailed. Show
-                your signed-in account to the host when collecting. Ask the host about collection
-                deadlines or any disputed result before finalisation.
+                An essential cookie keeps your account on this browser for up to seven days.
+                Clearing cookies, using a different browser or letting the session expire creates a
+                new account. Knowing a username does not give access to it, and accounts cannot be
+                recovered by name.
               </p>
             </Section>
             <Section title="Your information">
               <p>
-                BCUSCA operates this Arcade. We collect your name, BCU email, course, academic year,
-                password hash, verification status, game results and prize records to run the event,
-                enforce attempt limits and contact winners. Connection addresses and security
-                records help protect accounts and the service.
+                BCUSCA operates this Arcade. We store your generated account ID, username, optional
+                name, game results and session records to run games and show scores. Connection
+                addresses and security records protect the service. Authorised hosts can view event
+                records; usernames and scores are public.
               </p>
               <p>
-                Your generated alias and results appear on public screens and leaderboards. Names,
-                email addresses and course details are visible only to authorised hosts, not other
-                players. Hosting, database and email providers process the information needed to
-                deliver the service.
-              </p>
-              <p>
-                We use event data to administer fair play and protect the service. The optional
-                membership email is a separate choice; declining it does not affect play. Ask the
-                host to withdraw that choice before the email is sent.
+                The app uses essential cookies and browser storage for sessions and controller
+                ownership. It includes no advertising or analytics trackers and sends no emails.
+                Hosting and database providers process the data needed to operate the service.
               </p>
             </Section>
-            <Section title="Retention & your choices">
+            <Section title="Retention & support">
               <p>
-                Personal event records are deleted by the organiser after prize distribution and the
-                configured cleanup date. Anonymous course/year attendance totals can remain; small
-                groups are combined. Exported files and backups require separate deletion by the
-                organiser.
-              </p>
-              <p>
-                Ask the BCUSCA host to access or correct your information, request deletion, object
-                to its use or raise a privacy concern. Some requests may affect your account or
-                prize eligibility. You can also contact the{' '}
+                The organiser deletes event accounts, names and scores after the configured cleanup
+                date. Exported files and backups need separate deletion. Ask the host for the
+                event’s retention date, access or correction of your information, deletion, or help
+                with a privacy concern. You can also contact the{' '}
                 <a className="underline" href="https://ico.org.uk/make-a-complaint/">
                   Information Commissioner’s Office
                 </a>
                 .
               </p>
             </Section>
-            <Section title="Cookies & device storage">
+            <Section title="Accessibility">
               <p>
-                Essential session cookies keep you signed in. Browser storage supports controller
-                ownership and interface preferences. This app does not include advertising or
-                analytics trackers.
-              </p>
-            </Section>
-            <Section title="Accessibility & support">
-              <p>
-                Controls support keyboard focus and touch. Reduced-motion preferences are respected
-                by the wheel; labels and numbered markers supplement colour. Timed challenges, code
-                reading and spatial puzzles may still present barriers. We do not claim a completed
-                accessibility certification.
-              </p>
-              <p>
-                If a screen or game is difficult to use, speak to the host for help before starting
-                Ranked. Practice can help you learn the controls without consuming a Ranked attempt.
+                Keyboard focus, touch controls, labelled markers and reduced-motion wheel support
+                are included. Timed reading and spatial puzzles may still present barriers. Speak to
+                the host for help with controls or to report a problem. No formal accessibility
+                certification is claimed.
               </p>
             </Section>
           </>

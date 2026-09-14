@@ -7,13 +7,10 @@ import { DatabaseSync } from 'node:sqlite';
 import { initialState } from '../server/state.js';
 import { createStorage } from '../server/storage.js';
 import { createApp } from '../server/app.js';
-import { createMail } from '../server/mail.js';
+import { createReceiptCodec } from '../server/receipts.js';
 import { authCommand } from '../server/commands/auth.js';
-import { authPreflight } from '../server/limits.js';
 import { details } from '../server/details.js';
-import { tick, transitionDue } from '../server/runtime.js';
 import { newGame, answerGame } from '../server/games.js';
-import { execute } from '../server/engine.js';
 import { secret, issueSession } from '../server/security.js';
 
 const pause = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -23,7 +20,7 @@ test('idle scheduler makes no database commits', async () => {
   const server = createApp({
     storage,
     origin: 'http://localhost',
-    mail: createMail({ key: secret(), origin: 'http://localhost', preview: true }),
+    receipts: createReceiptCodec(secret()),
   });
   const count = storage.metrics.commits;
   server.startTimers();
@@ -39,7 +36,7 @@ test('legacy schema-7 data imports once, changed records persist, rollback and r
   const dir = await mkdtemp(join(tmpdir(), 'arcade-upgrade-')),
     filename = join(dir, 'arcade.sqlite');
   const s = initialState();
-  s.accounts.a = { id: 'a', email: 'a@bcu.ac.uk', verified: true };
+  s.accounts.a = { id: 'a', ereceipts: 'a@bcu.ac.uk', verified: true };
   s.attempts.push({
     id: 'attempt',
     accountId: 'a',
@@ -134,69 +131,13 @@ test('failed host attempts do not block a valid login from a different source', 
   );
   assert(result.token);
 });
-test('invalid reset requests reject before password preparation; errors are not cached', async () => {
-  const s = initialState(),
-    now = Date.now();
-  assert.throws(() =>
-    authPreflight(
-      s,
-      'resetPassword',
-      { password: 'long enough password', linkToken: 'bad' },
-      '',
-      now,
-    ),
-  );
-  const r = await execute(s, 'unknown', {}, { token: '', ip: 'test', now, commandId: 'error' }, {});
-  assert(r.error);
-  assert.equal(Object.keys(s.commands).length, 0);
-});
-test('queue verification holds expire, and scheduler follows puzzle playback deadlines', () => {
-  const s = initialState(),
-    now = Date.now();
-  s.config.windows = [{ start: now - 1000, cutoff: now + 3600000, end: now + 7200000 }];
-  s.accounts.a = { id: 'a', email: 'a@bcu.ac.uk', verified: false };
-  s.queue = [{ accountId: 'a', admitted: now, sequence: 1, heldUntil: now + 10 }];
-  tick(s, now + 11);
-  assert.equal(s.queue.length, 0);
-  const g = newGame('robot', now);
-  answerGame(g, g.question.solution, g.question.id, now + 100);
-  s.active = { phase: 'playing', game: g, until: g.deadline };
-  assert(transitionDue(s, g.execution.until));
-});
-test('repeat Live winners do not reserve stock twice or after collection that day', () => {
-  const s = initialState(),
-    now = Date.now();
-  for (const id of ['a', 'b']) s.accounts[id] = { id, email: `${id}@bcu.ac.uk`, verified: true };
-  s.awards.push({
-    id: 'previous',
-    type: 'instant',
-    accountId: 'a',
-    collected: true,
-    collectedDay: new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(now),
-  });
-  s.live = {
-    id: 'live',
-    gameId: 'output',
-    phase: 'reveal',
-    until: now,
-    level: 4,
-    roster: {
-      a: { accountId: 'a', responses: 5, score: 5 },
-      b: { accountId: 'b', responses: 5, score: 2 },
-    },
-  };
-  tick(s, now);
-  assert.deepEqual(s.live.winners, ['a']);
-  assert.deepEqual(s.live.prizeRecipients, []);
-  assert.equal(s.awards.length, 1);
-});
 test('history is paginated and private, with reviews fetched only by their owner or host', () => {
   const s = initialState(),
     now = Date.now();
   for (let i = 0; i < 80; i++)
     s.accounts[i] = {
       id: String(i),
-      email: `p${i}@bcu.ac.uk`,
+      ereceipts: `p${i}@bcu.ac.uk`,
       fullName: `Student ${i}`,
       alias: `Player ${i}`,
     };

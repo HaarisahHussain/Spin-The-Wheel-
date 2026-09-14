@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useArcade } from '../../state';
-import { Button, Field, Select, Textarea, cx } from '../../components/ui';
+import { Button, Field, Select } from '../../components/ui';
 const dateInput = (value) => {
   const d = new Date(value);
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
@@ -9,8 +9,6 @@ export function EventForm({ onDirty = () => {} }) {
   const { state, command, busy } = useArcade(),
     c = state.host.config;
   const [windows, setWindows] = useState(c.windows),
-    [rankedEnabled, setRankedEnabled] = useState(c.rankedEnabled && !c.finalised),
-    [requireVerification, setRequireVerification] = useState(c.requireVerification),
     [autoLive, setAutoLive] = useState(c.autoLive);
   const [dirty, setDirty] = useState(false),
     [saved, setSaved] = useState(false),
@@ -46,20 +44,15 @@ export function EventForm({ onDirty = () => {} }) {
           const result = await command('host.settings', {
             revision,
             windows,
-            requireVerification,
-            rankedEnabled,
             autoLive,
             idlePresentation: data.idlePresentation,
             animateIdleWheel: data.animateIdleWheel === 'on',
             ...Object.fromEntries(
-              ['interval', 'lobbySeconds', 'liveTimeScale', 'capacity', 'instantPrizes'].map(
-                (k) => [k, Number(data[k])],
-              ),
+              ['interval', 'lobbySeconds', 'liveTimeScale', 'capacity'].map((k) => [
+                k,
+                Number(data[k]),
+              ]),
             ),
-            playoffAt: data.playoffAt,
-            playoffLocation: data.playoffLocation,
-            replyDeadline: data.replyDeadline,
-            prizeInstructions: data.prizeInstructions,
             cleanupAt: data.cleanupAt,
           });
           if (result) {
@@ -70,65 +63,6 @@ export function EventForm({ onDirty = () => {} }) {
           }
         }}
       >
-        <section className="space-y-5 border-b border-[#DDDDD5] pb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-medium">Require email verification</h2>
-              <p className="mt-2 text-sm text-[#62625C]">Both BCU domains. Every game mode.</p>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-label="Require email verification"
-              aria-checked={requireVerification}
-              disabled={busy}
-              onClick={() => {
-                setRequireVerification(!requireVerification);
-                setDirty(true);
-                setSaved(false);
-              }}
-              className={cx(
-                'relative h-8 w-14 rounded-full transition-colors',
-                requireVerification ? 'bg-[#365E53]' : 'bg-[#B6B6AD]',
-              )}
-            >
-              <span
-                className={cx(
-                  'absolute top-1 size-6 rounded-full bg-white transition-transform',
-                  requireVerification ? 'left-1 translate-x-6' : 'left-1',
-                )}
-              />
-            </button>
-          </div>
-          {!requireVerification && (
-            <p className="text-sm text-[#A33030]">
-              OFF: mailbox ownership is not checked. False or duplicate addresses are easier to use.
-            </p>
-          )}
-        </section>
-        <section className="space-y-3 border-b border-[#DDDDD5] pb-8">
-          <h2 className="text-xl font-medium">Ranked play</h2>
-          <label className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              role="switch"
-              aria-label="Ranked play"
-              checked={rankedEnabled}
-              disabled={busy || c.finalised}
-              onChange={(e) => setRankedEnabled(e.target.checked)}
-              className="size-5 accent-[#365E53]"
-            />
-            {rankedEnabled ? 'On' : 'Off'}
-          </label>
-          <p className="text-sm text-[#62625C]">
-            {c.finalised
-              ? 'Results are final. Reopen results to enable Ranked.'
-              : 'Save to apply. Opening hours and Pause admissions still apply. Already admitted turns can finish.'}
-          </p>
-          <p className="text-sm text-[#62625C]">
-            Three starts per account. Switching off and on does not reset attempts or scores.
-          </p>
-        </section>
         <section>
           <div className="mb-5 flex justify-between">
             <h2 className="text-xl font-medium">Opening windows</h2>
@@ -271,37 +205,6 @@ export function EventForm({ onDirty = () => {} }) {
             min="1"
             max="100"
             defaultValue={c.capacity}
-          />
-          <Field
-            label="Instant prizes remaining"
-            name="instantPrizes"
-            type="number"
-            min="0"
-            max="500"
-            defaultValue={c.instantPrizes}
-          />
-        </section>
-        <section className="space-y-4">
-          <h2 className="text-xl font-medium">Tied prize winners</h2>
-          <Field
-            label="Tie-break draw date and time"
-            name="playoffAt"
-            defaultValue={c.playoffAt}
-            placeholder="Thursday 24 September, 15:30 BST"
-          />
-          <Field label="Location" name="playoffLocation" defaultValue={c.playoffLocation} />
-          <Field
-            label="Winner reply deadline"
-            name="replyDeadline"
-            defaultValue={c.replyDeadline}
-          />
-        </section>
-        <section className="space-y-4">
-          <h2 className="text-xl font-medium">Prize collection</h2>
-          <Textarea
-            label="Instructions emailed to winners"
-            name="prizeInstructions"
-            defaultValue={c.prizeInstructions}
           />
           <Field
             label="Personal data cleanup date"

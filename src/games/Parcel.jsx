@@ -51,10 +51,7 @@ export function ParcelBoard({
   const current = routes && progress < 1 ? routes[packetIndex] : null;
   return (
     <div className={cx('mx-auto w-full space-y-3', display ? 'max-w-3xl' : 'max-w-lg')}>
-      <div
-        className="flex flex-wrap justify-center gap-2"
-        aria-label="Parcels and required depots"
-      >
+      <div className="flex flex-wrap justify-center gap-2" aria-label="Parcels and required depots">
         {q.packets.map((packet, i) => {
           const routed = routes && (progress >= 1 || i < packetIndex) ? routes[i] : null;
           return (
@@ -74,9 +71,7 @@ export function ParcelBoard({
                     routed.destination === packet.target ? 'text-[#365E53]' : 'text-[#A33030]'
                   }
                 >
-                  {routed.destination === packet.target
-                    ? '✓'
-                    : `× ${depots[routed.destination]}`}
+                  {routed.destination === packet.target ? '✓' : `× ${depots[routed.destination]}`}
                 </span>
               )}
             </div>

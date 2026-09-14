@@ -74,8 +74,7 @@ export function PuzzleView({ q, display = false }) {
         <Board board={q} display={display} />
       </div>
     );
-  if (q.game === 'parcel')
-    return <ParcelBoard q={q} program={q.program || []} display={display} />;
+  if (q.game === 'parcel') return <ParcelBoard q={q} program={q.program || []} display={display} />;
   return (
     <div className={cx('mx-auto space-y-3', display ? 'max-w-lg' : 'max-w-sm')}>
       {display && (
@@ -165,14 +164,7 @@ function sourceStep(program, index) {
   }
   return null;
 }
-export function PuzzleEditor({
-  q,
-  onSubmit,
-  locked = false,
-  live = false,
-  runs = 0,
-  maxRuns = 3,
-}) {
+export function PuzzleEditor({ q, onSubmit, locked = false, live = false, runs = 0, maxRuns = 3 }) {
   const { busy } = useArcade(),
     [program, setProgram] = useState(q.program?.length ? q.program : q.starter || []),
     [selected, setSelected] = useState(sourceStep(q.program || [], q.failedIndex)),
@@ -188,9 +180,7 @@ export function PuzzleEditor({
     setProgram(next);
   };
   const edit = (v) => {
-    change(
-      selected === null ? [...program, v] : program.map((m, i) => (i === selected ? v : m)),
-    );
+    change(selected === null ? [...program, v] : program.map((m, i) => (i === selected ? v : m)));
     setSelected(null);
   };
   return (
@@ -243,9 +233,7 @@ export function PuzzleEditor({
                     name === 'clear'
                       ? (change([]), setSelected(null))
                       : name === 'remove'
-                        ? (change(
-                            program.filter((_, i) => i !== (selected ?? program.length - 1)),
-                          ),
+                        ? (change(program.filter((_, i) => i !== (selected ?? program.length - 1))),
                           setSelected(null))
                         : edit(name)
                   }
@@ -296,9 +284,7 @@ export function PuzzleEditor({
                 }
                 onClick={() => setRepeatEditing(true)}
               >
-                {typeof program[selected] === 'object'
-                  ? 'Edit repeat block'
-                  : 'Add repeat block'}
+                {typeof program[selected] === 'object' ? 'Edit repeat block' : 'Add repeat block'}
               </button>
             ))}
           <Sequence
@@ -387,13 +373,7 @@ export function PuzzleExecution({ q, execution, display = false, finished = fals
           }}
         />
       ) : q.game === 'parcel' ? (
-        <ParcelBoard
-          q={q}
-          program={program}
-          display={display}
-          routes={r.routes}
-          progress={ratio}
-        />
+        <ParcelBoard q={q} program={program} display={display} routes={r.routes} progress={ratio} />
       ) : (
         <div className="mx-auto grid max-w-sm grid-cols-2 gap-4">
           <Canvas q={q} target painted={q.target} />
@@ -405,9 +385,7 @@ export function PuzzleExecution({ q, execution, display = false, finished = fals
           program={program}
           locked
           active={
-            finished
-              ? null
-              : (r.events?.[activeStep]?.sourceIndex ?? expandedIndices[activeStep])
+            finished ? null : (r.events?.[activeStep]?.sourceIndex ?? expandedIndices[activeStep])
           }
           event={r.events?.[activeStep]}
           failed={finished ? expandedIndices[r.failedIndex] : undefined}
@@ -466,9 +444,7 @@ export function RobotRace({ live }) {
         {Array.from({ length: q.size * q.size }, (_, cell) => {
           const robots = live.roster.filter((e) => {
             const path = e.result?.path || [q.start];
-            return (
-              path[Math.min(path.length - 1, Math.floor(ratio * (path.length - 1)))] === cell
-            );
+            return path[Math.min(path.length - 1, Math.floor(ratio * (path.length - 1)))] === cell;
           });
           return (
             <div

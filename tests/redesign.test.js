@@ -17,10 +17,7 @@ test('retry multiplier applies once after raw puzzle score and rounds at the end
   };
   const base = values.maximum * (0.8 + 0.15 * 0.83 + 0.05 * (1 - 4371 / 30000));
   for (const runs of [1, 2, 3])
-    assert.equal(
-      scoreChallenge({ ...values, runs }),
-      Math.round(base * (1 - (runs - 1) * 0.1)),
-    );
+    assert.equal(scoreChallenge({ ...values, runs }), Math.round(base * (1 - (runs - 1) * 0.1)));
   assert.equal(
     scoreChallenge({ ...values, puzzle: false, runs: 3 }),
     scoreChallenge({ ...values, puzzle: false, runs: 1 }),
@@ -103,9 +100,7 @@ test('Repeat events identify source, body and iteration; painting twice is idemp
       [0, 1, 1],
     ],
   );
-  assert(
-    evaluatePainter({ ...q, start: 1, target: [1], optimum: 1 }, ['paint', 'paint']).correct,
-  );
+  assert(evaluatePainter({ ...q, start: 1, target: [1], optimum: 1 }, ['paint', 'paint']).correct);
 });
 test('puzzle validators reject malformed, nested, excessive and unknown instructions without throwing', () => {
   for (const id of ['robot', 'parcel', 'painter']) {

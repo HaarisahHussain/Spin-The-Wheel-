@@ -209,9 +209,7 @@ export function painterCandidate(level, source) {
           typeof v === 'string' ? v : { ...v, repeat: v.repeat === 2 ? 3 : 2 },
         )
       : [];
-  q.family = ['move-paint', 'repeat-unit', 'repair-repeat', 'build-repeat', 'prefix-repeat'][
-    level
-  ];
+  q.family = ['move-paint', 'repeat-unit', 'repair-repeat', 'build-repeat', 'prefix-repeat'][level];
   q.prompt =
     level === 2
       ? 'Repair the repeated block to match the target.'
