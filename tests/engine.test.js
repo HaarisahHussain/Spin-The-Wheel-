@@ -558,21 +558,6 @@ test('exact deadline never awards points and each next challenge gets its own 30
   assert.equal(g.deadline - g.questionAt, 30000);
 });
 
-test('prototype games are excluded by default and never enter Ranked selection', async () => {
-  const { availableGames } = await import('../shared/catalog.js');
-  assert.deepEqual(
-    availableGames({}).map((g) => g.id),
-    ['debug', 'output', 'robot'],
-  );
-  assert.equal(availableGames({ prototypeGames: true }).length, 5);
-  assert.deepEqual(
-    availableGames({ prototypeGames: true })
-      .filter((g) => g.ranked)
-      .map((g) => g.id),
-    ['debug', 'output', 'robot'],
-  );
-});
-
 test('Painter Repeat is bounded and errors retain expanded execution detail', async () => {
   const { adapterFor } = await import('../server/games/registry.js');
   const a = adapterFor('painter');

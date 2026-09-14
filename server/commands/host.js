@@ -59,6 +59,9 @@ export function hostCommand(s, action, p, ctx, now, services) {
         'Score',
         'Status',
         'Attempt ID',
+        'Account ID',
+        'Started (UTC)',
+        'Ended (UTC)',
       ],
     ];
     for (const attempt of s.attempts.filter((a) => a.mode === 'ranked')) {
@@ -74,6 +77,9 @@ export function hostCommand(s, action, p, ctx, now, services) {
         (attempt.score / 1000000).toFixed(2),
         attempt.status,
         attempt.id,
+        attempt.accountId,
+        attempt.started ? new Date(attempt.started).toISOString() : '',
+        attempt.ended ? new Date(attempt.ended).toISOString() : '',
       ]);
     }
     log(s, staff.id, 'host.export', { count: rows.length - 1 }, now);
@@ -255,12 +261,23 @@ export function hostCommand(s, action, p, ctx, now, services) {
     assert(!s.config.finalised, 'Reopen finalisation first.');
     const attempt = s.attempts.find((a) => a.id === p.attemptId);
     assert(attempt && attempt.status !== 'started', 'Choose a finished or interrupted attempt.');
+    assert(attempt.mode !== 'ranked', 'Ranked attempts cannot be voided.');
     if (attempt.status === 'voided') return {};
     attempt.status = 'voided';
     attempt.voidReason = reason;
     attempt.voidBy = staff.id;
     s.accounts[attempt.accountId].pendingGame = attempt.gameId;
     s.accounts[attempt.accountId].replacementOf = attempt.id;
+    for (const incident of s.incidents)
+      if (incident.attemptId === attempt.id) incident.resolved = true;
+  } else if (action === 'resolveInterruption') {
+    assert(!s.config.finalised, 'Results are finalised.');
+    const attempt = s.attempts.find((a) => a.id === p.attemptId);
+    assert(attempt?.status === 'interrupted', 'Choose an interrupted session.');
+    assert(reason.length >= 20, 'Record what happened (at least 20 characters).');
+    // Preserve points, end time and consumed Ranked allowance; never grant a replacement.
+    attempt.status = 'abandoned';
+    attempt.resolution = { reason, at: now, by: staff.id };
     for (const incident of s.incidents)
       if (incident.attemptId === attempt.id) incident.resolved = true;
   } else if (action === 'update') {
@@ -378,6 +395,7 @@ export function hostCommand(s, action, p, ctx, now, services) {
     assert(p.identityConfirmed === true, 'Confirm the claimant and account identity.');
     const award = s.awards.find((a) => a.id === p.id);
     assert(award, 'Award not found.');
+    assert(award.type !== 'grand' || s.config.finalised, 'Finalise winners before collection.');
     if (award.collected) return {};
     assert(!award.forfeited, 'This award has been closed without collection.');
     if (award.type === 'instant') {

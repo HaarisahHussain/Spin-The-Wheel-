@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.0.0 — 2026-09-14 · Welcome Week
+
+- Promoted Parcel Sorter and Pattern Painter into the standard five-game Practice, Ranked and Live catalogue; removed the environment prototype gate. Kept existing content, scoring formula, timers and persisted scores.
+- Reorganised Players & Results into Game sessions, Prizes, Players and Event records. Split Ranked, Practice and Live history; added UK start/end timestamps, distinct account identities and search by account ID, alias or email.
+- Added provisional prize leaders, explicit finalisation, pending/collected counts, delivery status and timestamped collection records. Prevented grand-prize collection while decisions are reopened.
+- Made Ranked attempts non-voidable on the server and removed their Void controls. Added audited interruption resolution that preserves earned points and the used attempt, allowing finalisation without a replacement.
+- Added account IDs and UTC start/end timestamps to protected Ranked CSV exports. Filtered prize searches consistently with player identity.
+- Added public About BCUSCA & SWE, Legal & accessibility and named version-history pages, linked from the phone home screen and available without a live connection.
+- Reduced redundant phone copy and moved host diagnostics, exports and personal-data cleanup into Event records.
+- Fixed development LAN polling when browsers omit Fetch Metadata, while retaining production origin restrictions.
+- Consolidated historical specifications into the current README, Operations and Architecture guides; retained detailed release history here and separate validation evidence.
+- Added regressions for all-five-game Ranked starts, protected results, interrupted-session resolution, prize lifecycle, identity filtering and LAN connection headers.
+
 ## 0.7.0 — 2026-09-14
 
 - Replaced repeated whole-event database reads/writes with a committed memory cache and atomic updates to changed records; added a preserving upgrade from v0.6.0 schema 7.

@@ -1,3 +1,4 @@
+import { request as httpRequest } from 'node:http';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -240,6 +241,7 @@ test('50 authenticated real sockets submit complete Live coding and puzzle sessi
       }
     }
     assert.equal(storage.snapshot().liveResults.length, 250);
+    assert(storage.snapshot().liveResults.every((r) => Number.isFinite(r.started) && r.started <= r.at));
     latency.sort((a, b) => a - b);
     console.log(
       `50-player local p95 acknowledgement: ${Math.round(latency[Math.floor(latency.length * 0.95)])} ms (${latency.length} accepted answers)`,
@@ -269,4 +271,49 @@ test('SQLite persistence rolls back a failed transaction and rejects duplicate s
   assert(!b.snapshot().config.paused);
   await b.close();
   await rm(dir, { recursive: true, force: true });
+});
+
+test('development LAN polling accepts same-origin Referer without Fetch Metadata and rejects foreign requests', async () => {
+  const origin = 'http://192.168.1.13:3001';
+  const storage = await createStorage({ filename: ':memory:', initial: initialState() });
+  const server = createApp({
+    storage,
+    origin,
+    hostPasswordHash: passwordHash(PASSWORD),
+    mail: createMail({ key: secret(), origin, preview: true }),
+  });
+  await new Promise((r) => server.http.listen(0, '127.0.0.1', r));
+  const url = `http://127.0.0.1:${server.http.address().port}`;
+  try {
+    const getPolling = (headers) =>
+      new Promise((resolve, reject) => {
+        const req = httpRequest(url + '/socket.io/?EIO=4&transport=polling', { headers }, (res) => {
+          let body = '';
+          res.setEncoding('utf8');
+          res.on('data', (part) => {
+            body += part;
+          });
+          res.on('end', () => resolve({ status: res.statusCode, text: async () => body }));
+        });
+        req.on('error', reject);
+        req.end();
+      });
+    const headers = { Host: '192.168.1.13:3001', Referer: origin + '/' };
+    let r = await getPolling(headers);
+    assert.equal(r.status, 200);
+    assert.match(await r.text(), /^0\{/);
+    for (const extra of [
+      { Referer: 'http://evil.invalid/' },
+      { Origin: 'http://evil.invalid' },
+      { 'Sec-Fetch-Site': 'cross-site' },
+      { Host: 'wrong.invalid' },
+    ]) {
+      r = await getPolling({ ...headers, ...extra });
+      assert.equal(r.status, 403);
+    }
+    r = await fetch(url + '/api/health');
+    assert.equal(r.headers.get('referrer-policy'), 'same-origin');
+  } finally {
+    await server.close();
+  }
 });

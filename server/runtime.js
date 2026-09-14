@@ -330,6 +330,7 @@ export function cleanup(s, now) {
 }
 function nextLiveQuestion(s, now) {
   const live = s.live;
+  live.started ??= now;
   for (const id of Object.keys(live.roster)) s.accounts[id].attendedAt ||= now;
   live.question = generate(
     live.gameId,
@@ -366,6 +367,7 @@ function finishLive(s, now) {
     s.liveResults.push({
       id: uuid(),
       liveId: live.id,
+      started: live.started ?? null,
       accountId: entry.accountId,
       gameId: live.gameId,
       score: entry.score,

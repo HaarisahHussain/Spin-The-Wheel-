@@ -59,9 +59,7 @@ export function createApp({
       crossOriginEmbedderPolicy: false,
       crossOriginOpenerPolicy: production ? { policy: 'same-origin' } : false,
       originAgentCluster: production,
-      referrerPolicy: {
-        policy: production ? 'no-referrer' : 'same-origin',
-      },
+      referrerPolicy: { policy: production ? 'no-referrer' : 'same-origin' },
     }),
   );
 
@@ -82,15 +80,11 @@ export function createApp({
       try {
         const expected = new URL(origin);
         let refererOrigin = null;
-
         try {
-          if (req.headers.referer) {
-            refererOrigin = new URL(req.headers.referer).origin;
-          }
+          if (req.headers.referer) refererOrigin = new URL(req.headers.referer).origin;
         } catch {
-          // Invalid referrers do not qualify.
+          /* Invalid referrers do not qualify. */
         }
-
         const allowed =
           req.headers.origin === expected.origin ||
           (!req.headers.origin &&
@@ -99,6 +93,7 @@ export function createApp({
               (!production &&
                 !req.headers['sec-fetch-site'] &&
                 refererOrigin === expected.origin)));
+
         if (
           !allowed ||
           socketIps.size >= 600 ||

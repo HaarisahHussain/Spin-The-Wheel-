@@ -49,18 +49,30 @@ export function details(s, token, now, query) {
     .slice(0, 120)
     .toLowerCase();
   const people = Object.values(s.accounts).filter((a) =>
-    `${a.alias} ${a.fullName} ${a.email} ${a.course} ${a.level}`.toLowerCase().includes(search),
+    `${a.id} ${a.alias} ${a.fullName} ${a.email} ${a.course} ${a.level}`
+      .toLowerCase()
+      .includes(search),
   );
   const ids = new Set(people.map((a) => a.id));
-  const attempts = s.attempts
-    .filter((a) => !search || ids.has(a.accountId))
+  const allAttempts =
+    query.mode === 'live'
+      ? s.liveResults.map((a) => ({
+          ...a,
+          mode: 'live',
+          ended: a.at,
+          status: a.won ? 'winner' : 'completed',
+        }))
+      : s.attempts;
+  const attempts = allAttempts
+    .filter((a) => (!search || ids.has(a.accountId)) && (!query.mode || a.mode === query.mode))
     .slice()
-    .reverse();
+    .sort((a, b) => (b.started || b.ended || 0) - (a.started || a.ended || 0));
   const selectedPeople = people.slice(page(query.people), page(query.people) + 30);
   const selectedAttempts = attempts
     .slice(page(query.attempts), page(query.attempts) + 100)
     .map(summary);
-  const awards = s.awards
+  const matchingAwards = s.awards.filter((a) => !search || ids.has(a.accountId));
+  const awards = matchingAwards
     .slice()
     .reverse()
     .slice(page(query.awards), page(query.awards) + 50);
@@ -68,6 +80,7 @@ export function details(s, token, now, query) {
     ...selectedPeople.map((a) => a.id),
     ...selectedAttempts.map((a) => a.accountId),
     ...awards.map((a) => a.accountId),
+    ...rows.filter((r, i) => i < 3 || r.score === rows[2]?.score).map((r) => r.accountId),
   ]);
   const accounts = [...referenced]
     .map((id) => s.accounts[id])
@@ -86,8 +99,27 @@ export function details(s, token, now, query) {
     people: accounts.filter((a) => selectedPeople.some((p) => p.id === a.id)),
     accounts,
     attempts: selectedAttempts,
-    awards,
-    totals: { people: people.length, attempts: attempts.length, awards: s.awards.length },
+    awards: awards.map((a) => {
+      const job = s.outbox.find((m) => m.awardId === a.id && !m.cancelled);
+      return {
+        ...a,
+        mailStatus:
+          a.type !== 'grand'
+            ? null
+            : job?.sent
+              ? 'sent'
+              : job?.error
+                ? 'failed'
+                : job
+                  ? 'queued'
+                  : 'unavailable',
+      };
+    }),
+    prizeSummary: {
+      pending: s.awards.filter((a) => !a.collected && !a.forfeited).length,
+      collected: s.awards.filter((a) => a.collected).length,
+    },
+    totals: { people: people.length, attempts: attempts.length, awards: matchingAwards.length },
     audit: s.audit.slice(-100),
     mail: s.outbox
       .filter((m) => !m.sent && !m.cancelled)

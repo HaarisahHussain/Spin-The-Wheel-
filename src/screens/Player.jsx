@@ -1,3 +1,4 @@
+import { InformationLinks } from './Information';
 import { useDetails } from '../useDetails';
 import { useConfirmation } from '../components/useConfirmation';
 import { Tutorial, GameHelp } from '../games/Tutorial';
@@ -100,8 +101,11 @@ function Auth() {
               ))}
             </Select>
             <p className="text-xs text-[#62625C]">
-              Your public name is generated. Your details are private and deleted after the event
-              and prize distribution.
+              Only your generated alias is public.{' '}
+              <a href="/legal" className="underline">
+                Privacy & game rules
+              </a>
+              .
             </p>
             <label className="flex gap-3 text-xs">
               <input type="checkbox" name="consent" value="true" />
@@ -516,7 +520,7 @@ function Play() {
             I’m ready
           </Button>
           <p className="text-xs text-[#62625C]">
-            Confirm within <Timer until={a.until} /> to keep this turn. No Ranked start used yet.
+            Ready within <Timer until={a.until} />. Your attempt starts after the countdown.
           </p>
         </div>
       );
@@ -599,7 +603,7 @@ function Play() {
               : me.queue.waitingForVerification
                 ? 'Verify your email to keep moving.'
                 : me.queue.estimateMinutes
-                  ? `Allow up to about ${me.queue.estimateMinutes} minutes, including planned Live play. Timing may change.`
+                  ? `About ${me.queue.estimateMinutes} minutes including Live games.`
                   : 'You are next when the current activity finishes.'}
           </p>
           <p className="text-sm text-[#62625C]">
@@ -632,7 +636,7 @@ function Play() {
                 {v}
                 <span className="mt-2 block text-xs normal-case text-[#62625C]">
                   {v === 'practice'
-                    ? 'Play for the challenge'
+                    ? 'Unlimited · unranked'
                     : `${Math.max(0, 3 - me.used)} attempts left`}
                 </span>
               </button>
@@ -861,6 +865,7 @@ export function Player() {
             ))}
         </section>
       )}
+      {!focused && <InformationLinks />}
     </div>
   );
 }

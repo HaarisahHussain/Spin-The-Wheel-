@@ -185,6 +185,38 @@ app.app.post('/__test/history', async (_req, res) => {
   });
   res.json({ ok: true });
 });
+app.app.post('/__test/results', async (_req, res) => {
+  await storage.transact((s) => {
+    s.active = null;
+    s.live = null;
+    s.queue = [];
+    s.config.prizeInstructions = 'Show your signed-in account to the host to collect.';
+    for (let i = 0; i < 3; i++) {
+      s.accounts[`history-${i}`].fullName = 'Sam Student';
+      s.attempts.push({
+        id: `ranked-${i}`,
+        accountId: `history-${i}`,
+        gameId: 'robot',
+        mode: 'ranked',
+        status: 'completed',
+        version: SCORING_VERSION,
+        score: (3 - i) * 1000000,
+        started: Date.now() - 100000,
+        ended: Date.now() - 1000,
+      });
+    }
+    s.liveResults.push({
+      id: 'live-history',
+      liveId: 'live-round',
+      accountId: 'history-0',
+      gameId: 'parcel',
+      score: 1000000,
+      at: Date.now(),
+      won: true,
+    });
+  });
+  res.json({ ok: true });
+});
 app.app.get('/__test/solution', (_req, res) => {
   const s = storage.snapshot(),
     q = s.live?.question || s.active?.game?.question;

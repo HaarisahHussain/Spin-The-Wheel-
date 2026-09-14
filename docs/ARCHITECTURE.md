@@ -1,4 +1,4 @@
-# Architecture and game extension · v0.7.0
+# Architecture and game extension · v1.0.0
 
 ## Boundaries
 
@@ -35,7 +35,7 @@ The 250 ms scheduler checks in-memory deadlines; maintenance runs at most every 
 
 Socket.IO sends an initial lean view followed by changed top-level fields, coalesced over 100 ms. Slow transports keep a dirty flag for resynchronisation rather than a growing application update queue. Private views remain audience/session scoped. Expired authentication explicitly clears host fields. The full leaderboard is paginated; monitors retain their top-five display. `server/details.js` serves paginated host data, player top-ten/recent summaries, and individually authorised reviews. `src/useDetails.js` fetches those resources only for mounted screens. Shared standings/counts are computed once per committed snapshot.
 
-Restart revokes host sessions and control ownership. Interrupted solo sessions preserve earned points for review and do not refund Ranked allowance automatically. Unfinished Live sessions are cancelled; saved results and prize records remain. Scheduler stalls pause admissions and require intervention. An interrupted challenge is never silently replayed for free. Schema-7 aggregate data is imported once and its redundant legacy tables retired after successful commit. Unknown schemas are rejected. Keep a matching backup for rollback.
+Restart revokes host sessions and control ownership. Interrupted solo sessions preserve earned points for review and never refund Ranked allowance. Unfinished Live sessions are cancelled; saved results and prize records remain. Scheduler stalls pause admissions and require intervention. An interrupted challenge is never silently replayed for free. Schema-7 aggregate data is imported once and its redundant legacy tables retired after successful commit. Unknown schemas are rejected. Keep a matching backup for rollback.
 
 ## Add or change a game
 
@@ -53,7 +53,7 @@ Robot search includes collected-item state, not just location. Parcel evaluation
 
 `src/games/Parcel.jsx` owns rule controls and matching feedback; `Painter.jsx` owns canvas and Repeat editing; `Robot.jsx` owns the board and collected state. `Puzzles.jsx` shares sequence editing, execution/reveal and Live presentation. Server events identify source instruction, repeat-body index and iteration. Render frames using persisted server timestamps; reconnect must not restart evaluation. Live recent fingerprints are stored separately from account histories.
 
-`prototypeGames` is populated from `ENABLE_PROTOTYPE_GAMES` at startup. `availableGames` filters selection and idle presentation. Prototype metadata keeps both new games out of Ranked even when their test catalogue is enabled.
+All five catalogue games are available in Practice, Ranked and Live. `availableGames()` is the shared entry point; eligibility is defined by each game’s `ranked` and `live` metadata. Selection draws uniformly from eligible game IDs, then selects a matching wheel sector. No prototype environment flag remains.
 
 ## Game phases and clocks
 
@@ -70,3 +70,9 @@ The conservative solo slot is 282 seconds. Admission and phone wait calculations
 Solo stores one million integer units per displayed point. Level maxima sum to 9.00. Correct quizzes receive 80% correctness plus up to 20% speed. Puzzles receive 80% completion, up to 15% efficiency and 5% speed. Solo puzzle success is then multiplied by 1.0/0.9/0.8 for the first/second/third accepted run, rounding only after multiplication. Live has one lock and no retry multiplier. Exact-deadline answers score zero. Execution and feedback never spend thinking allowance. Live normalises the same factors separately to 1,000 points. Display rounds to two decimals; true exact ties share ranks and prize-boundary ties require an audited decision.
 
 Changing numbers creates numerical variety but does not establish equal difficulty. The seed benchmark is a duplicate check, not evidence of fair cross-game scores or immunity to memorisation.
+
+## Host results and information pages
+
+`server/details.js` supplies authenticated, paginated history, including Live results. Player/account IDs are the identity keys; names are presentation only. Prizes are persisted only on finalisation or completion of eligible Live events. Provisional leaderboard entries never authorise collection. Grand-prize collection requires finalised results. `host.resolveInterruption` changes an interrupted session to an audited abandoned result, preserving its score, end time and used allowance; Ranked cannot be voided.
+
+`src/screens/Information.jsx` serves three static public routes outside ArcadeProvider so information does not depend on Socket.IO. `shared/releases.js` holds short public release summaries; CHANGELOG.md holds detailed engineering history. Legal copy describes app behaviour; organisers must confirm their controller contact, lawful basis, providers and retention arrangements before opening registration.

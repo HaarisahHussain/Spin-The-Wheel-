@@ -1,8 +1,14 @@
-# v0.7.0 validation and release limits
+# v1.0.0 validation and release limits
 
-Pre-launch source release, checked on 14 September 2026 with Node 24, Python 3, local SQLite and Chromium. Automation establishes implemented behaviour; it does not establish equal difficulty or production readiness.
+Source release, checked on 14 September 2026 with Node 24, Python 3, local SQLite and Chromium. Automation establishes implemented behaviour; it does not establish equal difficulty or production readiness.
 
-## Automated evidence
+## v1.0.0 checks
+
+Release regression coverage adds all-five-game Ranked starts, server-enforced non-voidable Ranked results, score-preserving interruption resolution, same-name identity filtering, separate Live history, provisional/final prize transitions and idempotent collection. HTTP checks exercise LAN polling with absent Fetch Metadata and reject foreign origins/hosts. Browser checks cover public information without sockets, phone layout and the host prize workflow.
+
+The evidence below was recorded for v0.7.0. Current release results are recorded separately at the end; historical measurements are not claims about a hosted v1.0.0 event.
+
+## Inherited automated evidence
 
 - `npm run check`: lint, **63 server/content/HTTP/recovery/efficiency/load tests**, and the production build pass.
 - 10,000 seeded selections per game verify legal reference solutions, determinism, bounded inputs and content variety. Coding uses thirty tier/family combinations per task and at most ten logical lines with ordinary literals no larger than ten.
@@ -39,10 +45,17 @@ Heavy solvers run only through `npm run content:build`. Normal game creation sel
 ## Required human and deployment gates
 
 - Observe at least five unfamiliar people per game, including beginners. Check independent understanding, reading time, control discovery, explaining failure and repairing a program. Record completion by tier and device. None of these observations has been performed here.
-- Compare beginner/experienced score and completion distributions across the three Ranked games. A shared formula cannot prove equal difficulty. Freeze content, timing and scoring version before prize-bearing play.
-- Parcel Sorter and Pattern Painter remain disabled by default and excluded from Ranked even with `ENABLE_PROTOTYPE_GAMES=true`. Enable them only for rehearsal until beginner acceptance succeeds.
+- Compare beginner/experienced score and completion distributions across all five Ranked games. A shared formula cannot prove equal difficulty. Freeze content, timing and scoring version before prize-bearing play.
+- Parcel Sorter and Pattern Painter are now standard Ranked games at the organiser’s request. Promotion is a product decision, not evidence of equal difficulty or successful beginner observations.
 - Test actual Android Chrome and iPhone Safari, background/resume, enlarged text, reduced motion, network interruptions and monitor viewing distance. Desktop viewport automation is not physical-phone testing.
 - Rehearse the intended HTTPS proxy, PostgreSQL/pooler, 50-player traffic, concurrent registrations, backup/restore and prize reconciliation. Local SQLite does not validate hosted persistence or latency.
 - Check real verification/reset/winner mail delivery to both BCU domains, including spam handling. Only preview transport was exercised.
 
 The application remains a single writer with a committed memory cache and individual persisted records. Completed histories remain available for the event; this is not indefinite archival storage. Existing v0.6.0 schema-7 aggregates upgrade automatically after backup; unknown schemas are rejected. Direct/session-pooler PostgreSQL ownership, remote connection failure/restore, real SMTP delivery, venue networks and physical phones still require deployment rehearsal. Local automated results do not prove hosted capacity or equal game difficulty.
+
+## v1.0.0 verification result
+
+- `npm run check` passed: lint, 67 backend/content/HTTP/recovery/load tests and production build.
+- All 16 Chromium browser tests passed against the rebuilt v1.0.0 client. The host provisional-prizes screen was visually inspected.
+- After adding start timestamps to new Live records, the eight HTTP/release tests, lint and build passed again; all 250 Live participant records had valid start/end ordering. No game rules or timings changed.
+- Real mail, hosted PostgreSQL, physical devices, game-balance observations and organiser-specific legal details remain outside these local checks.

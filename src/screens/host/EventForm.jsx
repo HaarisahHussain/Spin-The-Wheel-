@@ -284,14 +284,14 @@ export function EventForm({ onDirty = () => {} }) {
         <section className="space-y-4">
           <h2 className="text-xl font-medium">Tied prize winners</h2>
           <Field
-            label="Playoff date and time (published text)"
+            label="Tie-break draw date and time"
             name="playoffAt"
             defaultValue={c.playoffAt}
             placeholder="Thursday 24 September, 15:30 BST"
           />
           <Field label="Location" name="playoffLocation" defaultValue={c.playoffLocation} />
           <Field
-            label="Reply deadline (at least 24 hours after notification)"
+            label="Winner reply deadline"
             name="replyDeadline"
             defaultValue={c.replyDeadline}
           />

@@ -52,8 +52,8 @@ try {
       );
     for (const [id, session] of Object.entries(s.sessions))
       if (session.staffId) delete s.sessions[id];
-    s.config.releaseVersion = '0.7.0';
-    s.config.prototypeGames = process.env.ENABLE_PROTOTYPE_GAMES === 'true';
+    s.config.releaseVersion = '1.0.0';
+    delete s.config.prototypeGames;
     s.hostLease = null;
     s.controlEpoch++;
     s.takeovers = {};

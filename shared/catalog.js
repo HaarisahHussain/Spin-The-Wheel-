@@ -25,8 +25,7 @@ export const games = [
   },
   {
     id: 'parcel',
-    prototype: true,
-    ranked: false,
+    ranked: true,
     name: 'Parcel Sorter',
     duration: 150,
     live: true,
@@ -34,8 +33,7 @@ export const games = [
   },
   {
     id: 'painter',
-    prototype: true,
-    ranked: false,
+    ranked: true,
     name: 'Pattern Painter',
     duration: 150,
     live: true,
@@ -66,5 +64,4 @@ export const normalizeEmail = (email) => email.trim().toLowerCase();
 
 export const SCORING_VERSION = '0.6.0-five-challenges-1';
 
-export const availableGames = (config) =>
-  games.filter((g) => !g.prototype || config?.prototypeGames === true);
+export const availableGames = () => games;

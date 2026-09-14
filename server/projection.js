@@ -43,7 +43,6 @@ export function project(s, token, now, origin, connectionId = null, { lean = fal
     eventId: s.id,
     title: config.title,
     config: {
-      prototypeGames: config.prototypeGames,
       requireVerification: config.requireVerification,
       policyVersion: config.policyVersion,
       paused: config.paused,

@@ -297,6 +297,7 @@ test('settings draft cancellation and contextual reauthentication preserve the p
   await page.getByRole('button', { name: 'Players & Results', exact: true }).click();
   await page.getByRole('button', { name: 'Confirm', exact: true }).click();
   await page.request.post('/__test/old-auth');
+  await page.getByRole('button', { name: 'Event records', exact: true }).click();
   await page.getByRole('button', { name: /Export/ }).click();
   await expect(page.getByRole('dialog', { name: 'Confirm host password' })).toBeVisible();
   await page.getByLabel('Password', { exact: true }).fill(password);
@@ -386,12 +387,65 @@ test('host participants are fetched in pages and individual score reviews load o
   expect(requested.some((u) => u.includes('section=review'))).toBe(true);
   await loginHost(page);
   await page.getByRole('button', { name: 'Players & Results', exact: true }).click();
-  await expect(page.getByText('history0@bcu.ac.uk · 0/3 attempts', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Players', exact: true }).click();
+  await expect(page.getByText('history0@bcu.ac.uk', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Next participants', exact: true }).click();
-  await expect(page.getByText('history40@bcu.ac.uk · 0/3 attempts', { exact: true })).toBeVisible();
+  await expect(page.getByText('history40@bcu.ac.uk', { exact: true })).toBeVisible();
   await page.getByLabel('Find participant').fill('history75@bcu.ac.uk');
-  await expect(page.getByText('history75@bcu.ac.uk · 0/3 attempts', { exact: true })).toBeVisible();
+  await expect(page.getByText('history75@bcu.ac.uk', { exact: true })).toBeVisible();
   const snapshot = await (await page.request.get('/api/state?audience=host')).json();
   expect(snapshot.host.accounts).toHaveLength(0);
   expect(snapshot.host.attempts).toHaveLength(0);
+});
+
+test('public information is readable without a game connection and fits a narrow phone', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await expect(page.getByRole('link', { name: 'About BCUSCA & SWE', exact: true })).toBeVisible();
+  await page.route('**/socket.io/**', (route) => route.abort());
+  await page.setViewportSize({ width: 320, height: 844 });
+  for (const [path, title] of [
+    ['/about', 'Computing, together.'],
+    ['/legal', 'Legal & accessibility'],
+    ['/versions', 'How the Arcade grew'],
+  ]) {
+    await page.goto(path);
+    await expect(page.getByRole('heading', { level: 1, name: title, exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+  }
+});
+
+test('host sees separated sessions and provisional prizes become collectable only on finalisation', async ({
+  page,
+}) => {
+  await page.request.post('/__test/scene', { data: { gameId: 'output' } });
+  await page.request.post('/__test/history');
+  await page.request.post('/__test/results');
+  await loginHost(page);
+  await page.getByRole('button', { name: 'Players & Results', exact: true }).click();
+  await expect(page.getByText('history0@bcu.ac.uk', { exact: true })).toBeVisible();
+  await expect(page.getByText('history1@bcu.ac.uk', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Void', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Practice · unranked', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Void', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Live · unranked', exact: true }).click();
+  await expect(page.getByRole('cell', { name: 'Parcel Sorter', exact: false })).toBeVisible();
+  await page.getByRole('button', { name: 'Prizes', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Provisional Ranked leaders' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Confirm collection', exact: true })).toHaveCount(
+    0,
+  );
+  await page.screenshot({ path: '../v100-host-prizes.png', fullPage: true });
+  await page.getByRole('button', { name: 'Finalise winners', exact: true }).click();
+  await page.getByRole('button', { name: 'Confirm', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Confirm collection', exact: true })).toHaveCount(
+    3,
+  );
+  await page.getByRole('button', { name: 'Confirm collection', exact: true }).first().click();
+  await page.getByRole('button', { name: 'Confirm', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Collected', exact: true })).toHaveCount(1);
+  await expect(page.getByText('2 awaiting collection · 1 collected')).toBeVisible();
 });
