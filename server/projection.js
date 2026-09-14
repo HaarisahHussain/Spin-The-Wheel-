@@ -1,15 +1,26 @@
 import { estimatedWaitMs } from './runtime.js';
 import { sessionFor, hash } from './security.js';
 import { attendanceSummary } from './attendance.js';
-import { leaderboard, usedAttempts, openWindow } from './state.js';
+import { leaderboard, openWindow } from './state.js';
 import { publicGame } from './games.js';
 import { canStartLive, liveDue } from './runtime.js';
 import { publicLive, eligible } from './engine.js';
-export function project(s, token, now, origin, connectionId = null) {
+const cachedCommon = new WeakMap();
+export function commonView(s) {
+  if (!cachedCommon.has(s)) {
+    const used = new Map();
+    for (const a of s.attempts)
+      if (a.mode === 'ranked' && a.status !== 'voided')
+        used.set(a.accountId, (used.get(a.accountId) || 0) + 1);
+    cachedCommon.set(s, { rows: s.config.finalised ? s.finalStandings : leaderboard(s), used });
+  }
+  return cachedCommon.get(s);
+}
+export function project(s, token, now, origin, connectionId = null, { lean = false } = {}) {
   const session = sessionFor(s, token, now),
     account = session?.accountId ? s.accounts[session.accountId] : null;
   const staff = session?.staffId ? s.staff[session.staffId] : null;
-  const rows = s.config.finalised ? s.finalStandings : leaderboard(s),
+  const rows = commonView(s).rows,
     queue = s.queue.slice().sort((a, b) => a.sequence - b.sequence);
   const active = s.active
     ? {
@@ -61,7 +72,7 @@ export function project(s, token, now, origin, connectionId = null) {
         : !openWindow(s, now) || now >= openWindow(s, now).cutoff
           ? 'Outside opening hours.'
           : null,
-    leaderboard: rows,
+    leaderboard: lean ? rows.slice(0, 20) : rows,
     active,
     live: publicLive(s.live),
     next: queue
@@ -123,7 +134,8 @@ export function project(s, token, now, origin, connectionId = null) {
             })(),
         verified: account.verified,
         eligible: eligible(s, account),
-        used: usedAttempts(s, account.id),
+        used: commonView(s).used.get(account.id) || 0,
+        rank: rows.find((r) => r.accountId === account.id) || null,
         queue:
           position < 0
             ? null
@@ -146,7 +158,7 @@ export function project(s, token, now, origin, connectionId = null) {
         attempts: session.controller
           ? []
           : s.attempts
-              .filter((a) => a.accountId === account.id)
+              .filter((a) => a.accountId === account.id && (!lean || a.id === s.active?.attemptId))
               .map(
                 ({
                   id,
@@ -177,7 +189,7 @@ export function project(s, token, now, origin, connectionId = null) {
                   personalBest,
                   firstScore,
                   improvement,
-                  review,
+                  review: lean ? undefined : review,
                 }),
               ),
         awards: s.awards
@@ -210,7 +222,12 @@ export function project(s, token, now, origin, connectionId = null) {
         s.hostLease.connection === connectionId &&
         s.hostLease.expires > now,
       leaseTab: s.hostLease?.tabId,
-      controlExpires: s.hostLease?.expires,
+      controlExpires:
+        s.hostLease?.session === hash(token) &&
+        s.hostLease.connection === connectionId &&
+        s.hostLease.expires > now
+          ? null
+          : s.hostLease?.expires,
       reauthenticated: session.reauthenticated,
     };
     view.host = {
@@ -233,7 +250,7 @@ export function project(s, token, now, origin, connectionId = null) {
         alias: s.accounts[q.accountId]?.alias,
         verified: s.accounts[q.accountId]?.verified,
       })),
-      accounts: Object.values(s.accounts).map(
+      accounts: (lean ? [] : Object.values(s.accounts)).map(
         ({ id, fullName, email, alias, course, level, verified, disabled }) => ({
           id,
           fullName,
@@ -243,10 +260,10 @@ export function project(s, token, now, origin, connectionId = null) {
           level,
           verified,
           disabled,
-          used: usedAttempts(s, id),
+          used: commonView(s).used.get(id) || 0,
         }),
       ),
-      attempts: s.attempts.map(
+      attempts: (lean ? [] : s.attempts).map(
         ({
           id,
           accountId,
@@ -278,11 +295,16 @@ export function project(s, token, now, origin, connectionId = null) {
         }),
       ),
       incidents: s.incidents,
-      awards: s.awards,
-      audit: s.audit.slice(-100),
+      awards: lean ? [] : s.awards,
+      audit: lean ? [] : s.audit.slice(-100),
       updates: s.updates,
-      mail: s.outbox.map(({ id, sent, tries, error }) => ({ id, sent, tries, error })),
-      attendanceSummary: s.attendanceSummary || attendanceSummary(s.accounts),
+      mail: (lean ? [] : s.outbox).map(({ id, sent, tries, error }) => ({
+        id,
+        sent,
+        tries,
+        error,
+      })),
+      attendanceSummary: lean ? {} : s.attendanceSummary || attendanceSummary(s.accounts),
     };
   }
   return view;

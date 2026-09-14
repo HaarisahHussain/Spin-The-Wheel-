@@ -6,7 +6,7 @@ import { createStorage } from '../server/storage.js';
 import { createMail } from '../server/mail.js';
 import { createApp } from '../server/app.js';
 import { secret, passwordHash, issueSession } from '../server/security.js';
-import { newGame, answerGame, tickGame } from '../server/games.js';
+import { newGame, answerGame, tickGame, publicQuestion } from '../server/games.js';
 import { adapterFor } from '../server/games/registry.js';
 import { selectGame } from '../server/selection.js';
 import { games, SCORING_VERSION } from '../shared/catalog.js';
@@ -41,7 +41,13 @@ app.app.get('/__test/mail', (_req, res) => {
     .snapshot()
     .outbox.filter((j) => j.challengeId)
     .at(-1);
-  res.json(job ? testMail.open(job.payload) : {});
+  res.json(
+    job
+      ? job.payload
+        ? testMail.open(job.payload)
+        : testMail.previewMessages.get(job.challengeId) || {}
+      : {},
+  );
 });
 app.app.post('/__test/scene', async (req, res) => {
   const token = await storage.transact((s) => {
@@ -148,6 +154,36 @@ app.app.post('/__test/scene', async (req, res) => {
     return issueSession(s, { accountId: id }, now);
   });
   res.cookie('arcade_session', token, { httpOnly: true, sameSite: 'lax' }).json({ ok: true });
+});
+app.app.post('/__test/history', async (_req, res) => {
+  await storage.transact((s) => {
+    s.active = null;
+    s.live = null;
+    for (let i = 0; i < 80; i++)
+      s.accounts[`history-${i}`] = {
+        id: `history-${i}`,
+        email: `history${i}@bcu.ac.uk`,
+        fullName: `History Student ${i}`,
+        alias: `History-${i}`,
+        course: 'Computing',
+        level: 'Year 1',
+        verified: true,
+      };
+    const q = publicQuestion(newGame('output', Date.now()).question, true);
+    s.attempts.push({
+      id: 'history-attempt',
+      accountId: 'scene-player',
+      gameId: 'output',
+      mode: 'practice',
+      status: 'completed',
+      version: SCORING_VERSION,
+      score: 4500000,
+      started: Date.now() - 100000,
+      ended: Date.now() - 1000,
+      review: [{ ...q, selected: q.answer, correct: true, points: 4500000 }],
+    });
+  });
+  res.json({ ok: true });
 });
 app.app.get('/__test/solution', (_req, res) => {
   const s = storage.snapshot(),

@@ -19,7 +19,18 @@ async function limited(fn) {
   if (running >= 2) {
     if (waiters.length >= 32)
       throw Object.assign(Error('Sign-in is busy. Try again shortly.'), { status: 429 });
-    await new Promise((resolve) => waiters.push(resolve));
+    await new Promise((resolve, reject) => {
+      const grant = () => {
+        clearTimeout(timer);
+        resolve();
+      };
+      const timer = setTimeout(() => {
+        const index = waiters.indexOf(grant);
+        if (index >= 0) waiters.splice(index, 1);
+        reject(Object.assign(Error('Sign-in is busy. Try again shortly.'), { status: 429 }));
+      }, 7000);
+      waiters.push(grant);
+    });
   } else running++;
   try {
     return await fn();
@@ -40,6 +51,7 @@ export async function preparePasswords(state, action, p, hostHash) {
     'resetPassword',
   ];
   if (!relevant.includes(action)) return null;
+  if (action === 'verify' && !p.linkToken) return { checks: [], newPassword: null };
   const prepared = { checks: [], newPassword: null };
   const inputs = (
     ['register', 'resetPassword'].includes(action)

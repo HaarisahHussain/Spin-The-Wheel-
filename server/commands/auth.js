@@ -45,15 +45,23 @@ function challenge(s, account, kind, ctx, mail, now) {
     tries: 0,
   });
 }
-export async function authCommand(s, action, p, ctx, { mail, hostPasswordHash, preparedAuth }, now, session) {
-  const matches=(value,encoded)=>{
-    if(!preparedAuth)return passwordMatches(value,encoded);
-    const check=preparedAuth.checks.find(c=>c.value===value&&c.encoded===encoded);
-    return check?.matches===true;
+export async function authCommand(
+  s,
+  action,
+  p,
+  ctx,
+  { mail, hostPasswordHash, preparedAuth },
+  now,
+  session,
+) {
+  const matches = (value, encoded) => {
+    if (!preparedAuth) return passwordMatches(value, encoded);
+    const check = preparedAuth.checks.find((c) => c.value === value && c.encoded === encoded);
+    return check?.matches === true;
   };
-  const encode=value=>{
-    if(!preparedAuth)return passwordHash(value);
-    assert(preparedAuth.newPassword?.value===value,'Retry password setup.',409);
+  const encode = (value) => {
+    if (!preparedAuth) return passwordHash(value);
+    assert(preparedAuth.newPassword?.value === value, 'Retry password setup.', 409);
     return preparedAuth.newPassword.encoded;
   };
   if (action === 'register') {
@@ -90,8 +98,13 @@ export async function authCommand(s, action, p, ctx, { mail, hostPasswordHash, p
   }
   if (action === 'login' || action === 'staffLogin') {
     rate(s, `login-ip:${ctx.ip}`, 300, 900000, now);
-    const key = action === 'staffLogin' ? 'host' : normalizeEmail(p.email || '');
-    rate(s, `login:${key}`, 12, 900000, now);
+    const key =
+      action === 'staffLogin' ? `host:${ctx.ip}` : `${ctx.ip}:${normalizeEmail(p.email || '')}`;
+    assert(
+      (s.rates[`login:${key}`] || []).filter((t) => t > now - 900000).length < 12,
+      'Too many requests. Please try again later.',
+      429,
+    );
     const account = identity(s, p.email);
     const valid =
       action === 'staffLogin'
@@ -99,7 +112,9 @@ export async function authCommand(s, action, p, ctx, { mail, hostPasswordHash, p
         : matches(p.password, account?.password || hostPasswordHash) &&
           account &&
           !account.disabled;
+    if (!valid) rate(s, `login:${key}`, 12, 900000, now);
     assert(valid, 'Email/username or password is incorrect.', 401);
+    delete s.rates[`login:${key}`];
     if (action === 'staffLogin') return beginHostLogin(s, ctx, p, now);
     return { token: issueSession(s, { accountId: account.id }, now) };
   }

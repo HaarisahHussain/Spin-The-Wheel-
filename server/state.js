@@ -38,7 +38,7 @@ export function initialState(now = Date.now()) {
       idlePresentation: 'both',
       animateIdleWheel: true,
       livePending: false,
-      releaseVersion: '0.6.0',
+      releaseVersion: '0.7.0',
       prototypeGames: false,
       resultSeconds: 6,
       autoLive: false,

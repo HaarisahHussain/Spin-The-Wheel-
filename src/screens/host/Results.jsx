@@ -1,3 +1,4 @@
+import { useDetails } from '../../useDetails';
 import { useConfirmation } from '../../components/useConfirmation';
 import { useSensitiveAction } from './useSensitiveAction';
 import { useState } from 'react';
@@ -7,25 +8,39 @@ import { scoreText, gameById } from '../../../shared/catalog';
 import { ReasonDialog } from './ReasonDialog';
 export function Results() {
   const { state, busy } = useArcade(),
-    [peopleLimit, setPeopleLimit] = useState(30),
-    [limit, setLimit] = useState(100),
+    [peopleOffset, setPeopleOffset] = useState(0),
+    [attemptOffset, setAttemptOffset] = useState(0),
+    [awardOffset, setAwardOffset] = useState(0),
     [query, setQuery] = useState(''),
     [dialog, setDialog] = useState(null),
     [selected, setSelected] = useState([]),
     [tieReason, setTieReason] = useState(''),
     [showAudit, setShowAudit] = useState(false);
   const { command, dialog: sensitiveDialog } = useSensitiveAction();
-  const host = state.host;
+  const resource = useDetails('results', {
+    q: query,
+    people: peopleOffset,
+    attempts: attemptOffset,
+    awards: awardOffset,
+  });
+  const host = resource.data || {
+    ...state.host,
+    people: [],
+    totals: { people: 0, attempts: 0, awards: 0 },
+    leaderboard: state.leaderboard,
+  };
   const [confirm, confirmation] = useConfirmation();
   const name = (id) => host.accounts.find((a) => a.id === id)?.fullName || 'Former participant';
-  const found = host.accounts.filter((a) =>
-    `${a.alias} ${a.fullName} ${a.email} ${a.course} ${a.level}`
-      .toLowerCase()
-      .includes(query.toLowerCase()),
-  );
+  const found = host.people;
   return (
     <div>
       {confirmation}
+      {resource.error && <p role="alert">{resource.error}</p>}
+      {resource.loading && (
+        <p role="status" className="text-sm">
+          Loading results…
+        </p>
+      )}
       <div className="mb-8 flex items-center justify-between">
         <h1 className="text-3xl font-medium">Players & Results</h1>
         <Button secondary onClick={() => setShowAudit(!showAudit)}>
@@ -69,12 +84,16 @@ export function Results() {
       <Field
         label="Find participant"
         value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setPeopleOffset(0);
+          setAttemptOffset(0);
+        }}
         placeholder="Name, alias, email or course"
       />
       {
         <div className="my-5 space-y-3">
-          {found.slice(0, peopleLimit).map((a) => (
+          {found.map((a) => (
             <div key={a.id} className="flex justify-between gap-5 rounded-lg bg-white p-4">
               <div>
                 <p>
@@ -117,14 +136,19 @@ export function Results() {
           ))}
         </div>
       }
-      <p className="text-xs text-[#62625C]">
-        Showing {Math.min(peopleLimit, found.length)} of {found.length} participants
-      </p>
-      {found.length > peopleLimit && (
-        <Button secondary onClick={() => setPeopleLimit(peopleLimit + 30)}>
-          Show more participants
-        </Button>
-      )}
+      <p className="text-xs text-[#62625C]">{host.totals.people} participants</p>
+      <div className="flex gap-3">
+        {peopleOffset > 0 && (
+          <Button secondary onClick={() => setPeopleOffset(Math.max(0, peopleOffset - 30))}>
+            Previous participants
+          </Button>
+        )}
+        {peopleOffset + 30 < host.totals.people && (
+          <Button secondary onClick={() => setPeopleOffset(peopleOffset + 30)}>
+            Next participants
+          </Button>
+        )}
+      </div>
       <div className="my-8 overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead className="text-[#62625C]">
@@ -137,48 +161,51 @@ export function Results() {
             </tr>
           </thead>
           <tbody>
-            {[...host.attempts]
-              .reverse()
-              .filter((a) => !query || found.some((f) => f.id === a.accountId))
-              .slice(0, limit)
-              .map((a) => (
-                <tr key={a.id}>
-                  <td className="border-b border-[#DDDDD5] py-4">{name(a.accountId)}</td>
-                  <td className="border-b border-[#DDDDD5] py-4">
-                    {gameById(a.gameId)?.name}
-                    <br />
-                    <span className="text-xs text-[#62625C]">{a.mode}</span>
-                  </td>
-                  <td className="border-b border-[#DDDDD5] py-4 tabular-nums">
-                    {scoreText(a.score)}
-                  </td>
-                  <td className="border-b border-[#DDDDD5] py-4">{a.status.replace('_', ' ')}</td>
-                  <td className="border-b border-[#DDDDD5] py-4">
-                    {a.status !== 'started' && a.status !== 'voided' && (
-                      <button
-                        className="min-h-11 text-[#A33030] underline"
-                        onClick={() =>
-                          setDialog({
-                            title: 'Void technical attempt',
-                            action: 'host.void',
-                            payload: { attemptId: a.id },
-                          })
-                        }
-                      >
-                        Void
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
+            {host.attempts.map((a) => (
+              <tr key={a.id}>
+                <td className="border-b border-[#DDDDD5] py-4">{name(a.accountId)}</td>
+                <td className="border-b border-[#DDDDD5] py-4">
+                  {gameById(a.gameId)?.name}
+                  <br />
+                  <span className="text-xs text-[#62625C]">{a.mode}</span>
+                </td>
+                <td className="border-b border-[#DDDDD5] py-4 tabular-nums">
+                  {scoreText(a.score)}
+                </td>
+                <td className="border-b border-[#DDDDD5] py-4">{a.status.replace('_', ' ')}</td>
+                <td className="border-b border-[#DDDDD5] py-4">
+                  {a.status !== 'started' && a.status !== 'voided' && (
+                    <button
+                      className="min-h-11 text-[#A33030] underline"
+                      onClick={() =>
+                        setDialog({
+                          title: 'Void technical attempt',
+                          action: 'host.void',
+                          payload: { attemptId: a.id },
+                        })
+                      }
+                    >
+                      Void
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
-      {host.attempts.length > limit && (
-        <Button secondary onClick={() => setLimit(limit + 100)}>
-          Show more results
-        </Button>
-      )}
+      <div className="flex gap-3">
+        {attemptOffset > 0 && (
+          <Button secondary onClick={() => setAttemptOffset(Math.max(0, attemptOffset - 100))}>
+            Previous results
+          </Button>
+        )}
+        {attemptOffset + 100 < host.totals.attempts && (
+          <Button secondary onClick={() => setAttemptOffset(attemptOffset + 100)}>
+            Next results
+          </Button>
+        )}
+      </div>
       <section className="my-10">
         <h2 className="mb-5 text-xl font-medium">Prize collection</h2>
         {host.awards.length ? (
@@ -221,6 +248,18 @@ export function Results() {
           <p className="text-sm text-[#62625C]">No awards yet.</p>
         )}
       </section>
+      <div className="flex gap-3">
+        {awardOffset > 0 && (
+          <Button secondary onClick={() => setAwardOffset(Math.max(0, awardOffset - 50))}>
+            Previous prizes
+          </Button>
+        )}
+        {awardOffset + 50 < host.totals.awards && (
+          <Button secondary onClick={() => setAwardOffset(awardOffset + 50)}>
+            Next prizes
+          </Button>
+        )}
+      </div>
       <section className="space-y-4 border-t border-[#DDDDD5] pt-6">
         <h2 className="text-xl font-medium">Finalise Ranked</h2>
         <p className="text-sm text-[#62625C]">
@@ -228,8 +267,8 @@ export function Results() {
           select the tied recipients after the published playoff or witnessed draw.
         </p>
         <div className="flex flex-wrap gap-4">
-          {state.leaderboard
-            .filter((r) => r.score === state.leaderboard[2]?.score)
+          {host.leaderboard
+            .filter((r) => r.score === host.leaderboard[2]?.score)
             .map((r) => (
               <label key={r.accountId} className="flex gap-2 text-sm">
                 <input

@@ -20,9 +20,7 @@ test('host password sign-in, settings, refresh and explicit second-browser takeo
   await page.getByRole('switch', { name: 'Ranked play', exact: true }).check();
   await page.getByRole('button', { name: 'Save settings' }).click();
   await expect
-    .poll(
-      async () => (await (await page.request.get('/api/state')).json()).config.rankedEnabled,
-    )
+    .poll(async () => (await (await page.request.get('/api/state')).json()).config.rankedEnabled)
     .toBe(true);
   const other = await browser.newPage();
   await loginHost(other);
@@ -40,15 +38,11 @@ test('second host tab does not auto-claim control; user can move control explici
   await expect(page.getByRole('button', { name: 'Call next player' })).toBeVisible();
   const tab = await context.newPage();
   await tab.goto('/host');
-  await expect(
-    tab.getByRole('button', { name: 'Take control here', exact: true }),
-  ).toBeVisible();
+  await expect(tab.getByRole('button', { name: 'Take control here', exact: true })).toBeVisible();
   await tab.getByRole('button', { name: 'Take control here', exact: true }).click();
   await tab.getByRole('button', { name: 'Confirm', exact: true }).click();
   await expect(tab.getByRole('button', { name: 'Call next player' })).toBeVisible();
-  await expect(
-    page.getByRole('button', { name: 'Take control here', exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Take control here', exact: true })).toBeVisible();
   await tab.close();
 });
 test('player registration, returning password login and shared-browser host isolation', async ({
@@ -84,15 +78,13 @@ test('all five solo controllers render and submit at phone size; monitors fit 72
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
     await display.goto('/display/play');
-    await expect(
-      page.getByText('This account is open on another controller.'),
-    ).not.toBeVisible();
+    await expect(page.getByText('This account is open on another controller.')).not.toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
-    expect(
-      await display.evaluate(() => document.documentElement.scrollHeight <= innerHeight),
-    ).toBe(true);
+    expect(await display.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(
+      true,
+    );
     const solution = await (await page.request.get('/__test/solution')).json();
     if (gameId === 'debug') {
       await page
@@ -129,12 +121,10 @@ test('all five solo controllers render and submit at phone size; monitors fit 72
       await page.getByRole('button', { name: 'Run', exact: true }).click();
     }
     await expect(page.getByRole('status').filter({ hasText: /Correct|Solved/ })).toBeVisible();
-    await expect(
-      display.getByRole('status').filter({ hasText: /Correct|Solved/ }),
-    ).toBeVisible();
-    expect(
-      await display.evaluate(() => document.documentElement.scrollHeight <= innerHeight),
-    ).toBe(true);
+    await expect(display.getByRole('status').filter({ hasText: /Correct|Solved/ })).toBeVisible();
+    expect(await display.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(
+      true,
+    );
     await page.screenshot({ path: `test-results/${gameId}-phone.png` });
     await display.screenshot({ path: `test-results/${gameId}-display.png` });
   }
@@ -187,9 +177,7 @@ test('idle wheel rotates continuously, selection hides result and reduced motion
   });
   await page.request.post('/__test/clear');
 });
-test('final prize celebration dismisses once and remains available in Scores', async ({
-  page,
-}) => {
+test('final prize celebration dismisses once and remains available in Scores', async ({ page }) => {
   await page.request.post('/__test/scene', { data: { gameId: 'debug', award: true } });
   await page.goto('/');
   await expect(page.getByRole('dialog')).toBeVisible();
@@ -246,9 +234,9 @@ test('later puzzle boards fit narrow phones without horizontal overflow', async 
       await page.setViewportSize({ width, height: 844 });
       await page.goto('/');
       await expect(page.getByRole('button', { name: 'Run', exact: true })).toBeVisible();
-      expect(
-        await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
-      ).toBe(true);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+        true,
+      );
     }
 });
 
@@ -325,16 +313,10 @@ async function enterPainter(page, program) {
       await page.getByRole('button', { name: step, exact: true }).click();
     else {
       await page.getByRole('button', { name: 'Add repeat block', exact: true }).click();
-      await page
-        .getByRole('button', { name: 'Remove repeat instruction 2', exact: true })
-        .click();
-      await page
-        .getByRole('button', { name: 'Remove repeat instruction 1', exact: true })
-        .click();
+      await page.getByRole('button', { name: 'Remove repeat instruction 2', exact: true }).click();
+      await page.getByRole('button', { name: 'Remove repeat instruction 1', exact: true }).click();
       for (const action of step.body)
-        await page
-          .getByRole('button', { name: `Add ${action} to repeat`, exact: true })
-          .click();
+        await page.getByRole('button', { name: `Add ${action} to repeat`, exact: true }).click();
       await page.getByLabel('Repeat count').selectOption(String(step.repeat));
       await page.getByRole('button', { name: 'Save block', exact: true }).click();
     }
@@ -363,9 +345,7 @@ test('Painter repeat grammar can be constructed and repaired on a narrow phone',
     await page.screenshot({ path: `test-results/painter-tier-${level + 1}-phone.png` });
   }
 });
-test('later coding and puzzle challenges fit both public monitor resolutions', async ({
-  page,
-}) => {
+test('later coding and puzzle challenges fit both public monitor resolutions', async ({ page }) => {
   for (const size of [
     { width: 1280, height: 720 },
     { width: 1920, height: 1080 },
@@ -388,4 +368,30 @@ test('later coding and puzzle challenges fit both public monitor resolutions', a
         });
       }
   }
+});
+
+test('host participants are fetched in pages and individual score reviews load on demand', async ({
+  page,
+}) => {
+  await page.request.post('/__test/scene', { data: { gameId: 'output' } });
+  await page.request.post('/__test/history');
+  const requested = [];
+  page.on('request', (r) => requested.push(r.url()));
+  await page.goto('/');
+  await page.getByRole('button', { name: 'scores', exact: true }).click();
+  await expect(page.getByText('Guess the Output · 4.50', { exact: true })).toBeVisible();
+  expect(requested.some((u) => u.includes('section=review'))).toBe(false);
+  await page.getByText('Guess the Output · 4.50', { exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'What is printed?' })).toBeVisible();
+  expect(requested.some((u) => u.includes('section=review'))).toBe(true);
+  await loginHost(page);
+  await page.getByRole('button', { name: 'Players & Results', exact: true }).click();
+  await expect(page.getByText('history0@bcu.ac.uk · 0/3 attempts', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Next participants', exact: true }).click();
+  await expect(page.getByText('history40@bcu.ac.uk · 0/3 attempts', { exact: true })).toBeVisible();
+  await page.getByLabel('Find participant').fill('history75@bcu.ac.uk');
+  await expect(page.getByText('history75@bcu.ac.uk · 0/3 attempts', { exact: true })).toBeVisible();
+  const snapshot = await (await page.request.get('/api/state?audience=host')).json();
+  expect(snapshot.host.accounts).toHaveLength(0);
+  expect(snapshot.host.attempts).toHaveLength(0);
 });

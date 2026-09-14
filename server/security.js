@@ -46,6 +46,15 @@ export function issueSession(state, identity, now) {
   return token;
 }
 export function rate(state, key, limit, period, now) {
+  if (!Object.hasOwn(state.rates, key) && Object.keys(state.rates).length >= 6000) {
+    for (const [name, hits] of Object.entries(state.rates))
+      if (!hits.some((t) => t > now - 3600000)) delete state.rates[name];
+    requireValue(
+      Object.keys(state.rates).length < 6000,
+      'Service busy. Please retry shortly.',
+      429,
+    );
+  }
   const entries = (state.rates[key] || []).filter((time) => time > now - period);
   requireValue(entries.length < limit, 'Too many requests. Please try again later.', 429);
   entries.push(now);

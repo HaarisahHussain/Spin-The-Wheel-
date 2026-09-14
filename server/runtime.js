@@ -96,7 +96,6 @@ function finish(s, status, now) {
     status,
     score: active.game.score,
     ended: now,
-    history: active.game.history,
     review: active.game.history.map((q) => ({
       ...publicQuestion(q, true),
       correct: q.correct,
@@ -192,8 +191,7 @@ function liveStart(s, now) {
   };
 }
 function holdUnverified(s, now) {
-  for (const q of s.queue)
-    if (!eligible(s, s.accounts[q.accountId])) q.heldUntil ||= now + 300000;
+  for (const q of s.queue) if (!eligible(s, s.accounts[q.accountId])) q.heldUntil ||= now + 300000;
   if (
     s.active &&
     !['playing', 'result'].includes(s.active.phase) &&
@@ -213,7 +211,18 @@ export function tick(s, now, _connected = new Set()) {
   s.queue = s.queue.filter((q) =>
     s.config.windows.some((w) => now < w.end && q.admitted >= w.start),
   );
-  for (const q of s.queue) if (eligible(s, s.accounts[q.accountId])) q.heldUntil = null;
+  s.queue = s.queue.filter((q) => {
+    if (eligible(s, s.accounts[q.accountId])) {
+      q.heldUntil = null;
+      return true;
+    }
+    q.heldUntil ||= now + 300000;
+    if (q.heldUntil > now) return true;
+    if (s.accounts[q.accountId])
+      s.accounts[q.accountId].turnNotice =
+        'Your queue hold expired. Verify your email, then join again.';
+    return false;
+  });
   const a = s.active;
   if (a) {
     if (a.phase === 'playing') {
@@ -289,17 +298,33 @@ export function tick(s, now, _connected = new Set()) {
   }
   if (!canStartLive(s, now)) s.config.livePending = false;
   if (!s.active && liveDue(s, now)) liveStart(s, now);
+  cleanup(s, now);
+}
+export function cleanup(s, now) {
   for (const [key, session] of Object.entries(s.sessions))
     if (session.expires <= now || (session.staffId && now - session.lastActivity >= 1800000))
       delete s.sessions[key];
-  for (const [key, t] of Object.entries(s.takeovers))
-    if (t.expires <= now) delete s.takeovers[key];
+  for (const [key, t] of Object.entries(s.takeovers)) if (t.expires <= now) delete s.takeovers[key];
   for (const [key, command] of Object.entries(s.commands))
-    if (command.at < now - 86400000) delete s.commands[key];
+    if (command.at < now - 600000) delete s.commands[key];
   for (const [key, values] of Object.entries(s.rates)) {
     s.rates[key] = values.filter((t) => t > now - 3600000);
     if (!s.rates[key].length) delete s.rates[key];
   }
+  for (const job of s.outbox) {
+    if (
+      job.sent ||
+      job.cancelled ||
+      (job.challengeId &&
+        (!s.challenges[job.challengeId] || s.challenges[job.challengeId].expires <= now))
+    ) {
+      if (!job.sent && !job.cancelled) job.cancelled = true;
+      delete job.payload;
+    }
+  }
+  s.outbox = s.outbox.filter(
+    (job) => !((job.sent || job.cancelled) && (job.completedAt || job.next) < now - 86400000),
+  );
   for (const [key, ch] of Object.entries(s.challenges))
     if (ch.expires < now - 3600000) delete s.challenges[key];
 }
@@ -316,9 +341,8 @@ function nextLiveQuestion(s, now) {
   live.until =
     now +
     Math.round(
-      (adapterFor(live.gameId).kind === 'puzzle' ? LIVE_PUZZLE_ROUNDS : LIVE_ROUNDS)[
-        live.level
-      ] * live.settings.liveTimeScale,
+      (adapterFor(live.gameId).kind === 'puzzle' ? LIVE_PUZZLE_ROUNDS : LIVE_ROUNDS)[live.level] *
+        live.settings.liveTimeScale,
     ) *
       1000;
   for (const entry of Object.values(live.roster)) {
@@ -352,7 +376,16 @@ function finishLive(s, now) {
     (a) => a.type === 'instant' && !a.collected && !a.forfeited,
   ).length;
   const stock = Math.max(0, s.config.instantPrizes - reserved);
-  const recipients = [...winners];
+  const day = new Date(now).toLocaleDateString('en-CA', { timeZone: 'Europe/London' });
+  const recipients = winners.filter(
+    (e) =>
+      !s.awards.some(
+        (a) =>
+          a.type === 'instant' &&
+          a.accountId === e.accountId &&
+          (a.collectedDay === day || (!a.collected && !a.forfeited)),
+      ),
+  );
   for (let i = recipients.length - 1; i > 0; i--) {
     const j = randomInt(i + 1);
     [recipients[i], recipients[j]] = [recipients[j], recipients[i]];
@@ -370,8 +403,7 @@ function finishLive(s, now) {
   s.config.soloAfterLive = true;
 }
 function endLive(s, now, message) {
-  if (s.live)
-    Object.assign(s.live, { phase: 'cancelled', message, until: now + TIMING.cancelled });
+  if (s.live) Object.assign(s.live, { phase: 'cancelled', message, until: now + TIMING.cancelled });
   s.config.nextLobbyAt = now + s.config.interval * 1000;
   s.config.soloAfterLive = true;
 }
@@ -388,3 +420,26 @@ export {
   holdUnverified,
 };
 import { allowedEmail, SCORING_VERSION } from '../shared/catalog.js';
+
+// Cheap scheduler predicates; maintenance does not need four full scans a second.
+export function transitionDue(s, now) {
+  const game = s.active?.phase === 'playing' ? s.active.game : null;
+  const until = game
+    ? game.phase === 'execution'
+      ? game.execution.until
+      : game.phase === 'feedback'
+        ? game.feedbackUntil
+        : game.deadline
+    : s.active?.until;
+  if (s.active && now >= until) return true;
+  if (
+    s.live &&
+    (now >= s.live.until ||
+      (s.live.phase === 'question' &&
+        now >= s.live.questionAt + 2000 &&
+        Object.values(s.live.roster).every((e) => e.answer !== null)))
+  )
+    return true;
+  if (s.queue.some((q) => q.heldUntil && now >= q.heldUntil)) return true;
+  return !s.active && liveDue(s, now);
+}

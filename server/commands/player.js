@@ -123,6 +123,7 @@ export function playerCommand(s, action, p, ctx, now) {
   }
   if (action === 'answer' || action === 'robot' || action === 'puzzle' || action === 'quit') {
     const active = s.active;
+    const receivedAt = Math.min(now, ctx.receivedAt ?? now);
     assert(
       active?.accountId === account.id && active.phase === 'playing',
       'There is no active turn.',
@@ -133,7 +134,7 @@ export function playerCommand(s, action, p, ctx, now) {
       'Wait for the next question.',
       409,
     );
-    assert(action === 'quit' || now < active.game.deadline, 'Time is up.', 409);
+    assert(action === 'quit' || receivedAt < active.game.deadline, 'Time is up.', 409);
     assert(p.attemptId === active.attemptId, 'This action belongs to an old attempt.', 409);
     if (action === 'quit') {
       finish(s, 'abandoned', now);
@@ -141,7 +142,7 @@ export function playerCommand(s, action, p, ctx, now) {
     }
     if (action === 'answer') {
       assert(
-        answerGame(active.game, p.answer, p.challengeId, now),
+        answerGame(active.game, p.answer, p.challengeId, now, receivedAt),
         'This answer is no longer available.',
         409,
       );
@@ -150,7 +151,7 @@ export function playerCommand(s, action, p, ctx, now) {
     }
     assert(adapterFor(active.game.id).kind === 'puzzle', 'This is not a puzzle.');
     assert(
-      answerGame(active.game, p.program, p.challengeId, now),
+      answerGame(active.game, p.program, p.challengeId, now, receivedAt),
       'This program is invalid or expired.',
       409,
     );
@@ -169,10 +170,11 @@ export function playerCommand(s, action, p, ctx, now) {
     return {};
   }
   if (action === 'liveAnswer') {
+    const receivedAt = Math.min(now, ctx.receivedAt ?? now);
     const live = s.live,
       entry = live?.roster[account.id];
     assert(
-      live?.phase === 'question' && entry && now < live.until,
+      live?.phase === 'question' && entry && receivedAt < live.until,
       'This question is closed.',
       409,
     );
@@ -190,7 +192,7 @@ export function playerCommand(s, action, p, ctx, now) {
     entry.responses++;
     entry.points = scoreChallenge({
       ...entry.result,
-      elapsed: now - live.questionAt,
+      elapsed: Math.max(0, receivedAt - live.questionAt),
       allowance: live.until - live.questionAt,
       maximum: Math.floor(1000000000 / (adapter.kind === 'puzzle' ? 3 : 5)),
       puzzle: adapter.kind === 'puzzle',

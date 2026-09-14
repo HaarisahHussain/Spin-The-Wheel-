@@ -1,12 +1,12 @@
-# Operations · v0.6.0
+# Operations · v0.7.0
 
 ## Before a rehearsal
 
-Use a clean v0.6.0 database, not an earlier event. Keep private `.env` values outside source control. Set a strong `HOST_PASSWORD`, log in as `host`, and keep the password available only to authorised operators. Rotating it requires restart, which revokes host sessions. There is no bypass account, admin or MFA setup page.
+Use a fresh database or back up an existing v0.6.0 schema-7 event before its automatic record upgrade. Rolling back requires restoring the matching backup. Keep private `.env` values outside source control. Set a strong `HOST_PASSWORD`, log in as `host`, and keep the password available only to authorised operators. Rotating it requires restart, which revokes host sessions. There is no bypass account, admin or MFA setup page.
 
 Production requires HTTPS, PostgreSQL, one trusted proxy hop, one application writer and SMTP. Use a database connection that supports the dedicated advisory-lock connection; verify ownership behavior with the actual provider/pooler. Do not run multiple replicas. Keep `MAIL_KEY` consistent across restarts and restores. Without it, queued encrypted messages cannot be decrypted.
 
-For development, omit DATABASE_URL, set a new SQLITE_PATH and use MAIL_MODE=preview. An explicit `npm run reset:dev` asks for `RESET TEST DATA`; it refuses production/PostgreSQL and an active instance. Never delete a real event to fix login. An empty hosted database must be provisioned deliberately outside the application.
+For development, omit DATABASE_URL, retain SQLITE_PATH to keep accounts, or select a new path for a fresh test and use MAIL_MODE=preview. An explicit `npm run reset:dev` asks for `RESET TEST DATA`; it refuses production/PostgreSQL and an active instance. Never delete a real event to fix login. An empty hosted database must be provisioned deliberately outside the application.
 
 ## Host controls
 
@@ -40,7 +40,7 @@ Run `npm run check` and `npm run test:e2e`, then rehearse against the deployed U
 
 An empty `DATABASE_URL` selects SQLite; it does not mean no database exists. `.env.example` selects `data/arcade-v060.sqlite`. With no SQLITE_PATH the fallback is `data/arcade.sqlite`, relative to the project working directory. Use Node.js 24 or newer; earlier versions are rejected explicitly.
 
-If startup reports an incompatible schema, point SQLITE_PATH at a new filename or deliberately run `npm run reset:dev` for disposable local test data. Ordinary startup never deletes data. Startup failures after acquiring ownership close the database and release only this process's lock.
+If startup reports an incompatible schema, point SQLITE_PATH at a new filename or deliberately run `npm run reset:dev` for disposable local test data. A recognised schema-7 upgrade preserves event records and retires the redundant aggregate tables after commit. Unknown schemas are not erased. Startup failures after acquiring ownership close the database and release only this process's lock.
 
 Reset refuses PostgreSQL, production mode and a live SQLite owner. A lock with a provably dead PID can be reclaimed. Unknown/malformed ownership is retained: inspect the named file and confirm all Arcade processes have stopped before manually removing an uncertain lock. If an interrupted stale-lock recovery left a `.reclaim` directory, confirm no recovery/start/reset process remains before removing that directory. Do not delete a live writer's files.
 
@@ -49,3 +49,15 @@ Reset refuses PostgreSQL, production mode and a live SQLite owner. A lock with a
 Each queued session has five challenges with 30 seconds each. First-time instructions reserve up to 20 seconds; a player who does not confirm is returned to Ready without using a Ranked start. The selected Ranked game is retained. Phone How to play is untimed. Three runs per solo puzzle share one thinking allowance; playback is separate. Successful retries earn 90% then 80% of the calculated challenge value. Invalid submissions do not count as runs. Longer slots can approach five minutes. Rehearse throughput and use conservative queue estimates rather than promising an exact start time.
 
 The new puzzle prototypes default OFF. Enable `ENABLE_PROTOTYPE_GAMES=true` only for a test event, then restart. Observe at least five unfamiliar participants per candidate as described in the specification. Keep failed/unobserved prototypes out of launch; keep both out of Ranked in this release. Established games also need representative scoring/balance checks before prize-bearing play.
+
+## v0.7.0 resource and delivery safeguards
+
+Use `npm start` and `MAIL_MODE=smtp` in production. `NODE_ENV=production` also enables safeguards. Configure a real SMTP sender; startup rejects missing SMTP host/from and email previews. Port 465 uses implicit TLS; other SMTP ports require STARTTLS. Delivery concurrency is two, with five-second connection/greeting and ten-second socket deadlines. A provider acknowledgement still does not prove inbox delivery.
+
+Client traffic limits allow a shared campus IP, but are finite: 600 total sockets, 550 per source, 3,000 commands and 2,400 state/detail reads per source per minute. These are protective ceilings, not measured capacity promises. Host failed-login limits are source-scoped. Avoid exposing the Node port around the trusted proxy, which must overwrite forwarded headers.
+
+No application state is broadcast while idle. Socket.IO transport keepalives still occur. Slow database responses produce bounded failures instead of unbounded queued work; retry with the same command ID within ten minutes. After a PostgreSQL error, restart and reconcile any uncertain response before manually repeating a sensitive action.
+
+An unverified queue hold expires after five minutes. Live winners may win again, but a collected prize that day or an existing uncollected prize prevents another stock reservation. The host can still resolve/forfeit existing awards.
+
+Run `node --test tests/load.test.js` for the local populated-event rehearsal. It uses SQLite and cannot prove remote PostgreSQL latency, SMTP delivery or venue Wi-Fi. Repeat the rehearsal with your intended hosting, actual phones and real mail before opening admissions. Check database/provider usage after an idle period and after Live games; historical bandwidth usage is not undone by this update.

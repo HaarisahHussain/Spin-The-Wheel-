@@ -1,3 +1,4 @@
+import { cloneState } from './working-state.js';
 import { requireHost } from './host-control.js';
 import { hash, sessionFor, rate, requireValue as assert } from './security.js';
 import { publicQuestion } from './games.js';
@@ -43,7 +44,7 @@ export async function execute(s, action, p, ctx, services) {
     return cached;
   }
   const previousCommands = s.commands;
-  const before = structuredClone({ ...s, commands: {} });
+  const before = cloneState({ ...s, commands: {} });
   before.commands = previousCommands;
   let result;
   try {
@@ -67,13 +68,16 @@ export async function execute(s, action, p, ctx, services) {
     };
   }
   // A lost response can be retried without issuing a second credential or account.
-  s.commands[commandKey] = {
-    at: now,
-    fingerprint,
-    ...(result.token || result.takeover
-      ? { secretResult: services.mail.seal(result) }
-      : { result }),
-  };
+  if (!result.error && action !== 'host.export' && !(action === 'hostControl' && p.heartbeat))
+    s.commands[commandKey] = {
+      at: now,
+      fingerprint,
+      ...(result.token || result.takeover
+        ? { secretResult: services.mail.seal(result) }
+        : { result }),
+    };
+  const keys = Object.keys(s.commands);
+  for (const key of keys.slice(0, Math.max(0, keys.length - 4000))) delete s.commands[key];
   return result;
 }
 

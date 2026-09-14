@@ -65,18 +65,18 @@ function closeQuestion(g, selected, result, now, timedOut = false) {
   g.phase = 'feedback';
   g.feedbackUntil = now + TIMING.feedback;
 }
-export function answerGame(g, answer, challengeId, now) {
+export function answerGame(g, answer, challengeId, now, receivedAt = now) {
   if (
     g.complete ||
     g.phase !== 'question' ||
-    now >= g.deadline ||
+    receivedAt >= g.deadline ||
     g.question.id !== challengeId
   )
     return false;
   const a = adapterFor(g.id);
   if (!a.valid(g.question, answer)) return false;
   const result = a.evaluate(g.question, answer);
-  g.elapsedMs += Math.max(0, now - g.questionAt);
+  g.elapsedMs += Math.max(0, receivedAt - g.questionAt);
   g.remainingMs = Math.max(0, g.allowance - g.elapsedMs);
   if (a.kind === 'puzzle') {
     g.runs++;

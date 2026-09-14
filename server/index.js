@@ -8,7 +8,17 @@ import { initialState } from './state.js';
 import { secret, passwordHash } from './security.js';
 if (Number(process.versions.node.split('.')[0]) < 24)
   throw Error('Arcade requires Node.js 24 or newer. Upgrade Node, then run npm ci.');
-const production = process.argv.includes('--production');
+const production = process.argv.includes('--production') || process.env.NODE_ENV === 'production';
+if (process.argv.includes('--production') && process.env.NODE_ENV === 'development')
+  throw Error('Production launch conflicts with NODE_ENV=development.');
+if (production && process.env.MAIL_MODE === 'preview')
+  throw Error('Email previews cannot run in production. Set MAIL_MODE=smtp.');
+if (!production && process.env.DATABASE_URL && process.env.ALLOW_REMOTE_DEV_DATABASE !== 'true')
+  throw Error(
+    'Development uses SQLite by default. To deliberately use a separate remote test database, set ALLOW_REMOTE_DEV_DATABASE=true.',
+  );
+if (production && (!process.env.SMTP_HOST || !process.env.SMTP_FROM))
+  throw Error('Configure SMTP_HOST and SMTP_FROM before launching production.');
 if (
   !process.env.HOST_PASSWORD ||
   process.env.HOST_PASSWORD.length < 15 ||
@@ -42,6 +52,7 @@ try {
       );
     for (const [id, session] of Object.entries(s.sessions))
       if (session.staffId) delete s.sessions[id];
+    s.config.releaseVersion = '0.7.0';
     s.config.prototypeGames = process.env.ENABLE_PROTOTYPE_GAMES === 'true';
     s.hostLease = null;
     s.controlEpoch++;

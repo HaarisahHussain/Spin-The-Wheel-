@@ -24,7 +24,10 @@ export function ArcadeProvider({ children }) {
   const audience = location.pathname === '/host' ? 'host' : publicOnly ? 'display' : 'account';
   const acceptState = (value) =>
     setState((previous) =>
-      !previous || previous.eventId !== value.eventId || value.revision >= previous.revision
+      !previous ||
+      previous.eventId !== value.eventId ||
+      previous.instanceId !== value.instanceId ||
+      value.revision >= previous.revision
         ? value
         : previous,
     );
@@ -33,6 +36,7 @@ export function ArcadeProvider({ children }) {
       `/api/state?connection=${encodeURIComponent(socket.current?.id || '')}&audience=${audience}`,
       {
         cache: 'no-store',
+        signal: AbortSignal.timeout(10000),
       },
     );
     if (!res.ok) throw Error('Connection interrupted.');
@@ -40,20 +44,20 @@ export function ArcadeProvider({ children }) {
     acceptState(value);
   };
   useEffect(() => {
-    refresh().catch((e) => setError(e.message));
     const live = io({
       auth: { audience },
       query: { audience },
-      // transports: ['polling', 'websocket'],
-      transports: ['websocket'],
+      transports: ['polling', 'websocket'],
       reconnection: true,
     });
     socket.current = live;
     live.on('state', acceptState);
+    live.on('statePatch', (patch) =>
+      setState((old) => (old && patch.revision >= old.revision ? { ...old, ...patch } : old)),
+    );
     live.on('connect', () => {
       setConnected(true);
       setConnectionId(live.id);
-      refresh().catch(() => {});
     });
     live.on('disconnect', () => {
       setConnected(false);
@@ -114,7 +118,7 @@ export function ArcadeProvider({ children }) {
           code: result.code,
         });
       if (result.sessionChanged) socket.current?.disconnect().connect();
-      await refresh();
+      if (result.state) acceptState(result.state);
       return result;
     } catch (e) {
       if (throwOnError) throw e;
@@ -131,9 +135,11 @@ export function ArcadeProvider({ children }) {
   }
   useEffect(() => {
     if (!connectionId || !location.pathname.startsWith('/host')) return;
+    let pending = false;
     const heartbeat = async () => {
       const current = stateRef.current;
-      if (!current?.staff?.ownsControl) return;
+      if (!current?.staff?.ownsControl || pending) return;
+      pending = true;
       try {
         await fetch('/api/command', {
           method: 'POST',
@@ -149,9 +155,12 @@ export function ArcadeProvider({ children }) {
             action: 'hostControl',
             payload: { heartbeat: true, controlEpoch: current.staff.epoch },
           }),
+          signal: AbortSignal.timeout(8000),
         });
       } catch {
         /* reconnect refreshes authoritative ownership */
+      } finally {
+        pending = false;
       }
     };
     const timer = setInterval(heartbeat, 5000);

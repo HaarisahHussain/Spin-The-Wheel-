@@ -1,3 +1,7 @@
+import { transitionDue } from './runtime.js';
+import { hostControl } from './host-control.js';
+import { details } from './details.js';
+import { createLimits, authPreflight } from './limits.js';
 import { preparePasswords } from './passwords.js';
 import express from 'express';
 import helmet from 'helmet';
@@ -55,64 +59,181 @@ export function createApp({
       crossOriginEmbedderPolicy: false,
       crossOriginOpenerPolicy: production ? { policy: 'same-origin' } : false,
       originAgentCluster: production,
+      referrerPolicy: {
+        policy: production ? 'no-referrer' : 'same-origin',
+      },
     }),
   );
 
   app.use(express.json({ limit: '16kb' }));
+  const limits = createLimits();
+  const socketIps = new Map();
+  const peerIp = (req) =>
+    production
+      ? String(req.headers['x-forwarded-for'] || req.socket.remoteAddress)
+          .split(',')
+          .at(-1)
+          .trim()
+      : req.socket.remoteAddress;
   const io = new Server(http, {
     maxHttpBufferSize: 16384,
     cors: { origin, credentials: true },
-    allowRequest: (req, callback) =>
-      callback(
-        null,
-        req.headers.origin === origin ||
+    allowRequest: (req, callback) => {
+      try {
+        const expected = new URL(origin);
+        let refererOrigin = null;
+
+        try {
+          if (req.headers.referer) {
+            refererOrigin = new URL(req.headers.referer).origin;
+          }
+        } catch {
+          // Invalid referrers do not qualify.
+        }
+
+        const allowed =
+          req.headers.origin === expected.origin ||
           (!req.headers.origin &&
-            req.headers['sec-fetch-site'] === 'same-origin' &&
-            req.headers.host === new URL(origin).host),
-      ),
+            req.headers.host === expected.host &&
+            (req.headers['sec-fetch-site'] === 'same-origin' ||
+              (!production &&
+                !req.headers['sec-fetch-site'] &&
+                refererOrigin === expected.origin)));
+        if (
+          !allowed ||
+          socketIps.size >= 600 ||
+          [...socketIps.values()].filter((ip) => ip === peerIp(req)).length >= 550
+        )
+          return callback(null, false);
+        limits.check(`connect:${peerIp(req)}`, 1200, 60000);
+        callback(null, true);
+      } catch {
+        callback(null, false);
+      }
+    },
   });
 
   let healthy = true,
     running = false;
 
-  const connected = new Map();
-
-  const view = (token, publicOnly = false, connectionId = null, snapshot = storage.snapshot()) => ({
-    ...project(snapshot, publicOnly ? '' : token, Date.now(), origin, connectionId),
-    serviceHealthy: healthy,
+  const instanceId = crypto.randomUUID();
+  io.use((socket, next) => {
+    if (io.sockets.sockets.size >= 600) next(Error('Event connection limit reached.'));
+    else next();
+  });
+  const view = (
+    token,
+    publicOnly = false,
+    connectionId = null,
+    snapshot = storage.read((s) => s),
+  ) => ({
+    staff: null,
+    host: null,
+    ...project(snapshot, publicOnly ? '' : token, Date.now(), origin, connectionId, { lean: true }),
+    instanceId,
+    dataVersion: storage.versions.data,
+    serviceHealthy: healthy && storage.healthy(),
     development: preview,
   });
-
+  function sendState(socket, initial = false) {
+    const value = view(socket.data.token, socket.data.publicOnly, socket.id);
+    const encoded = Object.fromEntries(
+      Object.entries(value).map(([k, v]) => [k, JSON.stringify(v)]),
+    );
+    const patch = Object.fromEntries(
+      Object.entries(value).filter(
+        ([k]) => !['now', 'revision'].includes(k) && encoded[k] !== socket.data.lastState?.[k],
+      ),
+    );
+    if (!initial && !Object.keys(patch).length) return;
+    // A slow socket keeps only a dirty flag, not an ever-growing packet queue.
+    if (!initial && !socket.conn.transport.writable) {
+      socket.data.dirty = true;
+      return;
+    }
+    socket.data.lastState = encoded;
+    socket.data.dirty = false;
+    socket.emit(
+      initial ? 'state' : 'statePatch',
+      initial ? value : { ...patch, now: value.now, revision: value.revision },
+    );
+  }
   let broadcastTimer = null;
   const update = () => {
     if (broadcastTimer) return;
     broadcastTimer = setTimeout(() => {
       broadcastTimer = null;
-      const snapshot = storage.snapshot();
-      for (const socket of io.sockets.sockets.values())
-        socket.emit('state', view(socket.data.token, socket.data.publicOnly, socket.id, snapshot));
+      for (const socket of io.sockets.sockets.values()) sendState(socket);
     }, 100);
   };
-
   io.on('connection', (socket) => {
+    socketIps.set(socket.id, peerIp(socket.request));
+    socket.use((packet, next) => {
+      try {
+        limits.check(`socket:${socket.id}`, 60, 60000);
+        next();
+      } catch {
+        socket.disconnect(true);
+      }
+    });
     socket.data.token = tokenFrom(socket.request);
     socket.data.publicOnly = socket.handshake.auth?.audience === 'display';
-    const sess = sessionFor(storage.snapshot(), socket.data.token, Date.now());
-    if (sess?.accountId && !sess.pending && !socket.data.publicOnly)
-      connected.set(socket.id, sess.accountId);
-    socket.emit('state', view(socket.data.token, socket.data.publicOnly, socket.id));
-    socket.on('disconnect', () => connected.delete(socket.id));
+    sendState(socket, true);
+    socket.conn.on('drain', () => {
+      if (socket.data.dirty) update();
+    });
+    socket.on('clock', (ack) => {
+      if (typeof ack === 'function') {
+        try {
+          limits.check(`clock:${socket.id}`, 10, 60000);
+          ack(Date.now());
+        } catch {
+          /* drop excessive clock requests */
+        }
+      }
+    });
+    socket.on('disconnect', () => socketIps.delete(socket.id));
   });
-
-  app.get('/api/state', (req, res) => {
+  const limitedGet = (req, res, next) => {
+    try {
+      limits.check(`read:${req.ip}`, 2400, 60000);
+      next();
+    } catch (e) {
+      res.status(e.status).json({ error: e.message });
+    }
+  };
+  app.get('/api/state', limitedGet, (req, res) =>
     res
       .set('Cache-Control', 'no-store')
-      .json(view(tokenFrom(req), req.query.audience === 'display', req.query.connection));
+      .json(view(tokenFrom(req), req.query.audience === 'display', req.query.connection)),
+  );
+  app.get('/api/details', limitedGet, (req, res) => {
+    try {
+      res
+        .set('Cache-Control', 'no-store')
+        .json(storage.read((s) => details(s, tokenFrom(req), Date.now(), req.query)));
+    } catch (e) {
+      res.status(e.status || 503).json({ error: e.status ? e.message : 'Service unavailable.' });
+    }
   });
 
-  app.get('/api/health', (_req, res) => res.status(healthy ? 200 : 503).json({ ready: healthy }));
+  app.get('/api/health', (_req, res) =>
+    res
+      .status(healthy && storage.healthy() ? 200 : 503)
+      .json({ ready: healthy && storage.healthy(), mailConfigured: mail.available }),
+  );
 
-  const requests = new Map();
+  const preparedInFlight = new Map();
+  const publicCommands = new Set([
+    'register',
+    'login',
+    'staffLogin',
+    'hostTakeover',
+    'forgotPassword',
+    'resetPassword',
+    'verify',
+    'logout',
+  ]);
 
   const validatedConnection = (req) => {
     const socket = io.sockets.sockets.get(req.headers['x-arcade-connection']);
@@ -126,11 +247,12 @@ export function createApp({
       return res.status(403).json({ error: 'Request origin is not allowed.' });
     if (!req.is('application/json')) return res.status(415).json({ error: 'Use JSON.' });
     const ip = req.ip,
-      now = Date.now(),
-      hits = (requests.get(ip) || []).filter((t) => t > now - 60000);
-    if (hits.length >= 3000) return res.status(429).json({ error: 'Please slow down.' });
-    hits.push(now);
-    requests.set(ip, hits);
+      now = Date.now();
+    try {
+      limits.check(`request:${ip}`, 3000, 60000, now);
+    } catch (e) {
+      return res.status(e.status).json({ error: e.message });
+    }
     const { action, payload = {}, id } = req.body || {};
     if (
       typeof action !== 'string' ||
@@ -152,6 +274,24 @@ export function createApp({
       return res.status(400).json({ error: 'A command ID is required.' });
     try {
       let preparedAuth = null;
+      const token = tokenFrom(req);
+      const commandKey = `${hash(token || ip)}:${id}`;
+      const cachedCommand = storage.read((s) => s.commands[commandKey]);
+      if (!publicCommands.has(action) && !storage.read((s) => sessionFor(s, token, Date.now())))
+        return res.status(401).json({ error: 'Please sign in.' });
+      if (action === 'hostControl' && payload.heartbeat) {
+        const result = await storage.transact(
+          (s) =>
+            hostControl(
+              s,
+              { token, connectionId: validatedConnection(req), epoch: payload.controlEpoch },
+              payload,
+              Date.now(),
+            ),
+          { transientOnly: true },
+        );
+        return res.json(result);
+      }
       if (
         [
           'register',
@@ -161,16 +301,36 @@ export function createApp({
           'verify',
           'changePassword',
           'resetPassword',
-        ].includes(action)
+        ].includes(action) &&
+        !cachedCommand
       ) {
-        const authSnapshot = storage.snapshot(),
+        storage.read((s) => authPreflight(s, action, payload, token, now));
+        const identity =
+          action === 'staffLogin' || action === 'hostReauthenticate'
+            ? 'host'
+            : String(payload.email || token).toLowerCase();
+        limits.check(`auth:${ip}:${hash(identity)}`, 20, 60000, now);
+        limits.check(`auth-source:${ip}`, 600, 60000, now);
+        const authSnapshot = storage.read((s) => s),
           authSession = sessionFor(authSnapshot, tokenFrom(req), now);
-        preparedAuth = await preparePasswords(
-          authSnapshot,
-          action,
-          { ...payload, _accountId: authSession?.accountId, _tokenHash: hash(payload.linkToken) },
-          hostPasswordHash,
-        );
+        const prepKey = hash(JSON.stringify({ commandKey, action, payload }));
+        let work = preparedInFlight.get(prepKey);
+        if (!work) {
+          if (preparedInFlight.size >= 64)
+            return res.status(429).json({ error: 'Sign-in is busy. Try again shortly.' });
+          work = preparePasswords(
+            authSnapshot,
+            action,
+            { ...payload, _accountId: authSession?.accountId, _tokenHash: hash(payload.linkToken) },
+            hostPasswordHash,
+          );
+          preparedInFlight.set(prepKey, work);
+        }
+        try {
+          preparedAuth = await work;
+        } finally {
+          preparedInFlight.delete(prepKey);
+        }
       }
       const result = await storage.transact((state) =>
         execute(
@@ -181,7 +341,8 @@ export function createApp({
             token: tokenFrom(req),
             ip,
             commandId: id,
-            now,
+            now: Date.now(),
+            receivedAt: now,
             connectionId: validatedConnection(req),
             epoch: payload.controlEpoch,
             connections: new Set(io.sockets.sockets.keys()),
@@ -200,12 +361,14 @@ export function createApp({
       if (result.logout)
         res.clearCookie(hostAudience(req) ? 'arcade_host' : 'arcade_session', { path: '/' });
       const { token: _token, ...safe } = result;
-      res
-        .status(result.status || 200)
-        .json({ ...safe, sessionChanged: !!result.token || !!result.logout });
+      res.status(result.status || 200).json({
+        ...safe,
+        sessionChanged: !!result.token || !!result.logout,
+        state: view(result.token || token, false, validatedConnection(req)),
+      });
       update();
     } catch (error) {
-      console.error('command failed', error.status ? 'rejected' : error.name);
+      if (!error.status) console.error('command failed', error.name);
       res.status(error.status || 503).json({
         error: error.status
           ? error.message
@@ -216,7 +379,7 @@ export function createApp({
 
   if (preview)
     app.get('/api/development-mail', (req, res) => {
-      const state = storage.snapshot(),
+      const state = storage.read((s) => s),
         flow = hash(tokenFrom(req));
       const challenge = Object.values(state.challenges)
         .filter((c) => c.flow === flow)
@@ -231,26 +394,30 @@ export function createApp({
     res.status(error.status || 400).json({ error: 'The request could not be read.' }),
   );
 
-  let lastPulseAt = Date.now();
+  let lastPulseAt = Date.now(),
+    maintenanceAt = 0,
+    stopping = false;
   async function pulse() {
-    if (running) return;
+    if (running || stopping) return;
+    const now = Date.now();
+    const due = storage.read(
+      (s) =>
+        transitionDue(s, now) ||
+        s.config.windows.some((w) =>
+          [w.start, w.cutoff, w.end].some((t) => t > lastPulseAt && t <= now),
+        ),
+    );
+    const delayed = now - lastPulseAt > 3000;
+    lastPulseAt = now;
+    if (!due && !delayed && now < maintenanceAt) return;
     running = true;
     try {
       await storage.transact((s) => {
-        const now = Date.now(),
-          present = new Set();
-        for (const socket of io.sockets.sockets.values()) {
-          const session = sessionFor(s, socket.data.token, now);
-          if (session?.accountId && !session.pending && !socket.data.publicOnly)
-            present.add(session.accountId);
-        }
-        if (now - lastPulseAt > 3000) recoverServiceDelay(s, now);
-        tick(s, now, present);
+        if (delayed && (s.active || s.live)) recoverServiceDelay(s, Date.now());
+        tick(s, Date.now());
       });
-      lastPulseAt = Date.now();
+      maintenanceAt = Date.now() + 30000;
       healthy = true;
-      for (const [ip, hits] of requests)
-        if (!hits.some((t) => t > Date.now() - 60000)) requests.delete(ip);
       update();
     } catch (error) {
       healthy = false;
@@ -260,43 +427,59 @@ export function createApp({
       running = false;
     }
   }
-
-  let mailing = false;
-  async function sendMail() {
-    if (mailing) return;
-    mailing = true;
+  const mailing = new Set();
+  async function deliver(job) {
+    mailing.add(job.id);
     try {
-      const job = storage
-        .snapshot()
-        .outbox.find((m) => !m.sent && !m.cancelled && m.next <= Date.now() && m.tries < 5);
-      if (job) {
-        const challenge = job.challengeId && storage.snapshot().challenges[job.challengeId];
-        if (challenge && (challenge.used || challenge.expires <= Date.now())) {
-          await storage.transact((s) => {
-            s.outbox.find((m) => m.id === job.id).sent = true;
-          });
-          return;
-        }
-        let error = null;
+      const usable = storage.read(
+        (s) =>
+          !job.challengeId ||
+          (s.challenges[job.challengeId] &&
+            !s.challenges[job.challengeId].used &&
+            s.challenges[job.challengeId].expires > Date.now()),
+      );
+      let error = null;
+      if (usable)
         try {
           await mail.send(job);
-        } catch (e) {
-          error = e.message;
+        } catch {
+          error = true;
         }
-        await storage.transact((s) => {
-          const current = s.outbox.find((m) => m.id === job.id);
-          if (current) {
-            current.tries++;
-            current.sent = !error;
-            current.error = error ? 'Delivery failed; check SMTP configuration.' : null;
-            current.next = Date.now() + Math.min(60000, current.tries * 10000);
-          }
-        });
-      }
+      await storage.transact((s) => {
+        const current = s.outbox.find((m) => m.id === job.id);
+        if (!current || current.cancelled) return;
+        current.tries++;
+        current.sent = usable && !error;
+        current.cancelled = !usable;
+        current.error = error ? 'Delivery failed; check SMTP configuration.' : null;
+        current.next = Date.now() + Math.min(60000, current.tries * 10000);
+        if (!error) {
+          delete current.payload;
+          current.completedAt = Date.now();
+        }
+      });
+      update();
     } catch (error) {
       console.error('mail worker unavailable', error.message);
     } finally {
-      mailing = false;
+      mailing.delete(job.id);
+    }
+  }
+  const mailWork = new Set();
+  function sendMail() {
+    if (stopping) return;
+    const jobs = storage.read((s) =>
+      s.outbox
+        .filter(
+          (m) =>
+            !m.sent && !m.cancelled && m.next <= Date.now() && m.tries < 5 && !mailing.has(m.id),
+        )
+        .slice(0, Math.max(0, 2 - mailing.size)),
+    );
+    for (const job of jobs) {
+      const work = deliver(structuredClone(job));
+      mailWork.add(work);
+      work.finally(() => mailWork.delete(work));
     }
   }
 
@@ -311,7 +494,10 @@ export function createApp({
       timers.push(setInterval(pulse, 250), setInterval(sendMail, 1000));
     },
     async close() {
+      stopping = true;
       timers.forEach(clearInterval);
+      await Promise.allSettled(mailWork);
+      mail.close?.();
       if (broadcastTimer) clearTimeout(broadcastTimer);
       io.disconnectSockets();
       await new Promise((resolve) => io.close(resolve));

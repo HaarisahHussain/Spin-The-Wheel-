@@ -1,35 +1,41 @@
-# Architecture and game extension · v0.6.0
+# Architecture and game extension · v0.7.0
 
 ## Boundaries
 
-| Module | Responsibility |
-| --- | --- |
-| shared/catalog.js | Public metadata, fixed release eligibility, BCU syntax and score presentation |
-| shared/scoring.js, timing.js | Integer score formula, level weights and phase durations |
-| server/passwords.js | Bounded asynchronous scrypt work outside database transactions |
-| server/commands/auth.js | Registration, verification, password reset and host authentication |
-| server/host-control.js | Exclusive session/tab/connection lease, epochs and takeover challenges |
-| server/commands/player.js | Account actions, controller ownership, queue and submissions |
-| server/commands/host.js | Settings, incidents, finalisation, exports and cleanup |
-| server/engine.js, runtime.js | Idempotent dispatch, server phases, deadlines and scheduling |
-| server/games/ | Server-only seeded generators, validators and evaluators |
-| server/projection.js | Explicit public, participant and host views |
-| server/storage.js | Serialized atomic aggregate persistence and unique email index |
-| server/mail.js | Encrypted outbox and email transport |
-| src/state.jsx | Same-origin commands, separate audiences, reconnect and heartbeat |
-| src/games/ | Shared quiz/puzzle rendering and phone editors |
+| Module                       | Responsibility                                                                   |
+| ---------------------------- | -------------------------------------------------------------------------------- |
+| shared/catalog.js            | Public metadata, fixed release eligibility, BCU syntax and score presentation    |
+| shared/scoring.js, timing.js | Integer score formula, level weights and phase durations                         |
+| server/passwords.js          | Bounded asynchronous scrypt work outside database transactions                   |
+| server/commands/auth.js      | Registration, verification, password reset and host authentication               |
+| server/host-control.js       | Exclusive session/tab/connection lease, epochs and takeover challenges           |
+| server/commands/player.js    | Account actions, controller ownership, queue and submissions                     |
+| server/commands/host.js      | Settings, incidents, finalisation, exports and cleanup                           |
+| server/engine.js, runtime.js | Idempotent dispatch, server phases, deadlines and scheduling                     |
+| server/games/                | Server-only seeded generators, validators and evaluators                         |
+| server/projection.js         | Explicit public, participant and host views                                      |
+| server/storage.js            | Single-writer committed cache, changed-record persistence and unique email index |
+| server/mail.js               | Encrypted outbox and email transport                                             |
+| src/state.jsx                | Same-origin commands, separate audiences, reconnect and heartbeat                |
+| src/games/                   | Shared quiz/puzzle rendering and phone editors                                   |
 
 ## Authority
 
-Clients submit an intention with a command ID, challenge ID and connection identity, never scores or trusted timestamps. Mutations run through a serialized transaction. Host commands are fenced by session, connection, epoch and lease before even returning a cached result. Acknowledgements follow persistence. Rejected domain commands restore business state while keeping abuse counters. Password comparisons prepared asynchronously are checked against the exact current hash in the transaction.
+Clients submit an intention with a command ID, challenge ID and connection identity, never scores or trusted timestamps. The HTTP server records arrival time for scoring; queued database work does not reduce a player’s speed score. Authentication and control ownership use execution time. Playback starts at execution time so congestion does not shorten the animation. Mutations run through a serialized transaction. Host commands are fenced by session, connection, epoch and lease before even returning a cached result. Acknowledgements follow persistence. Rejected domain commands restore business state while keeping abuse counters. Password comparisons prepared asynchronously are checked against the exact current hash in the transaction.
 
 Public questions use allowlists. Seeds, reference Python, solutions and locked Live programs stay server-side until the appropriate reveal. Participant and host cookies are separate. Public monitor routes request a public projection even in an authenticated browser. Player input belongs to one connected device; transfers require explicit confirmation while another owner is present.
 
 ## Persistence and recovery
 
-SQLite WAL is local only; PostgreSQL stores one locked JSONB event aggregate and a transactionally maintained unique email table. One dedicated PostgreSQL advisory lock or SQLite process lock prevents competing application writers. This is a bounded, single-event architecture; aggregate rewrites and full snapshots are a scalability constraint. Broadcasts are coalesced at 100 ms. Profile before increasing participant volume or retaining many events.
+SQLite WAL is local only. PostgreSQL uses `arcade_records(key, body)` with separately keyed accounts, attempts, sessions, receipts, outbox entries and other collections. Core configuration and the active game remain small aggregates. One dedicated PostgreSQL advisory lock or SQLite process lock fences other writers. PostgreSQL needs a direct or session-pooler connection, not transaction pooling.
 
-Restart revokes host sessions and control ownership. Interrupted solo sessions preserve earned points for review and do not refund Ranked allowance automatically. Unfinished Live sessions are cancelled; saved results and prize records remain. Scheduler stalls pause admissions and require intervention. An interrupted challenge is never silently replayed for free. No migration or deletion runs on ordinary startup.
+Startup reads the records once. Serialized commands create isolated working state, persist only changed records in one transaction, then publish the committed cache. Completed reviews/breakdowns are frozen and shared between drafts; editing them requires replacing the value. State selectors are internal read-only APIs. No-op transactions issue no SQL. Database connection/query deadlines are bounded; an ambiguous PostgreSQL failure disables further writes until restart reloads authoritative state. Pending transactions are capped at 128 with a five-second queue deadline.
+
+The 250 ms scheduler checks in-memory deadlines; maintenance runs at most every 30 seconds except when a game transition also runs cleanup. Rates, takeover challenges and host leases are transient. Successful command receipts last ten minutes and are capped at 4,000; rejected commands, exports and lease heartbeats are not stored as receipts. A retry must reuse its command ID. Significant results are saved before acknowledgement; there is no periodic deferred save window.
+
+Socket.IO sends an initial lean view followed by changed top-level fields, coalesced over 100 ms. Slow transports keep a dirty flag for resynchronisation rather than a growing application update queue. Private views remain audience/session scoped. Expired authentication explicitly clears host fields. The full leaderboard is paginated; monitors retain their top-five display. `server/details.js` serves paginated host data, player top-ten/recent summaries, and individually authorised reviews. `src/useDetails.js` fetches those resources only for mounted screens. Shared standings/counts are computed once per committed snapshot.
+
+Restart revokes host sessions and control ownership. Interrupted solo sessions preserve earned points for review and do not refund Ranked allowance automatically. Unfinished Live sessions are cancelled; saved results and prize records remain. Scheduler stalls pause admissions and require intervention. An interrupted challenge is never silently replayed for free. Schema-7 aggregate data is imported once and its redundant legacy tables retired after successful commit. Unknown schemas are rejected. Keep a matching backup for rollback.
 
 ## Add or change a game
 

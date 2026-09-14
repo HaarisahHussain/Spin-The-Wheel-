@@ -1,135 +1,242 @@
 import { mkdirSync } from 'node:fs';
-import { acquireInstance } from './instance-lock.js';
 import { dirname } from 'node:path';
+import { acquireInstance } from './instance-lock.js';
+import { cloneState, freezeReviews } from './working-state.js';
 
-// One event aggregate is deliberately serialized. Run one application process;
-// PostgreSQL's row lock also fences overlapping processes during restarts.
-export async function createStorage({ url, filename = './data/arcade.sqlite', initial }) {
-  let db, pool, guard;
-  let ownershipHealthy = true,
+const maps = new Set(['accounts', 'sessions', 'staff', 'challenges', 'commands']);
+const lists = new Set([
+  'attempts',
+  'outbox',
+  'audit',
+  'liveResults',
+  'notifications',
+  'awards',
+  'incidents',
+  'updates',
+]);
+const transient = new Set(['rates', 'hostLease', 'takeovers', 'revision']);
+function records(s, previous = null, serialized = new Map()) {
+  const priorAttempts = new Map((previous?.attempts || []).map((a) => [a.id, a]));
+  const rows = new Map();
+  for (const [group, value] of Object.entries(s)) {
+    if (transient.has(group)) continue;
+    if (maps.has(group)) {
+      for (const [id, body] of Object.entries(value))
+        rows.set(`${group}/${id}`, JSON.stringify(body));
+    } else if (lists.has(group)) {
+      value.forEach((body, order) => {
+        const key = `${group}/${body.id}`,
+          old = group === 'attempts' ? priorAttempts.get(body.id) : null;
+        const same =
+          old &&
+          previous.attempts[order]?.id === body.id &&
+          Object.keys(old).length === Object.keys(body).length &&
+          Object.keys(body).every((k) => body[k] === old[k]);
+        rows.set(
+          key,
+          same && serialized.has(key) ? serialized.get(key) : JSON.stringify({ order, body }),
+        );
+      });
+    } else rows.set(`core/${group}`, JSON.stringify(value));
+  }
+  return rows;
+}
+function assemble(rows, initial) {
+  const s = { ...initial };
+  for (const group of [...maps, ...lists]) s[group] = lists.has(group) ? [] : {};
+  for (const { key, body } of rows) {
+    const slash = key.indexOf('/'),
+      group = key.slice(0, slash),
+      id = key.slice(slash + 1);
+    const value = typeof body === 'string' ? JSON.parse(body) : body;
+    if (group === 'core') s[id] = value;
+    else if (lists.has(group)) s[group].push(value);
+    else if (maps.has(group)) s[group][id] = value;
+  }
+  for (const group of lists)
+    s[group] = s[group].sort((a, b) => a.order - b.order).map((v) => v.body);
+  return s;
+}
+const unavailable = (message) => Object.assign(Error(message), { status: 503 });
+export async function createStorage({
+  url,
+  filename = './data/arcade.sqlite',
+  initial,
+  maxPending = 128,
+  maxWaitMs = 5000,
+}) {
+  let db,
+    pool,
+    guard,
     releaseFile = () => {},
-    guardOwned = false;
+    owned = false,
+    healthy = true;
   try {
     if (url) {
       const { Pool } = await import('pg');
-      pool = new Pool({ connectionString: url, max: 4 });
+      pool = new Pool({
+        connectionString: url,
+        max: 3,
+        connectionTimeoutMillis: 3000,
+        statement_timeout: 4000,
+        query_timeout: 5000,
+        idle_in_transaction_session_timeout: 5000,
+      });
+      pool.on('error', () => {
+        healthy = false;
+      });
       guard = await pool.connect();
       guard.on('error', () => {
-        ownershipHealthy = false;
+        healthy = false;
       });
       guard.on('end', () => {
-        ownershipHealthy = false;
+        healthy = false;
       });
-      const claim = await guard.query('SELECT pg_try_advisory_lock(741050) AS owned');
-      if (!claim.rows[0].owned) {
-        throw Error('Another Arcade server already owns this database. Stop it first.');
-      }
-      guardOwned = true;
+      owned = (await guard.query('SELECT pg_try_advisory_lock(741050) AS owned')).rows[0].owned;
+      if (!owned) throw Error('Another Arcade server already owns this database. Stop it first.');
       await pool.query(
-        'CREATE TABLE IF NOT EXISTS arcade_state (id integer PRIMARY KEY CHECK (id = 1), body jsonb NOT NULL)',
+        'CREATE TABLE IF NOT EXISTS arcade_records (key text PRIMARY KEY, body jsonb NOT NULL)',
       );
-      await pool.query('INSERT INTO arcade_state VALUES (1, $1) ON CONFLICT DO NOTHING', [
-        JSON.stringify(initial),
-      ]);
+      await pool.query(
+        "CREATE UNIQUE INDEX IF NOT EXISTS arcade_records_email ON arcade_records ((body->>'email')) WHERE key LIKE 'accounts/%'",
+      );
     } else {
       const { DatabaseSync } = await import('node:sqlite');
       mkdirSync(dirname(filename), { recursive: true });
       if (filename !== ':memory:') releaseFile = acquireInstance(filename);
       db = new DatabaseSync(filename);
       db.exec(
-        'PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; CREATE TABLE IF NOT EXISTS arcade_state (id INTEGER PRIMARY KEY CHECK (id=1), body TEXT NOT NULL)',
+        'PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; CREATE TABLE IF NOT EXISTS arcade_records (key TEXT PRIMARY KEY, body TEXT NOT NULL)',
       );
-      db.prepare('INSERT OR IGNORE INTO arcade_state VALUES (1, ?)').run(JSON.stringify(initial));
-    }
-    let cached = pool
-      ? (await pool.query('SELECT body FROM arcade_state WHERE id=1')).rows[0].body
-      : JSON.parse(db.prepare('SELECT body FROM arcade_state WHERE id=1').get().body);
-    if (pool)
-      await pool.query(
-        'CREATE TABLE IF NOT EXISTS arcade_emails (email text PRIMARY KEY, account_id text UNIQUE NOT NULL)',
-      );
-    else
       db.exec(
-        'CREATE TABLE IF NOT EXISTS arcade_emails (email TEXT PRIMARY KEY, account_id TEXT UNIQUE NOT NULL)',
+        "CREATE UNIQUE INDEX IF NOT EXISTS arcade_records_email ON arcade_records (json_extract(body,'$.email')) WHERE key LIKE 'accounts/%'",
       );
-    for (const a of Object.values(cached.accounts)) {
-      if (pool)
-        await pool.query(
-          'INSERT INTO arcade_emails(email,account_id) VALUES ($1,$2) ON CONFLICT (account_id) DO NOTHING',
-          [a.email, a.id],
-        );
-      else
-        db.prepare(
-          'INSERT INTO arcade_emails(email,account_id) VALUES (?,?) ON CONFLICT(account_id) DO NOTHING',
-        ).run(a.email, a.id);
     }
-    let tail = Promise.resolve();
+    const loaded = pool
+      ? (await pool.query('SELECT key,body FROM arcade_records')).rows
+      : db.prepare('SELECT key,body FROM arcade_records').all();
+    let cached;
+    if (loaded.length) cached = assemble(loaded, initial);
+    else {
+      // Import the existing aggregate once; never erase an unrecognised schema.
+      const legacy = pool
+        ? (await pool.query("SELECT to_regclass('public.arcade_state') AS name")).rows[0].name
+        : db.prepare("SELECT name FROM sqlite_master WHERE name='arcade_state'").get();
+      const row = legacy
+        ? pool
+          ? (await pool.query('SELECT body FROM arcade_state WHERE id=1')).rows[0]
+          : db.prepare('SELECT body FROM arcade_state WHERE id=1').get()
+        : null;
+      cached = row ? (typeof row.body === 'string' ? JSON.parse(row.body) : row.body) : initial;
+      if (cached.schemaVersion !== initial.schemaVersion)
+        throw Error(
+          'Unrecognised database schema. Select a compatible database; no data was deleted.',
+        );
+    }
+    // Reviews are the canonical completed-question representation from this release.
+    for (const attempt of cached.attempts) if (attempt.review) delete attempt.history;
+    freezeReviews(cached);
+    let serialized = new Map(
+      loaded.map((r) => [r.key, typeof r.body === 'string' ? r.body : JSON.stringify(r.body)]),
+    );
+    let tail = Promise.resolve(),
+      pending = 0,
+      closing = false;
+    const metrics = { commits: 0, changedRecords: 0, writtenBytes: 0, stateReads: 1 };
+    const versions = { data: 0 };
+    async function persist(next) {
+      const current = records(next, cached, serialized),
+        changed = [...current].filter(([k, v]) => serialized.get(k) !== v),
+        removed = [...serialized.keys()].filter((k) => !current.has(k));
+      if (!changed.length && !removed.length) return false;
+      const client = pool ? await pool.connect() : null;
+      try {
+        if (!healthy) throw unavailable('Database ownership lost. Restart after recovery.');
+        if (client) {
+          await client.query('BEGIN');
+          if (changed.length)
+            await client.query(
+              'INSERT INTO arcade_records(key,body) SELECT key,body::jsonb FROM unnest($1::text[], $2::text[]) AS rows(key,body) ON CONFLICT(key) DO UPDATE SET body=excluded.body',
+              [changed.map((v) => v[0]), changed.map((v) => v[1])],
+            );
+          if (removed.length)
+            await client.query('DELETE FROM arcade_records WHERE key=ANY($1::text[])', [removed]);
+          await client.query('COMMIT');
+        } else {
+          db.exec('BEGIN IMMEDIATE');
+          const put = db.prepare(
+            'INSERT INTO arcade_records VALUES (?,?) ON CONFLICT(key) DO UPDATE SET body=excluded.body',
+          );
+          for (const [key, body] of changed) put.run(key, body);
+          const del = db.prepare('DELETE FROM arcade_records WHERE key=?');
+          for (const key of removed) del.run(key);
+          db.exec('COMMIT');
+        }
+      } catch (error) {
+        if (client) {
+          await client.query('ROLLBACK').catch(() => {});
+          // A failed COMMIT response can have an ambiguous outcome. Stop all writes
+          // until restart reloads the database; never overwrite it from stale RAM.
+          healthy = false;
+        } else db.exec('ROLLBACK');
+        throw error;
+      } finally {
+        client?.release();
+      }
+      serialized = current;
+      metrics.commits++;
+      metrics.changedRecords += changed.length + removed.length;
+      metrics.writtenBytes += changed.reduce((n, [, v]) => n + Buffer.byteLength(v), 0);
+      if (
+        [...changed.map((v) => v[0]), ...removed].some((k) =>
+          /^(accounts|attempts|outbox|awards|updates|incidents|audit|liveResults)\//.test(k),
+        )
+      )
+        versions.data++;
+      return true;
+    }
+    await persist(cached);
+    // Retire the imported aggregate, including its duplicate personal data, only
+    // after the new representation has committed successfully.
+    if (pool)
+      await pool.query('DROP TABLE IF EXISTS arcade_state; DROP TABLE IF EXISTS arcade_emails');
+    else db.exec('DROP TABLE IF EXISTS arcade_state; DROP TABLE IF EXISTS arcade_emails');
     return {
       snapshot: () => structuredClone(cached),
-      transact(fn) {
-        const job = tail.then(async () => {
-          if (!ownershipHealthy) throw Error('Database ownership lost. Restart after recovery.');
-          const client = pool ? await pool.connect() : null;
-          try {
-            if (client) await client.query('BEGIN');
-            else db.exec('BEGIN IMMEDIATE');
-            const state = client
-              ? (await client.query('SELECT body FROM arcade_state WHERE id=1 FOR UPDATE')).rows[0]
-                  .body
-              : JSON.parse(db.prepare('SELECT body FROM arcade_state WHERE id=1').get().body);
-            const previousEmails = new Map(
-              Object.values(state.accounts).map((a) => [a.id, a.email]),
-            );
-            const result = await fn(state);
-            const currentEmails = new Map(
-              Object.values(state.accounts).map((a) => [a.id, a.email]),
-            );
-            for (const [id, email] of previousEmails)
-              if (currentEmails.get(id) !== email) {
-                if (client)
-                  await client.query('DELETE FROM arcade_emails WHERE account_id=$1', [id]);
-                else db.prepare('DELETE FROM arcade_emails WHERE account_id=?').run(id);
-              }
-            for (const [id, email] of currentEmails)
-              if (previousEmails.get(id) !== email) {
-                if (client)
-                  await client.query('INSERT INTO arcade_emails(email,account_id) VALUES ($1,$2)', [
-                    email,
-                    id,
-                  ]);
-                else
-                  db.prepare('INSERT INTO arcade_emails(email,account_id) VALUES (?,?)').run(
-                    email,
-                    id,
-                  );
-              }
-            state.revision++;
-            if (client) {
-              await client.query('UPDATE arcade_state SET body=$1 WHERE id=1', [
-                JSON.stringify(state),
-              ]);
-              await client.query('COMMIT');
-            } else {
-              db.prepare('UPDATE arcade_state SET body=? WHERE id=1').run(JSON.stringify(state));
-              db.exec('COMMIT');
-            }
+      read: (fn) => fn(cached), // Internal read-only selector; never expose its references to mutators.
+      metrics,
+      versions,
+      healthy: () => healthy && !closing && pending < maxPending,
+      transact(fn, { transientOnly = false } = {}) {
+        if (closing || !healthy || pending >= maxPending)
+          return Promise.reject(unavailable('Service busy. Please retry shortly.'));
+        pending++;
+        const admitted = Date.now();
+        const job = tail
+          .then(async () => {
+            if (!healthy || Date.now() - admitted > maxWaitMs)
+              throw unavailable('Service busy. Please retry shortly.');
+            const state = transientOnly
+                ? { ...cached, hostLease: structuredClone(cached.hostLease) }
+                : cloneState(cached),
+              result = await fn(state);
+            const changed = transientOnly ? false : await persist(state);
+            state.revision = cached.revision + (changed ? 1 : 0);
+            freezeReviews(state);
             cached = state;
             return result;
-          } catch (error) {
-            if (client) await client.query('ROLLBACK').catch(() => {});
-            else db.exec('ROLLBACK');
-            throw error;
-          } finally {
-            client?.release();
-          }
-        });
+          })
+          .finally(() => {
+            pending--;
+          });
         tail = job.catch(() => {});
         return job;
       },
       async close() {
+        closing = true;
         await tail;
         if (pool) {
-          if (guardOwned) await guard.query('SELECT pg_advisory_unlock(741050)').catch(() => {});
+          if (owned) await guard.query('SELECT pg_advisory_unlock(741050)').catch(() => {});
           guard.release();
           await pool.end();
         } else {
@@ -142,16 +249,13 @@ export async function createStorage({ url, filename = './data/arcade.sqlite', in
       },
     };
   } catch (error) {
-    try {
-      db?.close();
-    } finally {
-      releaseFile();
-      if (guard) {
-        if (guardOwned) await guard.query('SELECT pg_advisory_unlock(741050)').catch(() => {});
-        guard.release();
-      }
-      await pool?.end();
+    db?.close();
+    releaseFile();
+    if (guard) {
+      if (owned) await guard.query('SELECT pg_advisory_unlock(741050)').catch(() => {});
+      guard.release();
     }
+    await pool?.end();
     throw error;
   }
 }

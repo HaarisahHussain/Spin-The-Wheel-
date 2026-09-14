@@ -85,6 +85,15 @@ test('HTTP host takeover fences old sockets; cookies and player identity are iso
     });
     assert.equal(r.status, 200);
     const lease = await r.json();
+    const commits = storage.metrics.commits;
+    const receipts = Object.keys(storage.snapshot().commands).length;
+    const heartbeat = await cmd(hostSocket, cookie, 'hostControl', {
+      heartbeat: true,
+      controlEpoch: lease.epoch,
+    });
+    assert.equal(heartbeat.status, 200);
+    assert.equal(storage.metrics.commits, commits);
+    assert.equal(Object.keys(storage.snapshot().commands).length, receipts);
     r = await cmd(b, '', 'staffLogin', { username: 'host', password: PASSWORD, tabId: 'b' });
     const pending = await r.json();
     assert(pending.takeover);

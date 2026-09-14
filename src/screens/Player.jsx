@@ -1,3 +1,4 @@
+import { useDetails } from '../useDetails';
 import { useConfirmation } from '../components/useConfirmation';
 import { Tutorial, GameHelp } from '../games/Tutorial';
 import { useEffect, useState, useRef } from 'react';
@@ -6,7 +7,7 @@ import { Wordmark, Notice, Button, Field, Select, Timer, Score, cx } from '../co
 import { Wheel } from '../components/Wheel';
 import { Game, Question } from '../games/Game';
 import { PuzzleEditor, PuzzleReveal, PuzzleExecution, markerClass } from '../games/Puzzles';
-import { gameById, availableGames, scoreText, grade, SCORING_VERSION } from '../../shared/catalog';
+import { gameById, availableGames, scoreText, grade } from '../../shared/catalog';
 function PrizeDialog({ children, onClose }) {
   const ref = useRef(null);
   useEffect(() => {
@@ -271,21 +272,51 @@ function ScoreRows({ rows }) {
     </div>
   );
 }
+function SessionReview({ attempt }) {
+  const [open, setOpen] = useState(false);
+  const { data, error, loading } = useDetails('review', { id: attempt.id }, open);
+  return (
+    <details
+      className="border-b border-[#DDDDD5] py-3"
+      onToggle={(e) => setOpen(e.currentTarget.open)}
+    >
+      <summary className="min-h-11 text-sm">
+        {gameById(attempt.gameId)?.name} · {scoreText(attempt.score)}
+      </summary>
+      {open &&
+        (error ? (
+          <p role="alert">{error}</p>
+        ) : loading ? (
+          <p>Loading…</p>
+        ) : (
+          data?.review.map((q, i) => (
+            <div key={q.id || i} className="my-4">
+              {q.kind === 'puzzle' ? (
+                <PuzzleReveal q={q} result={q} />
+              ) : (
+                <Question
+                  question={q}
+                  gameId={attempt.gameId}
+                  reveal
+                  submitted={q.selected}
+                  points={q.points}
+                />
+              )}
+            </div>
+          ))
+        ))}
+    </details>
+  );
+}
 function Scores() {
   const { state } = useArcade(),
     [filter, setFilter] = useState('all');
+  const [offset, setOffset] = useState(0);
+  const scores = useDetails('scores', { game: filter });
+  const standings = useDetails('leaderboard', { offset });
   const me = state.me,
-    rank = state.leaderboard.find((r) => r.accountId === me.id);
-  const practice = me.attempts
-    .filter(
-      (a) =>
-        a.mode === 'practice' &&
-        a.version === SCORING_VERSION &&
-        ['completed', 'timed_out', 'abandoned'].includes(a.status) &&
-        (filter === 'all' || a.gameId === filter),
-    )
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 10);
+    rank = me.rank;
+  const practice = scores.data?.practice || [];
   return (
     <div className="space-y-8">
       <section>
@@ -296,7 +327,20 @@ function Scores() {
             : 'Play Ranked to set a score.'}{' '}
           · {Math.max(0, 3 - me.used)} attempts left
         </p>
-        <ScoreRows rows={state.leaderboard} />
+        {standings.error && <p role="alert">{standings.error}</p>}
+        <ScoreRows rows={standings.data?.rows || state.leaderboard} />
+        <div className="flex gap-3">
+          {offset > 0 && (
+            <Button secondary onClick={() => setOffset(Math.max(0, offset - 50))}>
+              Previous
+            </Button>
+          )}
+          {offset + 50 < (standings.data?.total || 0) && (
+            <Button secondary onClick={() => setOffset(offset + 50)}>
+              Next
+            </Button>
+          )}
+        </div>
       </section>
       <section>
         <h2 className="mb-4 text-xl font-medium">Your Practice top ten</h2>
@@ -308,6 +352,7 @@ function Scores() {
             </option>
           ))}
         </Select>
+        {scores.error && <p role="alert">{scores.error}</p>}
         {practice.length ? (
           <ScoreRows rows={practice} />
         ) : (
@@ -316,32 +361,9 @@ function Scores() {
       </section>
       <section>
         <h2 className="mb-3 text-xl font-medium">Review your recent sessions</h2>
-        {me.attempts
-          .filter((a) => a.version === SCORING_VERSION && a.review?.length)
-          .slice(-10)
-          .reverse()
-          .map((a) => (
-            <details key={a.id} className="border-b border-[#DDDDD5] py-3">
-              <summary className="min-h-11 text-sm">
-                {gameById(a.gameId)?.name} · {scoreText(a.score)}
-              </summary>
-              {a.review.map((q, i) => (
-                <div key={q.id || i} className="my-4">
-                  {q.kind === 'puzzle' ? (
-                    <PuzzleReveal q={q} result={q} />
-                  ) : (
-                    <Question
-                      question={q}
-                      gameId={a.gameId}
-                      reveal
-                      submitted={q.selected}
-                      points={q.points}
-                    />
-                  )}
-                </div>
-              ))}
-            </details>
-          ))}
+        {(scores.data?.recent || []).map((a) => (
+          <SessionReview key={a.id} attempt={a} />
+        ))}
       </section>
       <section>
         <h2 className="text-xl font-medium">Recent Live games</h2>

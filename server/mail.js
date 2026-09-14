@@ -17,6 +17,13 @@ export function createMail({
         host,
         port: Number(port),
         secure: Number(port) === 465,
+        requireTLS: Number(port) !== 465,
+        pool: true,
+        maxConnections: 2,
+        maxMessages: 50,
+        connectionTimeout: 5000,
+        greetingTimeout: 5000,
+        socketTimeout: 10000,
         auth: user ? { user, pass: password } : undefined,
       })
     : null;
@@ -38,8 +45,13 @@ export function createMail({
     seal,
     open,
     previewMessages,
+    close: () => transport?.close(),
     async send(job) {
+      for (const [id, value] of previewMessages)
+        if (value.previewAt < Date.now() - 900000) previewMessages.delete(id);
+      if (previewMessages.size >= 200) previewMessages.delete(previewMessages.keys().next().value);
       const payload = open(job.payload);
+      payload.previewAt = Date.now();
       const link = `${origin}/${payload.kind === 'reset' ? 'reset-password' : 'verify'}#token=${encodeURIComponent(payload.token)}`;
       if (payload.subject) {
         if (preview) {

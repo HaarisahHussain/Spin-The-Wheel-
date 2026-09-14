@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.7.0 — 2026-09-14
+
+- Replaced repeated whole-event database reads/writes with a committed memory cache and atomic updates to changed records; added a preserving upgrade from v0.6.0 schema 7.
+- Replaced full recurring screen snapshots with lean initial views and changed-field updates. Added server pagination for participants, results, prizes and standings, with individual reviews loaded on demand.
+- Removed duplicate completed-question history, bounded command receipts, excluded heartbeats/errors/exports from receipt storage, and removed expired or delivered email payloads.
+- Added transaction queue limits, database/password deadlines, traffic limits, source-scoped failed host-login throttling and validation before password hashing.
+- Added polling fallback and non-overlapping, timed host heartbeats; retained server-authoritative gameplay, scoring, timers and Robot playback.
+- Added production/development configuration guards, required production SMTP configuration and bounded concurrent TLS mail delivery.
+- Fixed expired verification queue holds and repeat Live winners reserving prizes they cannot collect.
+- Added persistence, security, pagination and populated-event load regressions; retained the existing game and browser coverage. See validation for deployment limits.
+
 ## 0.6.0 — 2026-09-13
 
 - Redesigned minigames around programmatic thinking: small-input state tracing, explicit Debug goals, dependency routes, first-match rules and repeated painting.
