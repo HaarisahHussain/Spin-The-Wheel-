@@ -18,7 +18,7 @@ export function InformationLinks() {
           className="inline-flex min-h-11 items-center underline underline-offset-4"
           href="/versions"
         >
-          v1.1.0 · Version history
+          v1.3.0 · Version history
         </a>
       </nav>
     </footer>
@@ -89,7 +89,7 @@ export function Information() {
         ) : (
           <>
             <h1 className="text-3xl font-medium">Legal & accessibility</h1>
-            <p className="text-xs text-[#62625C]">Arcade v1.1.0 · Updated 14 September 2026</p>
+            <p className="text-xs text-[#62625C]">Arcade v1.3.0 · Updated 16 September 2026</p>
             <Section title="Playing">
               <p>
                 Scan the QR to get a browser account. Choose a public username under Account; your
@@ -131,9 +131,10 @@ export function Information() {
             <Section title="Retention & support">
               <p>
                 The organiser deletes event accounts, names and scores after the configured cleanup
-                date. Exported files and backups need separate deletion. Ask the host for the
-                event’s retention date, access or correction of your information, deletion, or help
-                with a privacy concern. You can also contact the{' '}
+                date, including automatic in-database recovery snapshots. Exported files and
+                external backups need separate deletion. Ask the host for the event’s retention
+                date, access or correction of your information, deletion, or help with a privacy
+                concern. You can also contact the{' '}
                 <a className="underline" href="https://ico.org.uk/make-a-complaint/">
                   Information Commissioner’s Office
                 </a>

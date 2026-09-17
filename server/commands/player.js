@@ -1,8 +1,8 @@
-import { TIMING } from '../../shared/timing.js';
+import { beginSolo, beginLive } from '../start-game.js';
 import { scoreChallenge, liveMaximum } from '../../shared/scoring.js';
 import { selectGame } from '../selection.js';
 import { queueFits } from '../runtime.js';
-import { availableGames, SCORING_VERSION } from '../../shared/catalog.js';
+import { availableGames } from '../../shared/catalog.js';
 import { requireValue as assert, hash } from '../security.js';
 import { openWindow } from '../state.js';
 import { answerGame } from '../games.js';
@@ -55,7 +55,16 @@ export function playerCommand(s, action, p, ctx, now) {
     return {};
   }
   if (
-    ['ready', 'tutorialReady', 'answer', 'robot', 'puzzle', 'quit', 'liveAnswer'].includes(action)
+    [
+      'ready',
+      'tutorialReady',
+      'liveReady',
+      'answer',
+      'robot',
+      'puzzle',
+      'quit',
+      'liveAnswer',
+    ].includes(action)
   ) {
     assert(
       account.inputConnection === ctx.connectionId && account.inputSession === hash(ctx.token),
@@ -88,13 +97,22 @@ export function playerCommand(s, action, p, ctx, now) {
   }
   if (action === 'tutorialReady') {
     requireEligible(s, account);
-    const a = s.active;
+    assert(s.active?.accountId === account.id, 'This is another player’s turn.', 403);
+    beginSolo(s, p.selectionId, now);
+    return {};
+  }
+  if (action === 'liveReady') {
+    requireEligible(s, account);
+    const live = s.live;
     assert(
-      a?.accountId === account.id && a.phase === 'introduction' && now < a.until,
-      'Introduction expired. Join the queue again.',
+      live?.id === p.liveId && live.phase === 'introduction',
+      'This lobby is no longer waiting.',
+      409,
     );
-    (account.tutorials ||= {})[a.gameId] = SCORING_VERSION;
-    Object.assign(a, { phase: 'countdown', until: now + TIMING.countdown });
+    const entry = live.roster[account.id];
+    assert(entry, 'Join this Live game first.', 403);
+    entry.ready = true;
+    if (Object.values(live.roster).every((e) => e.ready)) beginLive(s, live.id, now);
     return {};
   }
   if (action === 'ready') {

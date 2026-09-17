@@ -105,6 +105,7 @@ export function publicLive(live) {
     winners: live.winners,
     roster: Object.values(live.roster).map((e, i) => ({
       accountId: e.accountId,
+      ready: Boolean(e.ready),
       mark: i + 1,
       score: reveal ? e.score : undefined,
       submitted: e.answer !== null,

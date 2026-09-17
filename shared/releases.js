@@ -1,6 +1,18 @@
 // Public summaries; CHANGELOG.md holds the detailed engineering history.
 export const releases = [
   {
+    version: '1.3.0',
+    name: 'Ready When You Are',
+    summary:
+      'Untimed instructions, player and host start controls, clearer worked examples and a refined wheel. Existing v1.1+ data is preserved with a pre-upgrade recovery snapshot.',
+  },
+  {
+    version: '1.2.0',
+    name: 'Sound & Spin',
+    summary:
+      'A larger gameplay-screen wheel, synchronised spin and result sounds, countdown cues and an optional display sound control.',
+  },
+  {
     version: '1.1.0',
     name: 'Just Play',
     summary:

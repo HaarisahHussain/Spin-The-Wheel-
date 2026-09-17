@@ -379,7 +379,7 @@ test('private results export requires recent host authentication and escapes spr
     if (session.staffId) session.reauthenticated = NOW - 900001;
   assert.equal((await command(f, 'host.export', {}, f.host)).status, 401);
 });
-test('first introduction requires readiness, times out without charging and retains the selected game', async () => {
+test('introduction waits indefinitely without charging and retains the selected game', async () => {
   const f = fixture();
   await host(f);
   const p = await player(f);
@@ -391,10 +391,10 @@ test('first introduction requires readiness, times out without charging and reta
   assert.equal(f.s.active.phase, 'introduction');
   assert.equal(f.s.attempts.filter((a) => a.accountId === p.id).length, 0);
   tick(f.s, NOW + 23000);
-  assert.equal(f.s.active, null);
+  assert.equal(f.s.active.phase, 'introduction');
   assert.equal(f.s.attempts.filter((a) => a.accountId === p.id).length, 0);
   assert.equal(f.s.accounts[p.id].pendingGame, selected);
-  assert.match(f.s.accounts[p.id].turnNotice, /timed out/);
+  assert.equal(f.s.active.until, null);
 });
 test('tutorial confirmation starts one countdown and cannot be replayed', async () => {
   const f = fixture();
@@ -404,9 +404,29 @@ test('tutorial confirmation starts one countdown and cannot be replayed', async 
   await command(f, 'host.call', {}, f.host);
   await command(f, 'ready', {}, p.token);
   tick(f.s, NOW + 3000);
-  assert(!(await command(f, 'tutorialReady', {}, p.token, NOW + 4000)).error);
+  assert(
+    !(
+      await command(
+        f,
+        'tutorialReady',
+        { selectionId: f.s.active.selection.id },
+        p.token,
+        NOW + 4000,
+      )
+    ).error,
+  );
   assert.equal(f.s.attempts.filter((a) => a.accountId === p.id).length, 0);
-  assert((await command(f, 'tutorialReady', {}, p.token, NOW + 4001)).error);
+  assert(
+    (
+      await command(
+        f,
+        'tutorialReady',
+        { selectionId: f.s.active.selection.id },
+        p.token,
+        NOW + 4001,
+      )
+    ).error,
+  );
   tick(f.s, NOW + 7000);
   assert.equal(f.s.attempts.filter((a) => a.accountId === p.id).length, 1);
 });

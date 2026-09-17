@@ -1,3 +1,4 @@
+import { instructions } from '../../shared/instructions';
 import { useState, useEffect } from 'react';
 import { gameById, availableGames } from '../../shared/catalog';
 import { useClock, useArcade } from '../state';
@@ -37,16 +38,6 @@ const samples = {
     solution: [{ repeat: 3, body: ['right', 'paint'] }],
   },
 };
-const instructions = {
-  robot:
-    'Write arrows, then Run. Collect every item and finish at the flag. Numbered keys open matching gates. Each run starts over.',
-  parcel:
-    'Reorder the rules. Each parcel follows only the first rule it matches. The letter beside a parcel is its required depot.',
-  painter:
-    'Move changes position; Paint marks it. Repeat runs its 2–4 instructions 2–4 times. One block is allowed. Match the target within the tile budget.',
-  debug: 'Tap the faulty statement, then Submit. Keep the given inputs and final print unchanged.',
-  output: 'Read the code from top to bottom. Choose what it prints, then Submit.',
-};
 const sampleResults = {
   robot: {
     path: [0, 1, 2, 3],
@@ -81,7 +72,7 @@ const sampleResults = {
     })),
   },
 };
-export function Tutorial({ gameId, display = false }) {
+export function Tutorial({ gameId, display = false, live = false }) {
   const [run, setRun] = useState(null),
     now = useClock(),
     q = samples[gameId],
@@ -91,49 +82,86 @@ export function Tutorial({ gameId, display = false }) {
   }, [gameId, display]);
   const result = sampleResults[gameId];
   return (
-    <section className="mx-auto max-w-lg space-y-4">
-      <h2 className="text-2xl font-medium">{gameById(gameId)?.name}</h2>
-      <p className="text-sm">{instructions[gameId]}</p>
-      <p className="text-xs text-[#62625C]">Example only · no score</p>
-      {q ? (
-        run ? (
-          <PuzzleExecution
-            q={q}
-            execution={{
-              id: 'sample',
-              started: run,
-              until: run + 2400,
-              selected: q.solution,
-              result,
-            }}
-            display={display}
-          />
+    <section
+      className={
+        display
+          ? 'mx-auto grid w-full max-w-6xl grid-cols-2 items-center gap-10'
+          : 'mx-auto max-w-lg space-y-5'
+      }
+    >
+      <div className="space-y-4">
+        <h2 className={display ? 'text-3xl font-medium' : 'text-2xl font-medium'}>
+          {gameById(gameId)?.name}
+        </h2>
+        <p className={display ? 'text-xl font-medium' : 'font-medium'}>
+          {instructions[gameId].goal}
+        </p>
+        <ol
+          className={`list-decimal space-y-3 pl-5 ${display ? 'text-base leading-relaxed' : 'text-sm leading-relaxed'}`}
+        >
+          {instructions[gameId].steps.map((step) => (
+            <li key={step}>
+              {live
+                ? step
+                    .replace(
+                      'Press Run to test the order.',
+                      'Press Lock program to submit your order.',
+                    )
+                    .replace(/\bRun\b/g, 'Lock program')
+                : step}
+            </li>
+          ))}
+        </ol>
+        <p className="text-sm text-[#62625C]">
+          {live
+            ? 'Live: one submission per round. Everyone starts together.'
+            : q
+              ? 'Solo: up to three runs per board. Fix your route or instructions and try again while time remains.'
+              : 'One answer per question. A wrong answer or running out of time earns no points.'}
+        </p>
+      </div>
+      <div className="space-y-3">
+        <p className="text-xs text-[#62625C]">Worked example · no score</p>
+        <p className="text-sm leading-relaxed">{instructions[gameId].example}</p>
+        {q ? (
+          run ? (
+            <PuzzleExecution
+              q={q}
+              execution={{
+                id: 'sample',
+                started: run,
+                until: run + 2400,
+                selected: q.solution,
+                result,
+              }}
+              display={display}
+            />
+          ) : (
+            <PuzzleView q={q} display={display} />
+          )
         ) : (
-          <PuzzleView q={q} display={display} />
-        )
-      ) : (
-        <>
-          <Code
-            code={
-              gameId === 'debug'
-                ? 'a = 2\nb = 3\ntotal = a - b\nprint(total)'
-                : 'values = [2, 5, 3]\nprint(values[1])'
-            }
-          />
-          {run && (
-            <p role="status" className="rounded-lg bg-[#DDEBE0] p-3 text-sm">
-              {gameId === 'debug'
-                ? 'Line 3: use + to add. The total becomes 5.'
-                : 'The answer is 5. List positions begin at zero.'}
-            </p>
-          )}
-        </>
-      )}
-      {!display && (
+          <>
+            <Code
+              display={display}
+              code={
+                gameId === 'debug'
+                  ? 'a = 2\nb = 3\ntotal = a - b\nprint(total)'
+                  : 'values = [2, 5, 3]\nprint(values[1])'
+              }
+            />
+            {run && (
+              <p role="status" className="rounded-lg bg-[#DDEBE0] p-3 text-sm">
+                {gameId === 'debug'
+                  ? 'Line 3: use + to add. The total becomes 5.'
+                  : 'The answer is 5. List positions begin at zero.'}
+              </p>
+            )}
+          </>
+        )}
         <Button secondary disabled={running} onClick={() => setRun(now)}>
           {q ? 'Play example' : 'Show answer'}
         </Button>
-      )}
+      </div>
     </section>
   );
 }

@@ -1,3 +1,21 @@
+# v1.3.0 validation
+
+Checked on 16 September 2026: all 63 backend/content/HTTP/load/recovery tests pass, lint and production build pass, and all 17 Chromium browser tests pass.
+
+New coverage verifies indefinite solo/Live instructions, null-deadline scheduler behaviour, explicit player and host starts, rejection of stale/duplicate/unauthorised starts, all-player Live readiness and host override. Browser checks cover all five instruction pages at 720p and phone width, player starts, host starts and existing gameplay/audio regressions. Instruction and wheel screenshots were visually inspected.
+
+The persistence test upgrades and reopens a populated v1.1-format SQLite database and compares account, session, score, history, update and audit records. It checks that the original private snapshot is retained once, not overwritten on restart, and removed during explicit cleanup. Unsupported formats are rejected without deleting records. Production PostgreSQL statements use the existing transaction path; a hosted PostgreSQL upgrade was not executed here. Take a provider backup before deployment.
+
+No game rules, score values or active-question allowances changed. Instruction wait time is deliberately unlimited, so queue and closing estimates cannot guarantee an exact finishing time. Physical phones, event speakers and venue connectivity retain the deployment limits below.
+
+# v1.2.0 validation
+
+Checked on 15 September 2026. Lint and production build pass. Three new audio tests verify wheel timing, cue deduplication, correct/incorrect solo and Live results, zero-score endings and countdowns.
+
+The browser regression run passed 13 existing cases and caught a 720p overflow after adding the sound control. Display spacing was corrected; the affected monitor-layout test and new audio test then both passed. These cover all 15 browser cases across the initial and targeted runs. The new test exercises a real browser AudioContext, explicit opt-in, wheel clicks, successful-level audio, immediate mute, quiet reload and a silent Join display. The enlarged wheel screenshot was visually inspected.
+
+Audio quality and speaker loudness still need a brief check on the event hardware. Desktop automation verifies audio scheduling, not subjective sound quality. No backend/game rules or database format changed; the previous backend evidence follows.
+
 # v1.1.0 validation and release limits
 
 Checked locally on 14 September 2026 using Node, Python, SQLite and Chromium. Automated checks establish implemented behaviour, not equal game difficulty or hosted capacity.

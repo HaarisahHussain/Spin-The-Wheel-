@@ -72,6 +72,17 @@ export async function start(f, p, gameId = 'debug', mode = 'solo') {
   f.s.accounts[p.id].pendingGame = gameId;
   assert(!(await command(f, 'ready', {}, p.token)).error);
   tick(f.s, NOW + 3000);
+  assert(
+    !(
+      await command(
+        f,
+        'tutorialReady',
+        { selectionId: f.s.active.selection.id },
+        p.token,
+        NOW + 3000,
+      )
+    ).error,
+  );
   tick(f.s, NOW + 6000);
   return f.s.active;
 }

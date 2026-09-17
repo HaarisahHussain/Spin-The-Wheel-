@@ -187,21 +187,12 @@ export function tick(s, now, _connected = new Set()) {
             ? a.game.execution.until
             : a.game.deadline;
       if (a.game.complete) finish(s, a.game.completionStatus || 'completed', now);
-    } else if (now >= a.until) {
-      if (a.phase === 'called' || a.phase === 'introduction' || a.phase === 'result') {
-        if (a.phase === 'introduction')
-          s.accounts[a.accountId].turnNotice =
-            'Your introduction timed out. Review How to play, then join again. No game was started.';
+    } else if (a.until !== null && now >= a.until) {
+      if (a.phase === 'called' || a.phase === 'result') {
         for (const [key, session] of Object.entries(s.sessions))
           if (session.controller && session.accountId === a.accountId) delete s.sessions[key];
         s.active = null;
-      } else if (a.phase === 'wheel')
-        Object.assign(
-          a,
-          s.accounts[a.accountId].tutorials?.[a.gameId] === SCORING_VERSION
-            ? { phase: 'countdown', until: now + TIMING.countdown }
-            : { phase: 'introduction', until: now + TIMING.introduction },
-        );
+      } else if (a.phase === 'wheel') Object.assign(a, { phase: 'introduction', until: null });
       else if (a.phase === 'countdown') {
         if (eligible(s, s.accounts[a.accountId])) createAttempt(s, now);
         else s.active = null;
@@ -213,7 +204,7 @@ export function tick(s, now, _connected = new Set()) {
     live?.phase === 'question' &&
     now >= live.questionAt + 2000 &&
     Object.values(live.roster).every((e) => e.answer !== null);
-  if (live && (now >= live.until || allAnswered)) {
+  if (live && ((live.until !== null && now >= live.until) || allAnswered)) {
     if (live.phase === 'lobby') {
       for (const id of Object.keys(live.roster))
         if (!eligible(s, s.accounts[id])) delete live.roster[id];
@@ -227,10 +218,7 @@ export function tick(s, now, _connected = new Set()) {
           until: selection.until,
         });
       }
-    } else if (live.phase === 'wheel')
-      Object.assign(live, { phase: 'introduction', until: now + TIMING.liveIntroduction });
-    else if (live.phase === 'introduction')
-      Object.assign(live, { phase: 'countdown', until: now + TIMING.countdown });
+    } else if (live.phase === 'wheel') Object.assign(live, { phase: 'introduction', until: null });
     else if (live.phase === 'countdown') nextLiveQuestion(s, now);
     else if (live.phase === 'question')
       Object.assign(live, {
@@ -355,10 +343,10 @@ export function transitionDue(s, now) {
         ? game.feedbackUntil
         : game.deadline
     : s.active?.until;
-  if (s.active && now >= until) return true;
+  if (s.active && until !== null && now >= until) return true;
   if (
     s.live &&
-    (now >= s.live.until ||
+    ((s.live.until !== null && now >= s.live.until) ||
       (s.live.phase === 'question' &&
         now >= s.live.questionAt + 2000 &&
         Object.values(s.live.roster).every((e) => e.answer !== null)))

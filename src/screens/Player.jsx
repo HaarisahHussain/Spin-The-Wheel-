@@ -132,15 +132,24 @@ function Scores() {
   );
 }
 function LivePlay() {
-  const { state, command } = useArcade(),
+  const { state, command, busy } = useArcade(),
     live = state.live,
     entry = state.me.liveEntry;
   if (live.phase === 'introduction')
     return (
       <>
-        <Tutorial gameId={live.gameId} />
-        <p className="mt-3 text-sm">
-          Starts in <Timer until={live.until} />
+        <Tutorial gameId={live.gameId} live />
+        <Button
+          className="mt-4 w-full"
+          disabled={busy || live.roster.find((e) => e.accountId === state.me.id)?.ready}
+          onClick={() => command('liveReady', { liveId: live.id })}
+        >
+          {live.roster.find((e) => e.accountId === state.me.id)?.ready
+            ? 'Ready · waiting for others'
+            : 'I’m ready to play'}
+        </Button>
+        <p className="mt-3 text-sm text-[#62625C]">
+          Everyone starts together when all players are ready, or when the host starts.
         </p>
       </>
     );
@@ -251,18 +260,20 @@ function Play() {
           <Button disabled={busy} onClick={() => command('ready')}>
             I’m ready
           </Button>
-          <Timer until={a.until} />
         </div>
       );
     if (a.phase === 'introduction')
       return (
         <div className="space-y-4">
           <Tutorial gameId={a.gameId} />
-          <Button disabled={busy} onClick={() => command('tutorialReady')}>
-            I’m ready
+          <Button
+            disabled={busy}
+            onClick={() => command('tutorialReady', { selectionId: a.selection.id })}
+          >
+            Start game
           </Button>
           <p className="text-xs text-[#62625C]">
-            Ready within <Timer until={a.until} />. Your attempt starts after the countdown.
+            Take your time. Press Start game when you understand the rules.
           </p>
         </div>
       );

@@ -1,3 +1,4 @@
+import { beginSolo, beginLive } from '../start-game.js';
 import { sessionFor, requireValue as assert, textValue } from '../security.js';
 import { sessionResults, openWindow, log } from '../state.js';
 import {
@@ -62,7 +63,10 @@ export function hostCommand(s, action, p, ctx, now) {
     return { csv: rows.map((row) => row.map(cell).join(',')).join('\r\n') };
   }
 
-  if (action === 'assistedEnqueue') {
+  if (action === 'startGame') {
+    if (p.liveId) beginLive(s, p.liveId, now);
+    else beginSolo(s, p.selectionId, now);
+  } else if (action === 'assistedEnqueue') {
     const account = s.accounts[p.accountId];
     requireEligible(s, account);
     assert(p.identityConfirmed === true, 'Confirm participant identity.');
@@ -89,7 +93,7 @@ export function hostCommand(s, action, p, ctx, now) {
       .sort((a, b) => a.sequence - b.sequence)[0];
     assert(next, 'No eligible player is waiting.');
     s.queue = s.queue.filter((q) => q !== next);
-    s.active = { ...next, phase: 'called', until: now + 20000 };
+    s.active = { ...next, phase: 'called', until: null };
     s.accounts[next.accountId].attendedAt ||= now;
   } else if (action === 'skip') {
     assert(reason, 'Give a short reason.');

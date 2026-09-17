@@ -1,3 +1,4 @@
+import { DisplaySound } from '../components/DisplaySound';
 import { Tutorial } from '../games/Tutorial';
 import { PuzzleView, RobotRace, LivePuzzleExecution } from '../games/Puzzles';
 import { QRCodeSVG } from 'qrcode.react';
@@ -82,8 +83,9 @@ function LiveDisplay({ live }) {
         </div>
       </div>
     );
-  if (live.phase === 'introduction') return <Tutorial gameId={live.gameId} display />;
-  if (live.phase === 'wheel') return <Wheel key={live.selection.id} selection={live.selection} />;
+  if (live.phase === 'introduction') return <Tutorial gameId={live.gameId} display live />;
+  if (live.phase === 'wheel')
+    return <Wheel display key={live.selection.id} selection={live.selection} />;
   if (live.phase === 'countdown')
     return (
       <div className="space-y-6 text-center">
@@ -170,23 +172,24 @@ export function PlayDisplay() {
   if (!state) return <div className="p-12">Connecting…</div>;
   const a = state.active;
   return (
-    <div className="flex h-svh flex-col px-[5vw] py-[3vh]">
-      <header className="flex items-center justify-between">
+    <div className="flex h-svh flex-col px-[5vw] py-[2vh]">
+      <header className="flex items-center justify-between gap-4">
         <Wordmark display />
         {a && (
           <p className="text-xl text-[#62625C]">
             {a.alias} <span className="mx-3">/</span> <span className="capitalize">{a.mode}</span>
           </p>
         )}
+        <DisplaySound />
       </header>
       <Notice />
-      <main className="grid min-h-0 flex-1 place-items-center py-3">
+      <main className="grid min-h-0 flex-1 place-items-center py-2">
         {state.live ? (
           <LiveDisplay live={state.live} />
         ) : !a ? (
           <div className="w-full space-y-4 text-center">
             {!state.config.paused && state.config.idlePresentation !== 'text' && (
-              <Wheel idle animate={state.config.animateIdleWheel} />
+              <Wheel display idle animate={state.config.animateIdleWheel} />
             )}
             {(state.config.paused || state.config.idlePresentation !== 'wheel') && (
               <h1 className="text-4xl font-medium tracking-tight lg:text-5xl">
@@ -209,7 +212,7 @@ export function PlayDisplay() {
         ) : a.phase === 'introduction' ? (
           <Tutorial gameId={a.gameId} display />
         ) : a.phase === 'wheel' ? (
-          <Wheel key={a.selection.id} selection={a.selection} />
+          <Wheel display key={a.selection.id} selection={a.selection} />
         ) : a.phase === 'briefing' ? (
           <div className="max-w-3xl text-center">
             <h1 className="text-6xl font-medium">{gameById(a.gameId).name}</h1>

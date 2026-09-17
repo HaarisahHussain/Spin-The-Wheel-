@@ -1,4 +1,4 @@
-# BCUSCA Welcome Week Arcade · v1.1.0
+# BCUSCA Welcome Week Arcade · v1.3.0
 
 Scan, play, repeat. Five programming/puzzle games, instant browser accounts and one shared solo/Live leaderboard. React and Tailwind v4 share one origin with Express, Socket.IO and persistent event storage.
 
@@ -44,11 +44,21 @@ Set PostgreSQL `DATABASE_URL`, HTTPS `PUBLIC_ORIGIN`, `HOST_PASSWORD` and a stab
 
 Use one application instance behind one trusted HTTPS reverse proxy supporting WebSockets. PostgreSQL must support a dedicated ownership lock: use a direct or session-pooler connection, not transaction pooling. Do not autoscale replicas.
 
-## Upgrade from v1.0.0
+## Upgrade from v1.1.0 or later
 
-Back up first and finish active games before stopping the old server. Existing schema-7 accounts, browser sessions and solo scores are retained. Legacy Live totals are converted proportionally from 0–1,000 to 0–9 once. Existing Solo/Live history joins the new leaderboard. Earlier Live scores cannot be reconstructed with the new difficulty weights because per-round history was not retained.
+Keep the same `DATABASE_URL` (production), or the same `SQLITE_PATH` and database files (development). Keep `RECEIPT_KEY` unchanged. Do not run reset commands or replace the database. Finish active games and stop the old server before deploying; run one server against the database.
 
-The upgrade deliberately removes email addresses, player password hashes, course/year fields, verification challenges, email jobs, prize records and obsolete audit/notification records. Optional names and usernames remain. Backups and previously exported files require separate deletion. The schema stays compatible with record storage, but rolling back the application requires its matching database backup.
+Accounts, usernames, optional names, browser sessions, solo/Live scores, history, queue and event settings are retained. No score conversion or account renaming takes place. The internal guest-data format remains `1.1.0`; the interface version becomes `1.3.0`.
+
+On the first upgrade of an existing record database, the server writes a one-time snapshot into `arcade_backups` before application migration. It is not loaded or sent during normal gameplay. It contains private event data and is deleted by the host’s explicit Delete event data action. Existing external/provider backups still need their normal retention policy. A same-database snapshot protects against migration mistakes, not loss of the database itself: take a provider backup first.
+
+Older formats are rejected without deleting event records. v1.0.0 and earlier are outside the supported upgrade path. If a deployment fails, keep the database and investigate the error; never fix it by resetting production data. See Operations for snapshot recovery.
+
+## Starting a game
+
+Solo: call a player, let them tap Ready to spin, then give them as long as they need to read. Either the player or host presses **Start game**, followed by a three-second countdown. Every turn shows instructions, including repeat plays.
+
+Live: after the timed lobby and wheel, each participant presses **I’m ready to play**. Everyone starts together when all participants are ready, or when the host presses **Start for everyone**. The host can cancel if someone has left. There is no instruction timeout. In-game question timers are unchanged. Queue and closing-time estimates remain approximate because reading time is unlimited.
 
 ## Checks and guides
 
@@ -64,3 +74,9 @@ Rebuild prepared puzzle banks with `npm run content:build` only after changing t
 - [Architecture](docs/ARCHITECTURE.md): authority, scoring, persistence and extension.
 - [Validation](docs/VALIDATION.md): automated evidence and limits.
 - [Changelog](CHANGELOG.md): detailed release history.
+
+## Display sound
+
+On `/display/play`, click **Enable sound** once after opening or refreshing the page. Use **Mute sound** to silence it immediately. Sound plays only on the gameplay display: wheel clicks, selection, countdown, level feedback and final results. Idle animation stays silent. Hidden or disconnected displays suppress cues; old cues are not replayed on reconnect. Visual feedback remains available without sound. Set the physical speaker volume before opening the stall.
+
+

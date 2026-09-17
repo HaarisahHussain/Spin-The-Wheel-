@@ -41,17 +41,22 @@ try {
   await storage.transact((s) => {
     if (s.schemaVersion !== 7)
       throw Error(
-        'Use a clean v0.6.0 database. Set SQLITE_PATH to a new file locally, or select an empty PostgreSQL database. No data was deleted.',
+        'Unsupported database schema. Keep this database and restore the previous application version; a compatible migration is required. No event data was changed.',
       );
     for (const [id, session] of Object.entries(s.sessions))
       if (session.staffId) delete s.sessions[id];
     upgradeGuestEvent(s);
+    s.config.interfaceVersion = '1.3.0';
     delete s.config.prototypeGames;
     s.hostLease = null;
     s.controlEpoch++;
     s.takeovers = {};
     if (s.active && !['playing', 'result'].includes(s.active.phase)) {
-      s.active = { ...s.active, phase: 'called', until: Date.now() + 20000 };
+      s.active = {
+        ...s.active,
+        phase: s.active.phase === 'called' ? 'called' : 'introduction',
+        until: null,
+      };
       s.config.paused = true;
     }
     if (s.active?.phase === 'playing') {
@@ -71,7 +76,11 @@ try {
       s.active = null;
       s.config.paused = true;
     }
-    if (s.live && s.live.phase !== 'winner') {
+    if (s.live?.phase === 'introduction') {
+      s.live.until = null;
+      for (const e of Object.values(s.live.roster)) e.ready = false;
+      s.config.paused = true;
+    } else if (s.live && s.live.phase !== 'winner') {
       s.live = null;
       s.config.nextLobbyAt = Date.now() + s.config.interval * 1000;
     }

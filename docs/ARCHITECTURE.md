@@ -1,4 +1,4 @@
-# Architecture · v1.1.0
+# Architecture · v1.3.0
 
 ## Boundaries
 
@@ -13,7 +13,7 @@
 | server/state.js, projection.js, details.js | Unified standings, safe screen views and paginated records |
 | server/storage.js, working-state.js | Single-writer cache, isolated drafts and changed-record persistence |
 | server/receipts.js | Authenticated encryption of cached credential responses |
-| server/upgrade.js | One-time guest-flow conversion of existing event records |
+| server/upgrade.js | Non-mutating validation of the supported v1.1+ guest-data format |
 | src/state.jsx, useDetails.js | Same-origin requests, reconnect, host lease and on-demand history |
 | src/screens/, src/games/ | Device screens and shared controllers/renderers |
 
@@ -41,14 +41,6 @@ SQLite WAL supports development. PostgreSQL stores individual `arcade_records` w
 
 The scheduler checks deadlines every 250 ms, with periodic maintenance. Slow clients receive coalesced updates. Transaction queues and password work are bounded; host passwords use asynchronous scrypt. Rates and control leases are transient. An ambiguous PostgreSQL failure stops writes until restart reloads committed state. Preserve the stable receipt key for cached responses across restarts.
 
-v1.1 upgrades schema-7 records once after active games have finished. It retains account/session ownership and solo scores, converts old Live totals proportionally from their 1,000-point scale, and removes obsolete email/password/prize data. Historical per-round Live weights cannot be reconstructed. Unknown schemas are never silently erased.
+v1.1+ schema-7 guest records remain unchanged by upgrades. A one-time private `arcade_backups` snapshot is written before the v1.3 interface upgrade, outside the hot application state. Scores are never rescaled. The host’s explicit cleanup deletes snapshots in the same transaction as event data. Older formats are rejected; automatic destructive conversion has been removed.
 
-## Extend a game
-
-1. Add server generation, input validation, evaluation and public projection to a game adapter under `server/games/`.
-2. Register metadata and implement phone/display rendering under `src/games/`; both solo and Live use the shared adapter contract.
-3. Keep evaluation bounded. Build expensive puzzle banks offline with `npm run content:build` and commit the verified bank.
-4. Add independent reference checks for solvability, malformed input, secret-field exclusion, score boundaries and playback.
-5. Rehearse controls and difficulty with unfamiliar players before changing the event pool. Update the scoring version when changing the solo formula/content compatibility.
-
-Public information pages run outside the live provider so they work without Socket.IO. `shared/releases.js` contains short version summaries; CHANGELOG.md holds detailed history.
+Solo `called` and `introduction`, and Live `introduction`, have a null deadline. Scheduler predicates explicitly exclude null deadlines. Player/host confirmation moves the selected session to a timed countdown. Session identifiers prevent stale clicks from starting a later game. Live readiness is per participant and can be overridden by the exclusive host. Estimated slot durations remain planning estimates, not reading deadlines.

@@ -103,6 +103,10 @@ app.app.post('/__test/scene', async (req, res) => {
       const selection = selectGame(games, now, gameId);
       s.active = { ...s.active, phase: 'wheel', selection, until: selection.until };
     }
+    if (req.body.introduction) {
+      const selection = selectGame(games, now, gameId);
+      s.active = { ...s.active, phase: 'introduction', selection, until: null };
+    }
     if (req.body.live) {
       s.active = null;
       s.live = {

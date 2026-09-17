@@ -1,10 +1,17 @@
+import { wheelAngle } from '../audio/cues';
 import { useEffect, useRef, useState } from 'react';
 import { availableGames, games, gameById } from '../../shared/catalog';
 import { wheelSlots } from '../../shared/wheel';
 import { useArcade } from '../state';
-const fills = ['fill-[#E4EBE2]', 'fill-[#E7E4DA]', 'fill-[#DDE5EB]', 'fill-[#EEE0DC]'];
+const fills = [
+  'fill-[#D7E6DA]',
+  'fill-[#D6E3EC]',
+  'fill-[#F0E5BD]',
+  'fill-[#E9D9D1]',
+  'fill-[#E1DDEC]',
+];
 const point = (angle) => [200 + 188 * Math.sin(angle), 200 - 188 * Math.cos(angle)];
-export function Wheel({ selection, idle = false, animate = true }) {
+export function Wheel({ selection, idle = false, animate = true, display = false }) {
   const { state } = useArcade();
   const rotor = useRef(null);
   const clock = useRef({ server: state?.now ?? Date.now(), local: performance.now() });
@@ -35,7 +42,7 @@ export function Wheel({ selection, idle = false, animate = true }) {
           ? 0
           : idle
             ? ((now % 24000) / 24000) * 360
-            : (1080 - (sector + 0.5) * 36) * (1 - (1 - progress) ** 3);
+            : wheelAngle({ startedAt, until, sector }, now);
       rotor.current?.setAttribute('transform', `rotate(${angle} 200 200)`);
       if (!reduced && animate && (idle || progress < 1)) frame = requestAnimationFrame(draw);
     };
@@ -51,7 +58,9 @@ export function Wheel({ selection, idle = false, animate = true }) {
     };
   }, [idle, animate, reduced, startedAt, until, sector]);
   return (
-    <div className="mx-auto w-full max-w-[min(49vh,480px)] text-center">
+    <div
+      className={`mx-auto w-full text-center ${display ? (idle ? 'max-w-[min(58svh,720px)]' : 'max-w-[min(65svh,800px)]') : 'max-w-[min(49vh,480px)]'}`}
+    >
       <div className="relative aspect-square">
         {!idle && (
           <svg
@@ -70,6 +79,13 @@ export function Wheel({ selection, idle = false, animate = true }) {
           aria-label={idle ? 'Arcade games' : 'Selecting game'}
           className="h-full w-full"
         >
+          <circle cx="200" cy="200" r="198" className="fill-white stroke-[#D0D0C6] stroke-[1]" />
+          <circle
+            cx="200"
+            cy="200"
+            r="192"
+            className="fill-[#F7F7F2] stroke-[#252525] stroke-[1]"
+          />
           <g ref={rotor} data-wheel-rotor="true">
             {slots.map((id, index) => {
               const [x1, y1] = point((index * Math.PI) / 5),
@@ -82,14 +98,14 @@ export function Wheel({ selection, idle = false, animate = true }) {
                 <g key={index} data-wheel-slot={id}>
                   <path
                     d={`M200 200 L${x1} ${y1} A188 188 0 0 1 ${x2} ${y2} Z`}
-                    className={`${fills[games.findIndex((g) => g.id === id) % fills.length]} stroke-[#F7F7F2] stroke-2`}
+                    className={`${fills[games.findIndex((g) => g.id === id) % fills.length]} stroke-[#F7F7F2] stroke-[1.5]`}
                   />
                   <text
                     x={x}
                     y={y}
                     textAnchor="middle"
                     transform={`rotate(${angle} ${x} ${y})`}
-                    className="fill-[#252525] text-[10px] font-medium"
+                    className="fill-[#252525] text-[11px] font-semibold"
                   >
                     {words.map((word, i) => (
                       <tspan key={i} x={x} dy={i ? 12 : -(words.length - 1) * 6}>
@@ -100,14 +116,30 @@ export function Wheel({ selection, idle = false, animate = true }) {
                 </g>
               );
             })}
-            <circle cx="200" cy="200" r="24" className="fill-[#F7F7F2]" />
           </g>
+          <circle cx="200" cy="200" r="43" className="fill-[#F7F7F2] stroke-white stroke-[3]" />
+          <circle cx="200" cy="200" r="36" className="fill-none stroke-[#D0D0C6] stroke-[.7]" />
+          <text
+            x="200"
+            y="198"
+            textAnchor="middle"
+            className="fill-[#252525] text-[11px] font-semibold tracking-[1px]"
+          >
+            BCUSCA
+          </text>
+          <text
+            x="200"
+            y="211"
+            textAnchor="middle"
+            className="fill-[#62625C] text-[7px] tracking-[2px]"
+          >
+            ARCADE
+          </text>
         </svg>
       </div>
       {!idle && (
         <>
           <p className="mt-3 text-xl font-medium">Selecting game…</p>
-          <p className="mt-1 text-sm text-[#62625C]">Equal chance per game</p>
         </>
       )}
     </div>

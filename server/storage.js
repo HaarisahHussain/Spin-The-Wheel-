@@ -1,5 +1,6 @@
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { upgradeGuestEvent } from './upgrade.js';
 import { acquireInstance } from './instance-lock.js';
 import { cloneState, freezeReviews } from './working-state.js';
 
@@ -129,6 +130,32 @@ export async function createStorage({
           'Unrecognised database schema. Select a compatible database; no data was deleted.',
         );
     }
+    upgradeGuestEvent(cached);
+    // One immutable recovery copy, outside the hot application state. A crash
+    // before migration commits leaves the source and this copy recoverable.
+    if (pool)
+      await pool.query(
+        'CREATE TABLE IF NOT EXISTS arcade_backups (id text PRIMARY KEY, created bigint NOT NULL, body jsonb NOT NULL)',
+      );
+    else
+      db.exec(
+        'CREATE TABLE IF NOT EXISTS arcade_backups (id TEXT PRIMARY KEY, created INTEGER NOT NULL, body TEXT NOT NULL)',
+      );
+    if (loaded.length && cached.config.interfaceVersion !== '1.3.0') {
+      const id = `pre-v1.3.0:${cached.eventId}`;
+      const body = JSON.stringify(cached);
+      if (pool)
+        await pool.query(
+          'INSERT INTO arcade_backups(id,created,body) VALUES($1,$2,$3::jsonb) ON CONFLICT(id) DO NOTHING',
+          [id, Date.now(), body],
+        );
+      else
+        db.prepare('INSERT OR IGNORE INTO arcade_backups(id,created,body) VALUES(?,?,?)').run(
+          id,
+          Date.now(),
+          body,
+        );
+    }
     // Reviews are the canonical completed-question representation from this release.
     for (const attempt of cached.attempts) if (attempt.review) delete attempt.history;
     freezeReviews(cached);
@@ -157,6 +184,8 @@ export async function createStorage({
             );
           if (removed.length)
             await client.query('DELETE FROM arcade_records WHERE key=ANY($1::text[])', [removed]);
+          if (next.purgedAt && next.purgedAt !== cached.purgedAt)
+            await client.query('DELETE FROM arcade_backups');
           await client.query('COMMIT');
         } else {
           db.exec('BEGIN IMMEDIATE');
@@ -166,6 +195,8 @@ export async function createStorage({
           for (const [key, body] of changed) put.run(key, body);
           const del = db.prepare('DELETE FROM arcade_records WHERE key=?');
           for (const key of removed) del.run(key);
+          if (next.purgedAt && next.purgedAt !== cached.purgedAt)
+            db.exec('DELETE FROM arcade_backups');
           db.exec('COMMIT');
         }
       } catch (error) {
@@ -192,11 +223,7 @@ export async function createStorage({
       return true;
     }
     await persist(cached);
-    // Retire the imported aggregate, including its duplicate personal data, only
-    // after the new representation has committed successfully.
-    if (pool)
-      await pool.query('DROP TABLE IF EXISTS arcade_state; DROP TABLE IF EXISTS arcade_emails');
-    else db.exec('DROP TABLE IF EXISTS arcade_state; DROP TABLE IF EXISTS arcade_emails');
+
     return {
       snapshot: () => structuredClone(cached),
       read: (fn) => fn(cached), // Internal read-only selector; never expose its references to mutators.

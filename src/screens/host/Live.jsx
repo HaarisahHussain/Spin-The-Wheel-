@@ -1,3 +1,4 @@
+import { Tutorial } from '../../games/Tutorial';
 import { useState } from 'react';
 import { useArcade } from '../../state';
 import { Button, Timer } from '../../components/ui';
@@ -44,10 +45,20 @@ export function Live({ onOpenSettings }) {
             >
               Call next player
             </Button>
+          ) : a?.phase === 'introduction' || live?.phase === 'introduction' ? (
+            <Button
+              disabled={busy}
+              onClick={() =>
+                command(
+                  'host.startGame',
+                  live ? { liveId: live.id } : { selectionId: a.selection.id },
+                )
+              }
+            >
+              {live ? 'Start for everyone' : 'Start game'}
+            </Button>
           ) : a?.phase === 'called' ? (
-            <p className="rounded-lg bg-white p-4">
-              Waiting for Ready on their phone · <Timer until={a.until} />
-            </p>
+            <p className="rounded-lg bg-white p-4">Waiting for Ready on their phone</p>
           ) : a?.phase === 'playing' ? (
             <div className="text-4xl">
               <Timer until={a.until} />
@@ -67,6 +78,16 @@ export function Live({ onOpenSettings }) {
             {c.paused ? 'Resume admissions' : 'Pause admissions'}
           </Button>
         </div>
+        {(a?.phase === 'introduction' || live?.phase === 'introduction') && (
+          <div className="mb-8">
+            {live && (
+              <p className="mb-4 text-sm text-[#62625C]">
+                {live.roster.filter((e) => e.ready).length} / {live.roster.length} ready
+              </p>
+            )}
+            <Tutorial gameId={live?.gameId || a.gameId} live={Boolean(live)} />
+          </div>
+        )}
         <div className="space-y-5 border-t border-[#DDDDD5] pt-6">
           <div className="flex items-center justify-between">
             <span>Next live lobby</span>

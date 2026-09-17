@@ -124,40 +124,21 @@ test('both Live formats have exactly nine available points and late answers scor
     );
   }
 });
-test('upgrade preserves owned scores, normalises legacy Live once and removes email/prize data', () => {
+test('supported guest data is unchanged; older formats fail without mutation', () => {
   const s = initialState();
-  s.config.releaseVersion = '1.0.0';
-  s.accounts.a = {
-    id: 'a',
-    alias: 'Player-123',
-    fullName: 'Name',
-    email: 'a@bcu.ac.uk',
-    password: 'hash',
-    course: 'CS',
-    verified: true,
-  };
+  s.accounts.a = { id: 'a', alias: 'Player-123', fullName: 'Name' };
   s.sessions[hash('token')] = { accountId: 'a', expires: NOW + 1000 };
-  s.attempts = [
-    { id: 'solo', accountId: 'a', mode: 'ranked', score: 5000000, status: 'completed', ended: NOW },
-  ];
-  s.liveResults = [{ id: 'live', accountId: 'a', score: 800000000, at: NOW }];
-  s.awards = [{ id: 'prize' }];
-  s.outbox = [{ payload: 'secret' }];
+  s.attempts = [{ id: 'solo', accountId: 'a', mode: 'solo', score: 5000000 }];
+  s.liveResults = [{ id: 'live', accountId: 'a', score: 7200000, scoreVersion: '1.1.0' }];
+  s.audit = [{ id: 'audit', reason: 'Keep me' }];
+  const before = structuredClone(s);
   upgradeGuestEvent(s);
-  assert.equal(s.attempts[0].score, 5000000);
-  assert.equal(s.attempts[0].mode, 'solo');
-  assert.equal(s.liveResults[0].score, 7200000);
-  assert.equal(s.accounts.a.email, undefined);
-  assert.equal(s.accounts.a.password, undefined);
-  assert.equal(s.awards.length, 0);
-  assert.equal(s.outbox.length, 0);
-  assert(s.sessions[hash('token')]);
   upgradeGuestEvent(s);
-  assert.equal(s.liveResults[0].score, 7200000);
-  const active = initialState();
-  active.config.releaseVersion = '1.0.0';
-  active.active = { phase: 'playing' };
-  assert.throws(() => upgradeGuestEvent(active), /Finish active games/);
+  assert.deepEqual(s, before);
+  s.config.releaseVersion = '1.0.0';
+  const old = structuredClone(s);
+  assert.throws(() => upgradeGuestEvent(s), /v1.1.0 and later/);
+  assert.deepEqual(s, old);
 });
 test('removed verification and prize commands cannot change the event', async () => {
   const f = fixture();

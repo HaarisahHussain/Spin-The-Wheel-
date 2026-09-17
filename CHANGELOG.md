@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.3.0 — 2026-09-16 · Ready When You Are
+
+- Removed solo arrival and instruction timeouts. Every selected game waits for the player or host to press Start game, including repeat plays.
+- Added per-player Live readiness and a host Start for everyone control. Instructions wait indefinitely; everyone starts together after confirmation and a three-second countdown.
+- Kept in-game deadlines and scoring unchanged. Protected start commands against stale or duplicate clicks.
+- Rewrote all five tutorials with a clear goal, numbered steps, a worked example and mode-specific submission rules. Added a two-column monitor layout and replayable examples.
+- Refined the ten-slot wheel with five muted colours, stronger labels, a rim and a fixed branded centre. Preserved random selection, reduced-motion handling and audio.
+- Preserved v1.1+ guest databases in place with no score conversions or account renaming. Added a one-time private pre-upgrade snapshot and transactional snapshot deletion during explicit event cleanup.
+- Removed support for destructive pre-v1.1 conversion. Older formats fail without deleting event records.
+
+
+## 1.2.0 — 2026-09-15 · Sound & Spin
+
+- Enlarged the idle, solo and Live wheels on the Play display up to 65% of viewport height, capped at 800px (58% for idle layouts with accompanying text); retained phone wheel sizing.
+- Added original synthesised wheel clicks, selection chimes, countdown cues, level feedback and final-result celebrations for solo and Live.
+- Added an explicit Enable sound / Mute sound control on the Play display. Other screens and idle animation remain silent.
+- Suppressed stale/repeated cues across snapshots, reconnects and background tabs; stopped audio on mute and unmount.
+- Kept game rules, scores, timing and database format unchanged. Updated version history and operating instructions.
+
+
 ## 1.1.0 — 2026-09-14 · Just Play
 
 - Added automatic guest entry with a generated username, case-insensitive username editing and optional host-only names. Browser cookies retain ownership; usernames cannot recover or take over accounts.

@@ -1,4 +1,5 @@
 import { LEVEL_CAPS, MAX_RUNS } from './scoring.js';
+// ready/introduction values are queue-planning estimates, not enforced deadlines.
 const phases = {
   wheel: 3000,
   countdown: 3000,

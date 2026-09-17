@@ -1,3 +1,4 @@
+import { DatabaseSync } from 'node:sqlite';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, existsSync, readFileSync, rmSync } from 'node:fs';
@@ -48,8 +49,13 @@ test('failed SQLite initialisation and incompatible-schema startup release their
     rmSync(file);
     const old = initialState();
     old.schemaVersion = 5;
-    const store = await createStorage({ filename: file, initial: old });
-    await store.close();
+    const raw = new DatabaseSync(file);
+    raw.exec('CREATE TABLE arcade_records (key TEXT PRIMARY KEY, body TEXT NOT NULL)');
+    raw.prepare('INSERT INTO arcade_records VALUES (?,?)').run('core/schemaVersion', '5');
+    raw
+      .prepare('INSERT INTO arcade_records VALUES (?,?)')
+      .run('core/config', JSON.stringify(old.config));
+    raw.close();
     const result = spawnSync(process.execPath, [resolve('server/index.js')], {
       env: {
         ...process.env,
@@ -63,11 +69,18 @@ test('failed SQLite initialisation and incompatible-schema startup release their
       timeout: 10000,
     });
     assert.equal(result.status, 1, result.stderr);
-    assert.match(result.stderr, /clean v0.6.0 database/);
+    assert.match(result.stderr, /v1.1.0 and later/);
     assert(!existsSync(file + '.instance'));
-    const again = await createStorage({ filename: file, initial: initialState() });
-    assert.equal(again.snapshot().schemaVersion, 5);
-    await again.close();
+    await assert.rejects(
+      createStorage({ filename: file, initial: initialState() }),
+      /v1.1.0 and later/,
+    );
+    const inspect = new DatabaseSync(file);
+    assert.equal(
+      inspect.prepare("SELECT body FROM arcade_records WHERE key='core/schemaVersion'").get().body,
+      '5',
+    );
+    inspect.close();
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

@@ -1,4 +1,4 @@
-# Operations · v1.1.0
+# Operations · v1.3.0
 
 ## Open the event
 
@@ -17,7 +17,7 @@ A generated username is public and editable; real names are optional and host-on
 
 ## Host views
 
-- **Live:** call players, pause/resume admissions, schedule/delay/cancel multiplayer, report a technical interruption.
+- **Live:** call players, start selected games, check Live readiness, pause/resume admissions, schedule/delay/cancel multiplayer, report a technical interruption.
 - **Event:** save hours, queue capacity, Live timing, idle presentation and cleanup date. Unsaved edits remain drafts.
 - **Players & Results:** search username, optional name or account ID; inspect solo/Live start/end times in UK time; view account/session IDs; assist queue entry after confirming the username.
 - **Event records:** inspect recent activity, export private result records or delete event data.
@@ -40,3 +40,17 @@ For development, use the exact PUBLIC_ORIGIN, restart and reload after editing i
 Pause admissions and finish or clear the queue. After the configured cleanup date, use Delete event data with a reason and explicit confirmation. It permanently removes guest accounts, optional names, scores, sessions and event activity, then closes admissions. Host settings and published Updates remain; remove personal information from notices separately. Delete exported CSV files and expire backups separately.
 
 Before public use, confirm the organiser contact, retention date and actual hosting/data arrangements in the Legal page. Rehearse real phones, Wi-Fi, HTTPS, PostgreSQL and restore. Request limits are protective ceilings, not capacity promises: 600 sockets total, 550 per source, 3,000 commands and 2,400 reads per source per minute. Guest creation allows 1,000 per source per hour. These limits target overload, not one-person enforcement.
+
+## Gameplay audio
+
+Enable sound on the Play display after each load; check speaker volume. Mute it there when needed. Phones, the Join display and host panel remain silent. Audio is optional and never controls deadlines or scoring.
+
+## Reading and starting
+
+Calling a player and reading instructions have no timeout. If someone leaves, use Skip selected turn with a reason. The player or host starts solo gameplay; both buttons address the selected session so a late click cannot start a different turn. Live shows a ready count. Start for everyone is a host override; otherwise all participants must confirm. Reading can delay the next Live event and estimated closing time.
+
+## Upgrade recovery
+
+Use the existing v1.1+ database and stable receipt key. A first upgrade saves a private JSON state snapshot in `arcade_backups` with an ID beginning `pre-v1.3.0:`. Inspect with `SELECT id, created FROM arcade_backups;`; export the matching `body` using your database tool if recovery is needed. Never paste it into public logs. The snapshot preserves the original state, including private records.
+
+For rollback, stop the app and restore the full provider/SQLite backup with its matching application version. The in-database JSON snapshot is an additional recovery source, not a replacement for a full database backup or a one-click rollback. Reconcile any results recorded after the snapshot before restoring; blindly overwriting them would lose new play history. Delete event data also removes these in-database snapshots transactionally.
