@@ -110,7 +110,7 @@ export async function createStorage({
       db.exec('DROP INDEX IF EXISTS arcade_records_email');
     }
     const loaded = pool
-      ? (await pool.query('SELECT key,body FROM arcade_records')).rows
+      ? (await pool.query('SELECT key, body::text AS body FROM arcade_records')).rows
       : db.prepare('SELECT key,body FROM arcade_records').all();
     let cached;
     if (loaded.length) cached = assemble(loaded, initial);
